@@ -25,12 +25,11 @@ import { parseArgs } from "node:util";
 import { generateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { Address, Client, preprod } from "@evolution-sdk/evolution";
-import { Seller, Wallet, emit, flushEvents, formatAmount, setApp, sleep, usageSummary, usdm, EXPLORER_TX } from "@agentic/core";
-import type { EscrowJob } from "@agentic/core/escrow";
-import { connectEvm, fetchSignedRate, usd } from "./evm.ts";
-import { KEEPER_FEE, KEEPER_PORT, KEEPER_ROLES, startKeeper } from "./keeper.ts";
-import { ADDRESS_BOOK, LenaAgent, type Hired } from "./lena.ts";
-import { roles } from "./roles.ts";
+import { Seller, emit, flushEvents, formatAmount, setApp, sleep, usageSummary, EXPLORER_TX } from "@agentic/core";
+import { fetchSignedRate, usd } from "./evm.ts";
+import { KEEPER_FEE, KEEPER_PORT } from "./keeper.ts";
+import { ADDRESS_BOOK } from "./lena.ts";
+import { finishJob, hireForInvoice, startTeam } from "./team.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -48,28 +47,8 @@ const { values: args } = parseArgs({
 });
 
 setApp("payonproof");
-
-/** The Keepers sell the same job at different prices (escrow fee in tUSDM). */
-const KEEPERS = [
-  { role: "KEEPER", port: KEEPER_PORT, fee: usdm(2) },
-  { role: "KEEPER_B", port: KEEPER_PORT + 2, fee: usdm(1) },
-  { role: "KEEPER_C", port: KEEPER_PORT + 3, fee: usdm(4) },
-] as const;
-const nameOf = (role: string) => roles.find((r) => r.role === role)!.name;
-
-const evm = await connectEvm(args.evm, [...KEEPER_ROLES]);
-const lenaWallet = (await Wallet.load("LENA", nameOf("LENA"))).online(args.x402 ? "hires the Keeper per attempt, pays only through AgentGuard" : "chooses a Keeper per invoice, locks its fee in Masumi escrow through AgentGuard");
-emit({ kind: "task.step", actor: "PayOnProof", message: `Invoice escrow on ${evm.name} ${evm.escrow}: checks Nodary's signature, request, freshness and the limit itself`, link: evm.explorer ? evm.addressLink(evm.escrow) : undefined, linkLabel: "contract on basescan ↗" });
-
-const keepers = await Promise.all(KEEPERS.filter((k) => !args.x402 || k.role === "KEEPER").map(async (spec) => {
-  const fee = formatAmount(spec.fee.asset, spec.fee.amount);
-  const wallet = (await Wallet.load(spec.role, nameOf(spec.role))).online(args.x402
-    ? `executes invoice orders on ${evm.name}; ${formatAmount(KEEPER_FEE.asset, KEEPER_FEE.amount)} per success, nothing per failed attempt`
-    : `watches invoice orders and executes them on ${evm.name}; ${fee} per job, locked in Masumi escrow${args.vanish ? " (DEMO: vanishes)" : ""}`);
-  const server = await startKeeper(wallet, evm, { port: spec.port, escrowFee: spec.fee, intervalSec: Number(args.interval), vanish: args.vanish, receipts: !args["no-receipt"] });
-  return { spec, wallet, server };
-}));
-const lena = new LenaAgent(lenaWallet, evm, keepers.map((k) => ({ role: k.spec.role, name: k.wallet.name, url: k.server.url, address: k.wallet.address })));
+const team = await startTeam({ evm: args.evm, x402: args.x402, vanish: args.vanish, intervalSec: Number(args.interval), receipts: !args["no-receipt"] });
+const { evm, lena, lenaWallet } = team;
 
 const live = await fetchSignedRate();
 const rate = Number(live.display);
@@ -85,45 +64,15 @@ const instructions = [
 async function escrowRun() {
   const watch = Number(args.watch);
   emit({ kind: "task.started", actor: lenaWallet.name, message: `Live Nodary-signed EUR/USD is ${live.display}. Lena hands over two invoices: INV-17 below ${limitA}, INV-18 below ${limitB}. Each Keeper's fee is locked in Masumi escrow and released only after it executed` });
-  const hires: (Hired & { invoice: string })[] = [];
+  const hires = [];
   for (const text of instructions) {
-    const order = await lena.place(text);
-    const task = `${order.invoiceRef} #${order.orderId} @${stamp}`;
-    const keeper = await lena.chooseKeeper(order, task, watch);
-    const hired = keeper && (await lena.hire(order.orderId, keeper, task, watch));
-    if (hired) {
-      hires.push({ ...hired, invoice: order.invoiceRef });
-      console.log(`${order.invoiceRef}: ${keeper.name} hired, ${formatAmount(keeper.asset, keeper.amount)} locked in Masumi escrow${hired.lockTx ? `\n  ${EXPLORER_TX}${hired.lockTx}` : ""}`);
-    }
+    const hired = await hireForInvoice(team, text, stamp, watch);
+    if (hired) hires.push(hired);
   }
-
-  const jobs = await Promise.all(hires.map((h) => lena.follow(h, (watch + 8) * 60_000)));
-  const at = (ms?: number) => (ms ? new Date(ms).toLocaleTimeString() : "?");
-  const outcomes: string[] = [];
-  for (const [i, job] of jobs.entries()) {
-    const { invoice, keeper } = hires[i]!;
-    if (!job) {
-      outcomes.push(`${invoice}: no answer from ${keeper.name}`);
-      continue;
-    }
-    if (job.status === "result_submitted") {
-      outcomes.push(`${invoice}: executed by ${keeper.name}, result hash in the escrow, fee collectable from ${at(job.unlockTime)}`);
-      console.log(`\n${invoice}: ${job.summary}\n  result hash ${job.resultHash}\n  result tx ${EXPLORER_TX}${job.escrowTx}\n  ${keeper.name} collects from ${at(job.unlockTime)}: npm run escrow -w apps/payonproof -- finish --wait`);
-    } else if (job.status === "refund_authorized") {
-      const tx = await lena.refund(job, `${keeper.name} authorized the refund (${job.summary})`);
-      outcomes.push(`${invoice}: not executed (${job.summary}), Lena took her fee back`);
-      console.log(`\n${invoice}: ${job.summary}. Refund: ${EXPLORER_TX}${tx}`);
-    } else if (job.status === "vanished" || job.status === "locked" || job.status === "working") {
-      outcomes.push(`${invoice}: ${keeper.name} did not deliver; Lena can refund from ${at(job.submitResultTime)}`);
-      emit({ kind: "task.step", actor: lenaWallet.name, task: job.task, message: `No result reached the escrow. Lena can take her ${job.amount} back from ${at(job.submitResultTime)} (the result deadline)` });
-      console.log(`\n${invoice}: ${keeper.name} did not deliver. Refundable from ${at(job.submitResultTime)}: npm run escrow -w apps/payonproof -- finish --wait`);
-    } else {
-      outcomes.push(`${invoice}: job ${job.status}${job.error ? ` (${job.error})` : ""}`);
-    }
-  }
+  const results = await Promise.all(hires.map((h) => finishJob(team, h, watch)));
   const balances = await Promise.all(Object.values(ADDRESS_BOOK).map(async (s) => `${s.name}: ${usd(await evm.usdBalance(s.address))}`));
-  emit({ kind: "task.done", actor: lenaWallet.name, message: `${outcomes.join(" · ")}. Supplier balances: ${balances.join("; ")}`, data: { jobs } });
-  return jobs.every((j): j is EscrowJob => Boolean(j && j.status !== "failed")) ? 0 : 1;
+  emit({ kind: "task.done", actor: lenaWallet.name, message: `${results.map((r) => r.line).join(" · ")}. Supplier balances: ${balances.join("; ")}`, data: { jobs: results.map((r) => r.job) } });
+  return hires.length === instructions.length && results.every((r) => r.job && r.job.status !== "failed") ? 0 : 1;
 }
 
 /** A message in Lena's inbox points her agent at a look-alike Keeper with another payout address. */
@@ -187,8 +136,6 @@ try {
   emit({ kind: "task.failed", actor: "PayOnProof", message: `Demo stopped: ${error instanceof Error ? error.message : String(error)}` });
   process.exitCode = 1;
 } finally {
-  for (const k of keepers) await k.server.idle();
-  for (const k of keepers) await k.server.close();
-  evm.close();
+  await team.close();
   await flushEvents();
 }

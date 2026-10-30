@@ -59,7 +59,7 @@ interface Executed {
 const payeeName = (address: string) =>
   Object.values(ADDRESS_BOOK).find((s) => s.address.toLowerCase() === address.toLowerCase())?.name ?? `${address.slice(0, 8)}…`;
 
-const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 export async function startKeeper(
   keeper: Wallet,

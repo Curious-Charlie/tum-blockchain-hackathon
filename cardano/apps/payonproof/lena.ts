@@ -191,7 +191,7 @@ export class LenaAgent {
   async hire(orderId: bigint, keeper: Quote, task: string, watchMinutes: number): Promise<Hired | undefined> {
     const body: WatchRequest = { task, watchMinutes };
     try {
-      const response = await this.guard.fetch(`${keeper.url}/orders/${orderId}/watch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, { task, purpose: `${keeper.name} watching ${task} (fee locked in escrow)` });
+      const response = await this.guard.fetch(`${keeper.url}/orders/${orderId}/watch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, { task, purpose: `watching ${task}` });
       if (response.status !== 202) {
         this.step(`${keeper.name} answered HTTP ${response.status}: no lock was made`, task);
         return undefined;

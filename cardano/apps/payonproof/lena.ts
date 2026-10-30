@@ -73,7 +73,7 @@ export class LenaAgent {
         schema: ORDER_SCHEMA,
       });
     } catch (error) {
-      this.step(`Claude unavailable (${error instanceof Error ? error.message : String(error)}); falling back to rule-based parsing`);
+      this.step(`Claude unavailable (${(error instanceof Error ? error.message : String(error)).slice(0, 60)}); falling back to rule-based parsing`);
       parsed = parseWithRules(instruction, today);
     }
     return parsed;

@@ -64,25 +64,30 @@ npm run deploy -w apps/payonproof                   # deploys InvoiceEscrow, fun
 
 ## 60-second demo script
 
-Before: dashboard open at http://127.0.0.1:4000 (click Reset), terminal ready in `cardano/`.
+Before: dashboard open at http://127.0.0.1:4000 (Reset it), a terminal in `cardano/`. Run once beforehand so Claude's answers are cached. The command takes about 40 seconds; talk over it.
 
 | Time | Say | Show / do |
 |---|---|---|
-| 0:00 | "Lena owes her coffee supplier €1,000 but holds dollars. She wants to pay when the euro is cheap, below 1.11, and she won't watch charts. So her finance agent hires a Keeper agent." | Run `npm run demo -w apps/payonproof`. Point at the two agents appearing on the dashboard. |
-| 0:10 | "She just writes one sentence. Claude turns it into an order; plain code checks it and takes the supplier's address from her own address book, not from the AI." | Timeline: "Claude read it as INV-17 …". |
-| 0:18 | "Her money is locked in an escrow contract. The Keeper can trigger it, but can only ever pay that supplier." | Timeline: "Locked 1,110 dUSD … in the escrow". |
-| 0:25 | "Every time the Keeper checks, Lena's agent attaches a signed 2 ADA fee on Cardano. Right now EUR/USD is 1.12, not below 1.11. The Keeper answers 409, and the signed fee is simply never submitted. Lena paid nothing." | Grey "voided" edge on the graph; timeline "condition not met, HTTP 409, fee voided". |
-| 0:38 | "The second invoice's limit is 1.13, so the condition holds. The Keeper submits the API3-signed rate; the contract verifies the signature, freshness and the limit itself, and pays the supplier at that exact rate." | Timeline "INV-18 paid … escrow verified the signed rate …" with the EVM tx. |
-| 0:48 | "Only now does the Keeper's fee settle, on Cardano preprod." | Green edge + pulse; click the cardanoscan link in "Settled payments". |
-| 0:55 | "Pay on proof: the agent can't fake the data, can't take the money, and only earns when it delivered. Don't trust your agent, verify it." | Final timeline line: "3 attempts: 1 executed (fee paid), 2 not executed (no fee)". |
+| 0:00 | "Lena runs a coffee roastery in Munich. She owes her Colombian supplier €1,000 but holds dollars, and wants to pay when the euro is cheap, below 1.11, without watching charts. So her finance agent hires a Keeper agent." | Run `npm run demo -w apps/payonproof`. The two agents appear on the graph. |
+| 0:10 | "She writes one sentence. Claude turns it into an order; plain code checks it and takes the supplier's address from her own address book, never from the AI. The money is locked in an escrow contract: the Keeper can trigger it, but it can only ever pay that supplier." | Timeline: "Claude read it as INV-17 …", "Locked 1,110 dUSD … in the escrow". |
+| 0:20 | "Each check comes with a signed 2 ADA fee on Cardano. EUR/USD is 1.12, not below 1.11, so the Keeper answers 409, and the signed fee is simply never submitted. Lena paid nothing for that check." | Grey "voided" edge; timeline "condition not met, HTTP 409, fee voided". |
+| 0:32 | "Now a second invoice, limit 1.13, so the condition holds. The Keeper hands the API3-signed rate to the contract, which checks the signature, the freshness and the limit itself, and pays the supplier at exactly that rate." | Timeline "INV-18 paid … escrow verified the signed rate …" with the EVM transaction link. |
+| 0:44 | "Only now does the Keeper's fee settle on Cardano, and the Keeper publishes a receipt linking the fee to the payment it bought." | Green edge + pulse. Under "Settled payments" open the cardanoscan link; open the receipt's Metadata tab. |
+| 0:55 | "Pay on proof: the agent can't fake the data, can't take the money, and only earns when it delivered. Don't trust your agent. Verify it." | Last line: "3 attempts, Lena paid 2 tADA: 1 executed, 2 not executed (no fee)". |
 
-For API3 judges: `npm run tamper -w apps/payonproof` shows one valid response executing and the four tampered responses (edited value, too old, another request, another signer) rejected by the contract. Bring your own response with `-- --file response.json` (`pnpm --silent fetch-response EUR/USD > response.json` in `api3/`).
+Extra 10 seconds if asked about safety: `npm run demo -w apps/payonproof -- --attack` adds a phishing message pointing the agent at a look-alike Keeper; AgentGuard refuses before anything is signed (red "blocked" edge).
 
-## Evidence
+For API3 judges: `npm run tamper -w apps/payonproof` opens an order, shows the four tampered responses (edited value, too old, another request, another signer) rejected by the contract, then one valid, fresh response executing it. Bring your own response with `-- --file response.json` (`pnpm --silent fetch-response EUR/USD > response.json` in `api3/`).
 
-- Escrow contract: TBD
-- Cardano preprod fee settlement (x402, Lena → Keeper): TBD
-- Escrow execution: TBD
+## Evidence (2026-10-30)
+
+Cardano preprod (x402 fee settlements, Lena's finance agent → Keeper agent, 2 tADA each, each settled only after the escrow paid):
+
+- [`0203e326…`](https://preprod.cardanoscan.io/transaction/0203e326c6473e654f9f215bd5b4d090d6055dd4f0a36adf62e2b221cd5a15a6), [`f6a71a0a…`](https://preprod.cardanoscan.io/transaction/f6a71a0aae2d57a9fca5df765aa1715110df27a99c13a08523dce121bbb1d246), [`f726efd5…`](https://preprod.cardanoscan.io/transaction/f726efd58c66a57e0ed7cd39236a12a7f0d6f6594479b75b17abb6985b88fe8a)
+- Keeper's CIP-20 receipt: [`be4ec11b…`](https://preprod.cardanoscan.io/transaction/be4ec11b4ef4ad900f7ce2bd5ecc091ce848cbeaf4d299694416c4f93d105786) (Metadata tab)
+- Attempts whose condition was not met: HTTP 409, no transaction exists (see `cardano/.audit/payonproof-lena.jsonl`, decision `voided`).
+
+EVM: these runs used a local anvil chain with the same contracts. Base Sepolia: DemoUSD [`0xdf6ffd0b…`](https://sepolia.basescan.org/address/0xdf6ffd0bccb883cf14bf45c2ef54f4ee95b2cbcf); the escrow deployment is waiting for Base Sepolia ETH (`npm run deploy -w apps/payonproof -- --dry-run` prints the cost).
 
 ## Limits and roadmap
 

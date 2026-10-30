@@ -24,13 +24,14 @@ import {
 import { compare, validateClaims, validateMappings, type Comparison, type ExtractedClaim, type Mapping, type ValidClaim } from "../lib/compare.ts";
 import { bundleHash, hashTree, parseCsv, sha256, type EvidenceBundle } from "../lib/evidence.ts";
 import { settlementTx, wrapWords } from "../lib/chain.ts";
+import { paidFetch } from "../lib/pay.ts";
 import { findPackage, type ReplicationPackage } from "../registry.ts";
 import { tusdm } from "../lib/assets.ts";
 import type { RunRequest, RunResult } from "./compute.ts";
 import type { VerifyReport, VerifyRequest } from "./verifier.ts";
 
 export const REPLICATOR_PRICE = tusdm(5);
-const EVIDENCE_DIR = fileURLToPath(new URL("../.evidence/", import.meta.url));
+const EVIDENCE_DIR = fileURLToPath(new URL("../evidence/", import.meta.url));
 
 export interface ReproRequest {
   task: string;
@@ -213,7 +214,7 @@ export async function startReplicator(options: { wallet: Wallet; port: number; c
       const tree = hashTree(pkg.dir);
       step(task, `Hiring the Compute agent to run ${pkg.repo.replace("https://github.com/", "")}@${pkg.commit.slice(0, 7)} (package hash ${tree.sha256.slice(0, 12)}…)`);
       const runBody: RunRequest = { task, repo: pkg.repo, commit: pkg.commit, packageSha256: tree.sha256 };
-      const runResponse = await guard.fetch(`${compute.url}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(runBody) }, { task, purpose: "one code run" });
+      const runResponse = await paidFetch(guard, `${compute.url}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(runBody) }, { task, purpose: "one code run" });
       if (!runResponse.ok) return fail(502, `compute run failed (HTTP ${runResponse.status})`, { detail: await runResponse.json().catch(() => undefined) });
       const computeTx = settlementTx(runResponse.headers.get("PAYMENT-RESPONSE"));
       let run = (await runResponse.json()) as RunResult;
@@ -244,13 +245,13 @@ export async function startReplicator(options: { wallet: Wallet; port: number; c
       const { bundle, hash, files: fileContents } = buildBundle({ request, task, pkg, run, claims, mapping, comparison, computeTx, replicator: wallet.address });
       mkdirSync(EVIDENCE_DIR, { recursive: true });
       const evidenceFile = path.join(EVIDENCE_DIR, `${hash}.json`);
-      writeFileSync(evidenceFile, JSON.stringify({ bundleHash: hash, bundle, files: fileContents }, null, 2));
+      writeFileSync(evidenceFile, JSON.stringify({ bundleHash: hash, bundle, files: fileContents, manuscript: request.manuscript }, null, 2));
       step(task, `Evidence bundle ${hash.slice(0, 16)}… (code, data, ${run.outputs.length} outputs, log, ${comparison.total} comparisons)`);
 
       // 6. Verifier (paid through AgentGuard, whatever its finding)
       step(task, "Hiring the Verifier agent. One wallet spends one transaction at a time, so this first waits for the compute payment to confirm on Cardano (~20–60 s)…");
       const verifyBody: VerifyRequest = { task, bundle, bundleHash: hash, manuscript: request.manuscript, files: fileContents };
-      const verifyResponse = await guard.fetch(`${verifier.url}/verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(verifyBody) }, { task, purpose: "evidence spot-check" });
+      const verifyResponse = await paidFetch(guard, `${verifier.url}/verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(verifyBody) }, { task, purpose: "evidence spot-check" });
       if (!verifyResponse.ok) return fail(502, `verifier unavailable (HTTP ${verifyResponse.status})`);
       const verifierTx = settlementTx(verifyResponse.headers.get("PAYMENT-RESPONSE"));
       const verification = (await verifyResponse.json()) as VerifyReport;

@@ -17,6 +17,7 @@ import { startReplicator, type ReproRequest, type ReproResponse } from "./agents
 import { startVerifier, type VerifyReport } from "./agents/verifier.ts";
 import { tusdm } from "./lib/assets.ts";
 import { rememberLastTx, settlementTx } from "./lib/chain.ts";
+import { paidFetch } from "./lib/pay.ts";
 import { DEMO_TARGET, PACKAGES, demoPaper } from "./registry.ts";
 
 setApp("reprobounty");
@@ -74,7 +75,8 @@ emit({
 const started = Date.now();
 let exitCode = 0;
 try {
-  const response = await guard.fetch(
+  const response = await paidFetch(
+    guard,
     `${replicatorServer.url}/reproduce`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request) },
     { task, purpose: "a verified reproduction" },

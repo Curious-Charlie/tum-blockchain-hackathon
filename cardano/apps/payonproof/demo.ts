@@ -43,11 +43,12 @@ const { values: args } = parseArgs({
     evm: { type: "string" }, // base-sepolia | anvil
     attack: { type: "boolean", default: false }, // x402: also show AgentGuard blocking a look-alike Keeper
     "no-receipt": { type: "boolean", default: false }, // skip the Keepers' CIP-20 receipts
+    "no-cross-check": { type: "boolean", default: false }, // escrow: execute on Nodary alone, without buying a second rate
   },
 });
 
 setApp("payonproof");
-const team = await startTeam({ evm: args.evm, x402: args.x402, vanish: args.vanish, intervalSec: Number(args.interval), receipts: !args["no-receipt"] });
+const team = await startTeam({ evm: args.evm, x402: args.x402, vanish: args.vanish, intervalSec: Number(args.interval), receipts: !args["no-receipt"], crossCheck: !args["no-cross-check"] });
 const { evm, lena, lenaWallet } = team;
 
 const live = await fetchSignedRate();

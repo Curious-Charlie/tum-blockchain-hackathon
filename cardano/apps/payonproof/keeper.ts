@@ -9,6 +9,8 @@
  *   on the EVM chain and puts the result hash (sha256 of the execution proof,
  *   proof.ts) into the escrow, then collects after the unlock time. If the
  *   condition never holds within the watch window it authorizes a refund.
+ *   Before it executes, it buys a second signed rate over x402 on AirnodeHub
+ *   (crosscheck.ts) and acts only if the two sources agree.
  *   `GET /jobs/:id` reports the job.
  * - `POST /orders/:id/execute`: one attempt per request with a signed x402 fee in
  *   tADA. Condition not met → HTTP 409 and the fee is never submitted; executed
@@ -22,7 +24,8 @@ import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import { Seller, ada, emit, formatAmount, publish, sleep, type Amount, type Settled, type Wallet } from "@agentic/core";
 import { authorizeRefund, confirmLock, record, saveJob, loadJob, submitResult, termsOf, type EscrowJob } from "@agentic/core/escrow";
-import { ESCROW_NODE, STATUS, fetchSignedRate, invoiceRefOf, showRate, usd, type Evm, type Order } from "./evm.ts";
+import { MAX_DEVIATION, buySecondRate, type SecondRate } from "./crosscheck.ts";
+import { ESCROW_NODE, STATUS, fetchSignedRate, invoiceRefOf, keeperKey, showRate, usd, type Evm, type Order } from "./evm.ts";
 import { ADDRESS_BOOK } from "./lena.ts";
 import { proofFromChain, proofHash } from "./proof.ts";
 import { bindingMessage } from "./records.ts";
@@ -53,6 +56,8 @@ interface Executed {
   network: string;
   evmTx: string;
   link: string;
+  /** The second signed rate the Keeper bought before executing, if any. */
+  crossCheck?: SecondRate;
 }
 
 /** Display name of an EVM payee (the suppliers are public counterparties). */
@@ -64,7 +69,7 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-dig
 export async function startKeeper(
   keeper: Wallet,
   evm: Evm,
-  options: { port?: number; receipts?: boolean; escrowFee?: Amount; intervalSec?: number; vanish?: boolean } = {},
+  options: { port?: number; receipts?: boolean; escrowFee?: Amount; intervalSec?: number; vanish?: boolean; crossCheck?: boolean } = {},
 ) {
   const fee = formatAmount(KEEPER_FEE.asset, KEEPER_FEE.amount);
   const escrowFee = options.escrowFee ?? ada(2);
@@ -208,10 +213,11 @@ export async function startKeeper(
         step(`Cycle ${cycle}: no signed rate from Nodary (${error instanceof Error ? error.message : String(error)})`);
         return undefined;
       });
-      if (checked && checked.rate < order.maxRate) {
+      const second = checked && checked.rate < order.maxRate ? await secondOpinion(cycle, checked.display, task) : undefined;
+      if (checked && checked.rate < order.maxRate && second !== "disagree") {
         step(`Cycle ${cycle}: Nodary-signed EUR/USD ${checked.display} < ${limit}: executing ${invoice} on ${evm.name}`, { data: { rate: checked.display, limit, signedAt: checked.signedAt } });
         try {
-          const executed = await executeOrder(watch.orderId, order, checked, invoice);
+          const executed = { ...(await executeOrder(watch.orderId, order, checked, invoice)), crossCheck: second };
           const proof = await proofFromChain(evm, executed.evmTx as `0x${string}`, job.lockTx!);
           if (!proof) throw new Error(`no InvoicePaid event in ${executed.evmTx}`);
           const hash = proofHash(proof);
@@ -229,7 +235,7 @@ export async function startKeeper(
         } catch (error) {
           step(`Cycle ${cycle}: execution failed (${error instanceof Error ? error.message : String(error)}); still watching`);
         }
-      } else if (checked) {
+      } else if (checked && checked.rate >= order.maxRate) {
         const age = Math.max(0, Math.round(Date.now() / 1000) - checked.signedAt);
         step(`Cycle ${cycle}: Nodary-signed EUR/USD ${checked.display} (signed ${age}s ago) is not below ${limit}; next check in ${interval / 1000}s, watching until ${clock(until)}`);
       }
@@ -243,6 +249,32 @@ export async function startKeeper(
     job.status = "refund_authorized";
     record(job, "authorize_refund", tx);
     emit({ kind: "task.step", actor: keeper.name, task, tx, message: `Refund authorized in the escrow: Lena can withdraw her ${escrowPrice} now` });
+  }
+
+  /**
+   * Buys a second signed EUR/USD (Frankfurter on AirnodeHub, 0.01 aUSD over x402) before money moves.
+   * "disagree" if it differs from Nodary's by more than 1 %; undefined if it could not be bought
+   * (the Keeper then relies on Nodary alone, as the contract does).
+   */
+  async function secondOpinion(cycle: number, nodary: string, task: string): Promise<SecondRate | "disagree" | undefined> {
+    if (options.crossCheck === false) return undefined;
+    const step = (message: string) => emit({ kind: "task.step", actor: keeper.name, task, message });
+    try {
+      const second = await buySecondRate(keeperKey(keeper.role));
+      const ref = second.paymentTx ? evm.txRef(second.paymentTx) : { note: "" };
+      emit({ kind: "payment.external", actor: keeper.name, task, from: keeper.name, to: "AirnodeHub: Frankfurter", amount: "0.01 aUSD", link: ref.link, linkLabel: ref.link ? "basescan ↗" : undefined, message: `${keeper.name} bought a second signed EUR/USD from Frankfurter on AirnodeHub over x402 (0.01 aUSD)${ref.note}` });
+      const deviation = Math.abs(second.rate - Number(nodary)) / Number(nodary);
+      const text = `Frankfurter ${second.rate} (${second.date}) vs Nodary ${nodary}: ${(deviation * 100).toFixed(2)} % apart`;
+      if (deviation > MAX_DEVIATION) {
+        step(`Cycle ${cycle}: the two signed sources disagree (${text}, more than ${MAX_DEVIATION * 100} %): not executing this cycle`);
+        return "disagree";
+      }
+      step(`Cycle ${cycle}: second source agrees (${text}, limit ${MAX_DEVIATION * 100} %)`);
+      return second;
+    } catch (error) {
+      step(`Cycle ${cycle}: could not buy a second rate (${error instanceof Error ? error.message : String(error)}); relying on Nodary alone, as the contract does`);
+      return undefined;
+    }
   }
 
   shop.onSettled((settled: Settled) => {
@@ -286,10 +318,12 @@ async function publishReceipt(keeper: Wallet, evm: Evm, receipt: Executed, paid:
   const fee = "feeTx" in paid
     ? ["x402 fee tx (Cardano preprod):", paid.feeTx]
     : ["fee locked in Masumi escrow, lock tx:", paid.lockTx, "result hash (sha256 of the execution proof):", paid.resultHash, "result submitted in tx:", paid.resultTx];
+  const second = receipt.crossCheck ? [`cross-checked: Frankfurter ${receipt.crossCheck.rate} (${receipt.crossCheck.date}), x402`] : [];
   return publish(keeper, [
     `PayOnProof receipt ${receipt.invoice}, order ${receipt.orderId} on ${receipt.network}`,
     `Paid ${usd(BigInt(receipt.payout))} to ${receipt.payee}`,
     `= ${euros} x EUR/USD ${receipt.rate} (API3 Nodary-signed)`,
+    ...second,
     `escrow ${evm.escrow}`,
     `escrow tx (${receipt.network}):`,
     receipt.evmTx.replace(/^0x/, ""),

@@ -19,7 +19,7 @@ export const KEEPERS = [
 
 const nameOf = (role: string) => roles.find((r) => r.role === role)!.name;
 
-export async function startTeam(options: { evm?: string; x402?: boolean; vanish?: boolean; intervalSec: number; receipts: boolean }) {
+export async function startTeam(options: { evm?: string; x402?: boolean; vanish?: boolean; intervalSec: number; receipts: boolean; crossCheck?: boolean }) {
   const evm = await connectEvm(options.evm, [...KEEPER_ROLES]);
   const lenaWallet = (await Wallet.load("LENA", nameOf("LENA"))).online(options.x402 ? "hires the Keeper per attempt, pays only through AgentGuard" : "chooses a Keeper per invoice, locks its fee in Masumi escrow through AgentGuard");
   emit({ kind: "task.step", actor: "PayOnProof", message: `Invoice escrow on ${evm.name} ${evm.escrow}: checks Nodary's signature, request, freshness and the limit itself`, link: evm.explorer ? evm.addressLink(evm.escrow) : undefined, linkLabel: "contract on basescan ↗" });
@@ -30,7 +30,7 @@ export async function startTeam(options: { evm?: string; x402?: boolean; vanish?
     const wallet = (await Wallet.load(spec.role, nameOf(spec.role))).online(options.x402
       ? `executes invoice orders on ${evm.name}; ${formatAmount(KEEPER_FEE.asset, KEEPER_FEE.amount)} per success, nothing per failed attempt`
       : `watches invoice orders and executes them on ${evm.name}; ${fee} per job, locked in Masumi escrow${options.vanish ? " (DEMO: vanishes)" : ""}`);
-    const server = await startKeeper(wallet, evm, { port: spec.port, escrowFee: spec.fee, intervalSec: options.intervalSec, vanish: options.vanish, receipts: options.receipts });
+    const server = await startKeeper(wallet, evm, { port: spec.port, escrowFee: spec.fee, intervalSec: options.intervalSec, vanish: options.vanish, receipts: options.receipts, crossCheck: options.crossCheck });
     return { spec, wallet, server };
   }));
   const lena = new LenaAgent(lenaWallet, evm, keepers.map((k) => ({ role: k.spec.role, name: k.wallet.name, url: k.server.url, address: k.wallet.address })));

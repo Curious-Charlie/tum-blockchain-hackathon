@@ -25,12 +25,14 @@ Requester (journal) ── 5 tUSDM, x402, signed but held ──▶ Replicator a
 - **Pay for a verified attempt, not for the result you want.** A verified NOT REPRODUCED is paid and published exactly like a REPRODUCED; otherwise the agent would be paid to say "reproduced". Only an attempt that fails verification is unpaid, and then the Replicator eats its compute and verifier costs.
 - **AI interprets, code decides.** Claude reads the paper and maps claims to output files. Hashes, the numeric comparison, the verdict and the verifier's pass/fail are plain deterministic code (`lib/compare.ts`, `agents/verifier.ts`).
 - **Agents hire agents, per call, over x402 on Cardano preprod.** Every payment goes through AgentGuard (`@agentic/core`): payee allowlist with the real counterpart addresses, per-payment cap, task and daily budgets, audit log, kill switch.
+- **The Replicator shops for compute.** It asks three compute agents for a price and picks one in code (`lib/market.ts`): within its AgentGuard budget, enough left for the Verifier, at least 80 % of past runs verified; cheapest wins. Every assessment goes to the dashboard. See [Buyer](#buyer-choosing-a-compute-agent).
+- **Optional Masumi escrow for the bounty** (`--escrow`): the journal locks the 5 tUSDM in Masumi's escrow contract before any work starts, instead of x402 pay-on-success. See [Masumi escrow](#masumi-escrow---escrow).
 - The Verifier is paid for the check whatever it finds, so it has no reason to wave a bundle through.
 
 | Who | Pays | To | For | Guard policy |
 |---|---|---|---|---|
 | Requester (journal) | 5 tUSDM | Replicator | a verified reproduction | only the Replicator, ≤ 5 per payment and per task, ≤ 60 a day |
-| Replicator | 1 tUSDM | Compute | one sandboxed run | only Compute and Verifier, ≤ 1.5 per payment, ≤ 2.5 per task, ≤ 40 a day |
+| Replicator | 0.5 / 1 / 3 tUSDM | one of three compute agents | one sandboxed run | only the compute agents and the Verifier, ≤ 1.5 per payment, ≤ 2.5 per task, ≤ 40 a day |
 | Replicator | 1 tUSDM | Verifier | one evidence check | (same) |
 
 Verdict rule (deterministic): a check passes if |computed − claimed| < one unit in the last printed digit. **REPRODUCED**: every check passes. **NOT REPRODUCED**: some claimed number is contradicted by every dataset it applies to. **PARTIAL**: otherwise.
@@ -49,6 +51,43 @@ Three variants:
 | `… -- --altered` | a manuscript with one wrong number (Fig. 6 says r = −0.60) | NOT REPRODUCED 52/65 → still verified, paid and published |
 | `… -- --tamper` | a dishonest Replicator replaces its results with the paper's numbers and re-hashes the bundle | every hash lines up, but the Verifier's re-run does not → HTTP 422 → journal pays nothing |
 
+## Buyer: choosing a compute agent
+
+Three compute agents run the same pinned package; only their price and track record differ:
+
+| Agent | Price | Track record | Decision |
+|---|---|---|---|
+| Budget compute agent | 0.5 tUSDM | 6/10 runs verified | rejected: below 80 % verified |
+| Compute agent | 1 tUSDM | 41/42 runs verified | **chosen**: cheapest acceptable |
+| Premium compute agent | 3 tUSDM | 50/50 runs verified | rejected: over AgentGuard's 1.5 tUSDM per-payment cap |
+
+- The price is each agent's x402 402 answer to the real request, so it is exactly what it would charge.
+- The track record is the Replicator's own ledger of runs it bought and how many passed the Verifier. **It starts from a made-up history** (`reputation.seed.json`) so the demo has agents with different records; every real run adds to it (`cardano/.cache/reputation.json`).
+- The decision is code, not the LLM: the quote must pay the agent that was asked, fit the per-payment cap, leave enough of the task budget for the Verifier's fee, and come from an agent with at least 80 % verified over at least 5 runs. Then the cheapest wins. AgentGuard still enforces the caps on the payment itself.
+
+## Masumi escrow (`--escrow`)
+
+With x402 pay-on-success the Replicator holds the journal's signed payment while it works (see [Limitations](../../../docs/LIMITATIONS.md)). With `--escrow` the bounty goes through Masumi's escrow contract (`vested_pay`, payment V2) instead:
+
+```
+journal ── x402 (assetTransferMethod "masumi") ──▶ 5 tUSDM locked in Masumi escrow ── HTTP 202: job accepted
+Replicator checks the lock against the terms it signed, then works (same pipeline, same payments to Compute and Verifier)
+   verified ─▶ SubmitResult: result hash (= evidence bundle hash) into the escrow ─▶ certificate
+              └─ from the unlock time (32 min after the quote) the Replicator collects; until then the journal could dispute
+   failed   ─▶ AuthorizeRefund by the Replicator ─▶ the journal withdraws its 5 tUSDM at once
+   vanished ─▶ (--vanish) nothing reaches the escrow ─▶ the journal withdraws from the submit-result deadline (17 min)
+```
+
+| Command | What happens |
+|---|---|
+| `npm run demo -w apps/reprobounty -- --escrow` | lock → work → result hash in the escrow → certificate (about 4 min) |
+| `… -- --escrow --tamper` | lock → work fails verification → refund authorized → journal withdraws (about 4 min) |
+| `… -- --escrow --vanish` | lock → the Replicator disappears |
+| `npm run escrow -w apps/reprobounty` | status of every escrow job and its transactions |
+| `npm run escrow -w apps/reprobounty -- finish --wait` | collects delivered jobs after their unlock time and refunds abandoned ones after their deadline |
+
+The deadlines are the shortest Masumi's rules allow, so collecting takes at least about 32 minutes after the quote; on stage the lock is shown live and the collect and timeout-refund transactions are shown from earlier runs. Contract: [`contracts/`](contracts/) (Masumi's blueprint, MIT, checked against `@x402/cardano` by `test/escrow.test.ts`); transactions: `lib/escrow.ts`.
+
 ## Run
 
 ```sh
@@ -59,30 +98,31 @@ npm run wallets -w apps/reprobounty          # terminal 2: show the 4 role walle
 npm run demo -w apps/reprobounty             # happy path, about 2 minutes (two block confirmations)
 npm run demo -w apps/reprobounty -- --altered
 npm run demo -w apps/reprobounty -- --tamper
+npm run demo -w apps/reprobounty -- --escrow  # the bounty through Masumi escrow (see above)
+npm run escrow -w apps/reprobounty -- finish --wait   # collect / refund escrow jobs when due
 npm run check -w apps/reprobounty -- <certificate tx hash>   # anyone: read the certificate from chain, re-verify the evidence
 npm run rehearse -w apps/reprobounty         # same pipeline offline: no wallets, no payments
 npm test -w apps/reprobounty                 # deterministic pipeline tests (no Claude, no chain)
 ```
 
-Needs `cardano/.env` (`BLOCKFROST_PROJECT_ID`, `ANTHROPIC_API_KEY`) and `apps/reprobounty/.env` with `REQUESTER_MNEMONIC`, `REPLICATOR_MNEMONIC`, `COMPUTE_MNEMONIC`, `VERIFIER_MNEMONIC` (`npm run wallets -w apps/reprobounty` creates missing ones). Requester and Replicator need tADA + tUSDM (Masumi dispenser); Compute and Verifier only receive. Ports 4151–4153. Each run costs the Requester 5 tUSDM + ~1.3 tADA and the Replicator ~2.6 tADA in fees and min-UTxO deposits. Claude answers are cached on disk, so reruns cost nothing; a cold run costs about $0.01.
+Needs `cardano/.env` (`BLOCKFROST_PROJECT_ID`, `ANTHROPIC_API_KEY`) and `apps/reprobounty/.env` with `REQUESTER_MNEMONIC`, `REPLICATOR_MNEMONIC`, `COMPUTE_MNEMONIC`, `COMPUTE_B_MNEMONIC`, `COMPUTE_C_MNEMONIC`, `VERIFIER_MNEMONIC` (`npm run wallets -w apps/reprobounty` creates missing ones). Requester and Replicator need tADA + tUSDM (Masumi dispenser); the compute agents and the Verifier only receive. Ports 4151–4155. Each run costs the Requester 5 tUSDM + ~1.3 tADA and the Replicator ~2.6 tADA in fees and min-UTxO deposits. Claude answers are cached on disk, so reruns cost nothing; a cold run costs about $0.01.
 
 `--no-wait` skips waiting for the certificate's block (saves ~30 s). Evidence bundles of runs are written to `evidence/<bundle hash>.json`.
 
 ## 60-second demo script
 
-Before: dashboard open in the browser and cleared; terminal in `cardano/`; one happy-path run done today (warm cache, known-good wallets). Have the cardanoscan link of the last certificate in a tab as a fallback.
+Before: dashboard open and cleared; terminal in `cardano/`; one run done today (warm cache); tabs open on an earlier escrow **collect** and **timeout refund** transaction (see [Preprod runs](#preprod-runs-2026-10-30)), since those only become possible 17–32 minutes after a lock.
 
 | Time | Say | Show / do |
 |---|---|---|
-| 0:00 | "70 % of researchers have failed to reproduce someone else's result, and nobody pays for reproduction. ReproBounty lets a journal pay an AI agent to reproduce a paper, and pay only if the work is verified." | Start `npm run demo -w apps/reprobounty -- --no-wait`. Dashboard: four agents appear. |
-| 0:10 | "The journal offers 5 tUSDM through x402. The payment is signed but held." | Dashboard: Requester → Replicator edge "pending 5 tUSDM". |
-| 0:15 | "Claude reads the Datasaurus paper and turns Figure 6 into five numbers. Then the agent hires a compute agent, 1 tUSDM, to run the published data in a sandbox." | Timeline: the 5 claims; Replicator → Compute turns green with a tx link. |
-| 0:25 | "Plain code compares 65 numbers. Claude never decides the verdict. It also finds the paper truncates rather than rounds." | Timeline: "65/65 checks pass → REPRODUCED", the truncation note. |
-| 0:35 | "A third agent, the verifier, is paid to check the evidence: hashes, the pinned code, and its own re-run." | Replicator → Verifier edge, the verifier's ✓ lines. |
-| 0:45 | "Verified, so the journal's payment settles and the certificate goes on Cardano. A failed reproduction is paid and published too; a faked one is not. With `--tamper`, the agent fakes its numbers and the journal pays nothing." | Requester → Replicator turns green; open the certificate tx → Metadata tab (or the fallback tab). |
-| 0:55 | "Agents hiring agents, money tied to verified work, results published on chain." | Dashboard money-flow graph. |
+| 0:00 | "70 % of researchers have failed to reproduce someone else's result, and nobody pays for reproduction. ReproBounty lets a journal pay AI agents to reproduce a paper, and pay only for verified work." | Start `npm run demo -w apps/reprobounty -- --escrow --no-wait`. Dashboard: six agents appear. |
+| 0:10 | "**Coworker**: the journal's 5 tUSDM go into Masumi's escrow contract on Cardano before any work starts. Nobody holds an unsettled IOU." | Requester → Masumi escrow edge turns green; open the lock tx. |
+| 0:20 | "**Buyer**: the Replicator needs compute. It asks three agents for a price and decides in code: the cheap one fails too often, the premium one is over its AgentGuard budget. It hires the middle one." | Timeline: the three ✓/✗ lines and "Buyer decision". |
+| 0:30 | "**Seller**: every agent sells over x402. Compute runs the published code and data, plain code compares 65 numbers, Claude never decides the verdict. A third agent is paid to verify the evidence." | Replicator → Compute and → Verifier edges with tx links. |
+| 0:45 | "Verified, so the result hash goes into the escrow and the certificate onto Cardano. After the dispute window the Replicator collects; if the work had failed, it refunds the journal; if it had vanished, the journal takes the money back after the deadline." | The certificate tx (Metadata tab), then the prepared collect and refund tabs. |
+| 0:55 | "Agents that sell, buy carefully, and work together, with money tied to verified results." | Dashboard money-flow graph. |
 
-For a longer slot, run `-- --tamper` next (about 40 s): the dashboard shows the voided 5 tUSDM edge and the verifier's ✗ re-run line.
+Without escrow (`npm run demo -w apps/reprobounty`) the same flow settles in one x402 request, about 2–3 minutes; `-- --tamper` shows the journal paying nothing.
 
 ## Preprod runs (2026-10-30)
 
@@ -109,9 +149,11 @@ Check a certificate yourself: `npm run check -w apps/reprobounty -- 80f0deef03da
 |---|---|
 | `demo.ts` | one command: starts the four agents and posts the bounty |
 | `agents/replicator.ts` | paid `POST /reproduce`; Claude extraction and mapping; pays Compute and Verifier; publishes the certificate |
-| `agents/compute.ts` | paid `POST /run`; allowlisted, hash-pinned packages only |
+| `agents/compute.ts` | paid `POST /run`; allowlisted, hash-pinned packages only (three instances at different prices) |
 | `agents/verifier.ts` | paid `POST /verify`; deterministic checks |
 | `lib/compare.ts` | claim validation, numeric comparison, verdict |
+| `lib/market.ts`, `lib/reputation.ts`, `reputation.seed.json` | the Replicator's quotes, track records and buying decision |
+| `lib/escrow.ts`, `escrow.ts`, `contracts/` | Masumi escrow: SubmitResult, Withdraw, AuthorizeRefund, WithdrawRefund; the collect/refund command; the vendored contract |
 | `lib/evidence.ts`, `lib/stats.ts` | hashing and bundle format; the verifier's independent statistics |
 | `registry.ts`, `papers/` | the demo paper, its altered copy, the pinned replication package |
 | `check.ts`, `rehearse.ts`, `test/` | public certificate check, offline rehearsal, tests |
@@ -121,4 +163,5 @@ Check a certificate yourself: `npm run check -w apps/reprobounty -- 80f0deef03da
 - Code runs in a temp dir with an empty environment and a timeout, and only for packages on the Compute agent's allowlist. A container sandbox (no network, CPU and memory limits) is roadmap.
 - The verifier's re-run is specific to this package's statistics step. Next: the verifier buys its own run from a second compute provider.
 - Evidence bundles live in `evidence/`; the certificate commits to their hash. Next: content-addressed storage (IPFS).
-- Upgrade path: Masumi escrow instead of x402 hold-and-settle, and a Sokosumi listing for the Replicator.
+- Masumi escrow is implemented for the bounty (`--escrow`); x402 stays the default because it settles in one request. Disputes (the journal's `SetRefundRequested`) are not wired up. Next: a Sokosumi listing for the Replicator.
+- The compute agents' track records start from a made-up seed. Next: derive them from the certificates on chain.

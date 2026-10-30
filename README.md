@@ -27,11 +27,20 @@ Requester (journal) ── 5 tUSDM, x402, signed but held ──▶ Replicator a
 - **Agents hire agents, per call, on Cardano.** Every agent sells its work over x402 and pays through **AgentGuard**: an allowlist of payees, per-payment caps, task and daily budgets, an audit log and a kill switch, so an agent with a wallet cannot overspend or be talked into paying someone else.
 - **Published on chain.** The certificate (DOI, claim, verdict, evidence hash, verifier, bounty transaction) is CIP-20 transaction metadata. `npm run check -- <tx>` reads it back from the chain and re-verifies the evidence.
 
+### Seller, Buyer, Coworker
+
+| | In ReproBounty |
+|---|---|
+| **Seller** (x402) | Four agents sell their work over x402 on Cardano: the Replicator (5 tUSDM per verified reproduction), three compute agents (0.5 / 1 / 3 tUSDM per run) and the Verifier (1 tUSDM per check). A seller that fails answers ≥ 400 and the buyer's signed payment is never submitted. |
+| **Buyer** | The Replicator asks the three compute agents for a price, then decides in code: within its AgentGuard budget, enough left for the Verifier, at least 80 % of past runs verified, cheapest wins. AgentGuard caps every payment, budget and payee, and logs it. |
+| **Coworker** (Masumi) | With `--escrow` the journal locks the bounty in Masumi's escrow contract before work starts. The Replicator puts the result hash into the escrow and collects after the dispute window; if verification fails it authorizes a refund; if it vanishes, the journal takes the money back after the deadline. |
+
 The demo paper is *Same Stats, Different Graphs* (Matejka & Fitzmaurice, CHI 2017, the "Datasaurus Dozen"): 13 datasets that share the same summary statistics. Details, the three demo variants and a 60-second demo script: [`cardano/apps/reprobounty/README.md`](cardano/apps/reprobounty/README.md).
 
 ## Cardano tools used
 
 - **x402 on Cardano preprod** (`@x402/cardano`, `@x402/express`, `@x402/fetch`) with an in-process facilitator: every agent-to-agent payment is a paid HTTP request; a handler that fails (status ≥ 400) means the buyer's signed transaction is never submitted.
+- **Masumi escrow** (`vested_pay` payment V2) for the bounty with `--escrow`: lock via x402 (`assetTransferMethod: "masumi"`), then SubmitResult, Withdraw, AuthorizeRefund and WithdrawRefund.
 - **tUSDM** (Masumi's preprod stablecoin) for all prices; tADA for fees.
 - **CIP-20 transaction metadata** (label 674) for the reproduction certificate.
 - **Blockfrost** for chain access, **evolution-sdk** to build transactions.
@@ -45,16 +54,18 @@ git clone https://github.com/Curious-Charlie/tum-blockchain-hackathon.git
 cd tum-blockchain-hackathon/cardano
 npm install
 cp .env.example .env                        # fill in BLOCKFROST_PROJECT_ID and ANTHROPIC_API_KEY
-npm run wallets -w apps/reprobounty         # creates the 4 agent wallets in apps/reprobounty/.env, prints their addresses
+npm run wallets -w apps/reprobounty         # creates the 6 agent wallets in apps/reprobounty/.env, prints their addresses
 ```
 
-Fund the **Requester** and **Replicator** addresses at the [Masumi dispenser](https://dispenser.masumi.network) (network Testnet, paste the address, Claim Tokens: 100 tADA + 100 tUSDM each). Compute and Verifier only receive. Then:
+Fund the **Requester** and **Replicator** addresses at the [Masumi dispenser](https://dispenser.masumi.network) (network Testnet, paste the address, Claim Tokens: 100 tADA + 100 tUSDM each). The compute agents and the Verifier only receive. Then:
 
 ```sh
 npm run dashboard                           # terminal 1: live dashboard on http://127.0.0.1:4000
 npm run demo -w apps/reprobounty            # terminal 2: the real paper, about 2–3 minutes
 npm run demo -w apps/reprobounty -- --altered   # one wrong number in the paper: NOT REPRODUCED, still paid and published
 npm run demo -w apps/reprobounty -- --tamper    # the Replicator fakes its results: verification fails, the journal pays nothing
+npm run demo -w apps/reprobounty -- --escrow    # the bounty through Masumi escrow (also with --tamper or --vanish)
+npm run escrow -w apps/reprobounty -- finish --wait   # collect / refund escrow jobs when their deadlines pass
 npm run check -w apps/reprobounty -- <certificate tx hash>   # anyone: read a certificate from chain and re-verify it
 ```
 
@@ -75,7 +86,7 @@ More runs are listed in the [app README](cardano/apps/reprobounty/README.md#prep
 
 ## Honest limitations
 
-With x402 the Replicator holds the journal's signed payment while it works: the signature is valid for about 10 minutes and the journal could double-spend before settlement. The upgrade path is Masumi escrow. Full list: [docs/LIMITATIONS.md](docs/LIMITATIONS.md) ([中文](docs/LIMITATIONS.zh.md)).
+With x402 the Replicator holds the journal's signed payment while it works: the signature is valid for about 10 minutes and the journal could double-spend before settlement. Masumi escrow (`--escrow`) removes that, at the cost of a 32-minute wait before the Replicator can collect. The compute agents' track records start from a made-up seed. Full list: [docs/LIMITATIONS.md](docs/LIMITATIONS.md) ([中文](docs/LIMITATIONS.zh.md)).
 
 ## Repository layout
 

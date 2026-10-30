@@ -39,7 +39,7 @@ Lena's agent computes each Keeper's record from public chain data only: the Keep
 
 ## 5. Weekend FX
 
-FX markets close on Friday evening, and Nodary's EUR/USD can stop updating after about 22:00 UTC. The escrow accepts a rate up to 3 days old (`maxRateAge`), while the signed response itself must be at most 5 minutes old, so a Keeper can still execute over the weekend, at Friday's closing rate. That is the last market price, not a live one; for urgent payments that is acceptable, for others a payer may prefer to wait. Result of the check after the close: see the [app README](../cardano/apps/payonproof/README.md#weekend-fx).
+FX markets close on Friday evening, and Nodary's EUR/USD can stop updating after about 22:00 UTC. The escrow accepts a rate up to 3 days old (`maxRateAge`), while the signed response itself must be at most 5 minutes old, so a Keeper can still execute over the weekend, at Friday's closing rate. That is the last market price, not a live one; for urgent payments that is acceptable, for others a payer may prefer to wait. Checked on Friday 2026-10-30 at 23:16–23:31 CET: Nodary's rate was unchanged since 21:02 UTC, and the escrow demo (one invoice executed, one refunded) and the tamper test (four rejected, the valid one executed) passed on Base Sepolia. Transactions in the [app README](../cardano/apps/payonproof/README.md#weekend-fx).
 
 ## 6. Other limits
 

@@ -89,7 +89,7 @@ Details, options and the 60-second demo script: [`cardano/apps/payonproof/README
 
 ## Honest limitations
 
-The per-attempt x402 fee sits signed but unsubmitted in the Keeper's hands for up to 10 minutes and could be double-spent; Masumi escrow (the default) removes that, at the cost of a 32-minute wait before the Keeper collects. The escrow stores the Keeper's result hash but cannot check it against Base Sepolia; anyone can (`npm run check`). Keeper records come only from chain data and count only deliveries. Nodary's EUR/USD can freeze over the weekend; the contract accepts a rate up to 3 days old. Full list: [docs/LIMITATIONS.md](docs/LIMITATIONS.md) ([中文](docs/LIMITATIONS.zh.md)).
+The per-attempt x402 fee sits signed but unsubmitted in the Keeper's hands for up to 10 minutes and could be double-spent; Masumi escrow (the default) removes that, at the cost of a 32-minute wait before the Keeper collects. The escrow stores the Keeper's result hash but cannot check it against Base Sepolia; anyone can (`npm run check`). Keeper records come only from chain data and count only deliveries. Nodary's EUR/USD can freeze over the weekend; the contract accepts a rate up to 3 days old (checked after Friday's close: the demo and the tamper test still pass, at Friday's last rate; [details](cardano/apps/payonproof/README.md#weekend-fx)). Full list: [docs/LIMITATIONS.md](docs/LIMITATIONS.md) ([中文](docs/LIMITATIONS.zh.md)).
 
 ## Repository layout
 

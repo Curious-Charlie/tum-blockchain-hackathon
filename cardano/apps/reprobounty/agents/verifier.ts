@@ -12,14 +12,13 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { Seller, emit, type Wallet } from "@agentic/core";
+import { Seller, emit, usdm, type Wallet } from "@agentic/core";
 import { compare, validateClaims } from "../lib/compare.ts";
 import { bundleHash, hashTree, parseCsv, sha256, type EvidenceBundle } from "../lib/evidence.ts";
 import { summarizeTsv, type Summary } from "../lib/stats.ts";
 import { findPackage } from "../registry.ts";
-import { tusdm } from "../lib/assets.ts";
 
-export const VERIFIER_PRICE = tusdm(1);
+export const VERIFIER_PRICE = usdm(1);
 
 export interface VerifyRequest {
   task: string;

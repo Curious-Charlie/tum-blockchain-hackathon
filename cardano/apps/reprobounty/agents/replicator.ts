@@ -18,19 +18,17 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import {
-  AgentGuard, HAIKU, PaymentBlocked, SONNET, Seller, askJson, emit, limits, publish,
+  AgentGuard, HAIKU, PaymentBlocked, SONNET, Seller, askJson, emit, limits, publish, usdm,
   type Published, type Wallet,
 } from "@agentic/core";
 import { compare, validateClaims, validateMappings, type Comparison, type ExtractedClaim, type Mapping, type ValidClaim } from "../lib/compare.ts";
 import { bundleHash, hashTree, parseCsv, sha256, type EvidenceBundle } from "../lib/evidence.ts";
 import { settlementTx, wrapWords } from "../lib/chain.ts";
-import { paidFetch } from "../lib/pay.ts";
 import { findPackage, type ReplicationPackage } from "../registry.ts";
-import { tusdm } from "../lib/assets.ts";
 import type { RunRequest, RunResult } from "./compute.ts";
 import type { VerifyReport, VerifyRequest } from "./verifier.ts";
 
-export const REPLICATOR_PRICE = tusdm(5);
+export const REPLICATOR_PRICE = usdm(5);
 const EVIDENCE_DIR = fileURLToPath(new URL("../evidence/", import.meta.url));
 
 export interface ReproRequest {
@@ -181,9 +179,9 @@ export function buildBundle(input: {
 export async function startReplicator(options: { wallet: Wallet; port: number; compute: Counterpart; verifier: Counterpart; tamper?: boolean }) {
   const { wallet, compute, verifier, tamper } = options;
   const guard = new AgentGuard(wallet, {
-    maxPerPayment: limits(tusdm(1.5)),
-    maxPerTask: limits(tusdm(2.5)),
-    maxPerDay: limits(tusdm(40)),
+    maxPerPayment: limits(usdm(1.5)),
+    maxPerTask: limits(usdm(2.5)),
+    maxPerDay: limits(usdm(40)),
     payees: { [compute.address]: compute.name, [verifier.address]: verifier.name },
   });
   const certificates = new Map<string, Promise<Published | undefined>>();
@@ -214,7 +212,7 @@ export async function startReplicator(options: { wallet: Wallet; port: number; c
       const tree = hashTree(pkg.dir);
       step(task, `Hiring the Compute agent to run ${pkg.repo.replace("https://github.com/", "")}@${pkg.commit.slice(0, 7)} (package hash ${tree.sha256.slice(0, 12)}…)`);
       const runBody: RunRequest = { task, repo: pkg.repo, commit: pkg.commit, packageSha256: tree.sha256 };
-      const runResponse = await paidFetch(guard, `${compute.url}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(runBody) }, { task, purpose: "one code run" });
+      const runResponse = await guard.fetch(`${compute.url}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(runBody) }, { task, purpose: "one code run" });
       if (!runResponse.ok) return fail(502, `compute run failed (HTTP ${runResponse.status})`, { detail: await runResponse.json().catch(() => undefined) });
       const computeTx = settlementTx(runResponse.headers.get("PAYMENT-RESPONSE"));
       let run = (await runResponse.json()) as RunResult;
@@ -251,7 +249,7 @@ export async function startReplicator(options: { wallet: Wallet; port: number; c
       // 6. Verifier (paid through AgentGuard, whatever its finding)
       step(task, "Hiring the Verifier agent. One wallet spends one transaction at a time, so this first waits for the compute payment to confirm on Cardano (~20–60 s)…");
       const verifyBody: VerifyRequest = { task, bundle, bundleHash: hash, manuscript: request.manuscript, files: fileContents };
-      const verifyResponse = await paidFetch(guard, `${verifier.url}/verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(verifyBody) }, { task, purpose: "evidence spot-check" });
+      const verifyResponse = await guard.fetch(`${verifier.url}/verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(verifyBody) }, { task, purpose: "evidence spot-check" });
       if (!verifyResponse.ok) return fail(502, `verifier unavailable (HTTP ${verifyResponse.status})`);
       const verifierTx = settlementTx(verifyResponse.headers.get("PAYMENT-RESPONSE"));
       const verification = (await verifyResponse.json()) as VerifyReport;

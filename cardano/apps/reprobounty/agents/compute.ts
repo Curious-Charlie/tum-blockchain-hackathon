@@ -10,12 +10,11 @@ import { spawn } from "node:child_process";
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { Seller, emit, type Wallet } from "@agentic/core";
+import { Seller, emit, usdm, type Wallet } from "@agentic/core";
 import { sha256, hashTree, type FileHash } from "../lib/evidence.ts";
 import { findPackage, type ReplicationPackage } from "../registry.ts";
-import { tusdm } from "../lib/assets.ts";
 
-export const COMPUTE_PRICE = tusdm(1);
+export const COMPUTE_PRICE = usdm(1);
 const TIMEOUT_MS = 30_000;
 
 export interface RunRequest {

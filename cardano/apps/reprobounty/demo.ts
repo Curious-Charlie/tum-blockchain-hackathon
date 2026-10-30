@@ -10,14 +10,12 @@
  */
 import {
   AgentGuard, EXPLORER_TX, LOVELACE, TUSDM, Wallet, balanceOf, emit, flushEvents, formatAmount, limits,
-  setApp, usageSummary, waitForTx,
+  setApp, usageSummary, usdm, waitForTx,
 } from "@agentic/core";
 import { startCompute } from "./agents/compute.ts";
 import { startReplicator, type ReproRequest, type ReproResponse } from "./agents/replicator.ts";
 import { startVerifier, type VerifyReport } from "./agents/verifier.ts";
-import { tusdm } from "./lib/assets.ts";
-import { rememberLastTx, settlementTx } from "./lib/chain.ts";
-import { paidFetch } from "./lib/pay.ts";
+import { settlementTx } from "./lib/chain.ts";
 import { DEMO_TARGET, PACKAGES, demoPaper } from "./registry.ts";
 
 setApp("reprobounty");
@@ -33,7 +31,6 @@ const [requester, replicator, computeWallet, verifierWallet] = await Promise.all
   Wallet.load("COMPUTE", "Compute agent"),
   Wallet.load("VERIFIER", "Verifier agent"),
 ]);
-rememberLastTx([requester, replicator]);
 
 const compute = await startCompute(computeWallet.online("sells sandboxed code runs, 1 tUSDM per run"), PORT + 1);
 const verifier = await startVerifier(verifierWallet.online("spot-checks evidence bundles, 1 tUSDM per check"), PORT + 2);
@@ -47,9 +44,9 @@ const replicatorServer = await startReplicator({
 requester.online("journal: posts reproduction bounties, pays through AgentGuard");
 
 const guard = new AgentGuard(requester, {
-  maxPerPayment: limits(tusdm(5)),
-  maxPerTask: limits(tusdm(5)),
-  maxPerDay: limits(tusdm(60)),
+  maxPerPayment: limits(usdm(5)),
+  maxPerTask: limits(usdm(5)),
+  maxPerDay: limits(usdm(60)),
   payees: { [replicator.address]: replicator.name },
 });
 
@@ -75,9 +72,7 @@ emit({
 const started = Date.now();
 let exitCode = 0;
 try {
-  const response = await paidFetch(
-    guard,
-    `${replicatorServer.url}/reproduce`,
+  const response = await guard.fetch(`${replicatorServer.url}/reproduce`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request) },
     { task, purpose: "a verified reproduction" },
   );

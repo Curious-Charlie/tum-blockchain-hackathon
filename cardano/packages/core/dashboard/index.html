@@ -112,7 +112,7 @@
 const EXPLORER_TX = "https://preprod.cardanoscan.io/transaction/";
 const EXPLORER_ADDR = "https://preprod.cardanoscan.io/address/";
 const ICON = { "agent.online": "●", "task.started": "▶", "task.step": "·", "task.done": "✔", "task.failed": "✘", "guard.approved": "🛡", "guard.blocked": "⛔", "payment.held": "⏸", "payment.settled": "₳", "payment.voided": "↺", "payment.external": "⇄", "chain.published": "⛓" };
-const GLYPH = (name) => /request|customer|lena|buyer|journal/i.test(name) ? "👤" : /verif|check/i.test(name) ? "🔍" : /compute/i.test(name) ? "🖥" : /keeper/i.test(name) ? "⏱" : /replic|research/i.test(name) ? "🤖" : /seller/i.test(name) ? "🏪" : "🤖";
+const GLYPH = (name) => /escrow/i.test(name) ? "🔒" : /request|customer|lena|buyer|journal/i.test(name) ? "👤" : /verif|check/i.test(name) ? "🔍" : /compute/i.test(name) ? "🖥" : /keeper/i.test(name) ? "⏱" : /replic|research/i.test(name) ? "🤖" : /seller/i.test(name) ? "🏪" : "🤖";
 
 let state;
 function resetState() {

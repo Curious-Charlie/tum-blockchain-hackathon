@@ -10,7 +10,7 @@ import { test } from "node:test";
 import { generateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { ada, usdm, TUSDM, LOVELACE } from "../config.ts";
-import { checkPayment, limits, AgentGuard, PaymentBlocked, unfreezeAll, freezeAll, type GuardPolicy, type SpendState } from "../guard.ts";
+import { checkPayment, limits, payees, AgentGuard, PaymentBlocked, unfreezeAll, freezeAll, type GuardPolicy, type SpendState } from "../guard.ts";
 import { cip20Lines } from "../publish.ts";
 import { Seller } from "../seller.ts";
 import { Wallet } from "../wallets.ts";
@@ -98,6 +98,31 @@ test("guard.fetch blocks a real x402 request before signing", { skip: !process.e
     await assert.rejects(frozen.fetch(`${url}/work`), (error: unknown) => error instanceof PaymentBlocked && error.rule === "frozen");
   } finally {
     unfreezeAll();
+    await close();
+  }
+});
+
+test("guard.fetch checks the seller named in Masumi escrow terms", { skip: !process.env.BLOCKFROST_PROJECT_ID && "needs BLOCKFROST_PROJECT_ID" }, async () => {
+  process.env.ESCROW_SELLER_MNEMONIC = generateMnemonic(wordlist, 256);
+  process.env.ESCROW_BUYER_MNEMONIC = generateMnemonic(wordlist, 256);
+  const sellerWallet = await Wallet.load("ESCROW_SELLER", "Escrow seller");
+  const buyerWallet = await Wallet.load("ESCROW_BUYER", "Escrow buyer");
+  const seller = new Seller(sellerWallet).paid("POST /job", { price: usdm(5), description: "test", escrow: true }, (_req, res) => {
+    res.status(202).json({ ok: true });
+  });
+  const { url, close } = await seller.listen(0);
+  const post = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ job: 1 }) };
+  try {
+    const quote = await fetch(`${url}/job`, post);
+    assert.equal(quote.status, 402);
+
+    // The escrow contract is not the payee: the allowlist must name the seller.
+    const escrowOnly = new AgentGuard(buyerWallet, { ...policy, payees: {} });
+    await assert.rejects(escrowOnly.fetch(`${url}/job`, post), (error: unknown) => error instanceof PaymentBlocked && error.rule === "payee");
+
+    const tight = new AgentGuard(buyerWallet, { ...policy, maxPerPayment: limits(usdm(4)), payees: payees(sellerWallet) });
+    await assert.rejects(tight.fetch(`${url}/job`, post), (error: unknown) => error instanceof PaymentBlocked && error.rule === "per_payment");
+  } finally {
     await close();
   }
 });

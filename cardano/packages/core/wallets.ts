@@ -16,7 +16,7 @@ import { generateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import dotenv from "dotenv";
 import { Address, Assets, Client, TransactionHash, preprod } from "@evolution-sdk/evolution";
-import { toClientCardanoSigner, type ClientCardanoSigner } from "@x402/cardano";
+import { toClientCardanoSigner, toMasumiSellerSigner, type ClientCardanoSigner, type MasumiSellerSigner } from "@x402/cardano";
 import { BLOCKFROST_URL, LOVELACE, NETWORK, ROOT, blockfrost, fromUnit, provider, required, sleep, toUnit, waitForTx, type Amount } from "./config.ts";
 import { emit } from "./events.ts";
 
@@ -69,6 +69,11 @@ export class Wallet {
   /** x402 buyer signer (builds and signs payment transactions). */
   signer(): ClientCardanoSigner {
     return (this.x402 ??= toClientCardanoSigner({ mnemonic: this.mnemonic, network: NETWORK, provider: provider() }));
+  }
+
+  /** Signs Masumi escrow terms as this wallet (for `Seller` routes with `escrow: true`). */
+  masumiSeller(): MasumiSellerSigner {
+    return toMasumiSellerSigner({ mnemonic: this.mnemonic, network: NETWORK });
   }
 
   /**

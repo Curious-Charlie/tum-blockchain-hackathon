@@ -4,7 +4,8 @@
  *
  * - per-payment cap, per-task budget and daily budget, per asset (fail closed:
  *   an asset without a cap cannot be paid)
- * - payee allowlist, so a prompt injection cannot redirect money
+ * - payee allowlist, so a prompt injection cannot redirect money (for a Masumi
+ *   escrow lock: the seller in the signed terms, and the escrow must be Masumi's)
  * - JSONL audit log of every approved, blocked, settled and voided payment
  * - kill switch: `guard.freeze()` for one agent, or the FREEZE file
  *   (`npm run freeze`, dashboard button) for every agent on this machine
@@ -17,6 +18,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { decodePaymentResponseHeader, wrapFetchWithPayment, x402Client } from "@x402/fetch";
+import { masumiEscrowAddress } from "@x402/cardano";
 import { ExactCardanoScheme } from "@x402/cardano/exact/client";
 import { NETWORK, ROOT, formatAmount, fromUnit, shortAddress, sleep, symbolOf, type Amount } from "./config.ts";
 import { appName, emit } from "./events.ts";
@@ -102,7 +104,12 @@ export interface AuditEntry {
   reason?: string;
   status?: number;
   tx?: string;
+  /** A Masumi escrow lock rather than a direct payment. */
+  escrow?: boolean;
 }
+
+/** Dashboard name of Masumi's escrow contract. */
+export const ESCROW = "Masumi escrow";
 
 export const AUDIT_DIR = path.join(ROOT, ".audit");
 const FREEZE_FILE = path.join(AUDIT_DIR, "FREEZE");
@@ -185,6 +192,7 @@ export class AgentGuard {
   private async attempt(input: string | URL, init: RequestInit, task: string, url: string, purpose?: string): Promise<{ response: Response; retry: boolean }> {
     let attempt: { intent: PaymentIntent; payee: string } | undefined;
     let blocked: { rule: GuardRule; reason: string } | undefined;
+    let escrow = false;
 
     const client = x402Client.fromConfig({
       schemes: [{ network: NETWORK, client: new ExactCardanoScheme(this.wallet.signer()) }],
@@ -192,11 +200,16 @@ export class AgentGuard {
       spendControls: { allowedAssets: Object.keys(this.policy.maxPerPayment).map((asset) => ({ network: NETWORK, asset })) },
     });
     client.onBeforePaymentCreation(async ({ selectedRequirements: req }) => {
-      const intent: PaymentIntent = { payTo: req.payTo, asset: fromUnit(req.asset), amount: BigInt(req.amount) };
-      const payee = this.policy.payees[req.payTo] ?? shortAddress(req.payTo);
+      // A Masumi escrow payment goes to the escrow contract; the payee is the seller named in the signed terms.
+      escrow = req.extra?.assetTransferMethod === "masumi";
+      const seller = escrow ? (req.extra as { terms?: { sellerAddress?: string } }).terms?.sellerAddress : req.payTo;
+      const intent: PaymentIntent = { payTo: seller ?? "", asset: fromUnit(req.asset), amount: BigInt(req.amount) };
+      const payee = this.policy.payees[intent.payTo] ?? shortAddress(intent.payTo);
       const amount = formatAmount(intent.asset, intent.amount);
-      const verdict = checkPayment(this.policy, this.state(task), intent);
-      const base = { task, url, payTo: req.payTo, payee, asset: intent.asset, amount: req.amount };
+      const verdict: Verdict = escrow && req.payTo !== masumiEscrowAddress(NETWORK)
+        ? { ok: false, rule: "payee", reason: `${shortAddress(req.payTo)} is not Masumi's escrow contract` }
+        : checkPayment(this.policy, this.state(task), intent);
+      const base = { task, url, payTo: intent.payTo, payee, asset: intent.asset, amount: req.amount, ...(escrow ? { escrow: true } : {}) };
       if (!verdict.ok) {
         blocked = verdict;
         this.audit({ ...base, decision: "blocked", rule: verdict.rule, reason: verdict.reason });
@@ -206,7 +219,7 @@ export class AgentGuard {
       attempt = { intent, payee };
       this.add(task, intent, 1n);
       this.audit({ ...base, decision: "approved" });
-      emit({ kind: "guard.approved", actor: this.name, task, from: this.name, to: payee, amount, message: `AgentGuard approved ${amount} → ${payee}${purpose ? ` for ${purpose}` : ""}` });
+      emit({ kind: "guard.approved", actor: this.name, task, from: this.name, to: escrow ? ESCROW : payee, amount, message: `AgentGuard approved ${escrow ? `locking ${amount} in Masumi escrow for ${payee}` : `${amount} → ${payee}`}${purpose ? ` for ${purpose}` : ""}` });
     });
 
     let response: Response;
@@ -224,13 +237,15 @@ export class AgentGuard {
 
     const { intent, payee } = attempt;
     const amount = formatAmount(intent.asset, intent.amount);
-    const base = { task, url, payTo: intent.payTo, payee, asset: intent.asset, amount: String(intent.amount), status: response.status };
+    const base = { task, url, payTo: intent.payTo, payee, asset: intent.asset, amount: String(intent.amount), status: response.status, ...(escrow ? { escrow: true } : {}) };
     const header = response.headers.get("PAYMENT-RESPONSE");
     const settlement = header ? decodePaymentResponseHeader(header) : undefined;
     if (response.ok && settlement?.success && settlement.transaction) {
       this.wallet.submitted(settlement.transaction);
       this.audit({ ...base, decision: "settled", tx: settlement.transaction });
-      emit({ kind: "payment.settled", actor: this.name, task, from: this.name, to: payee, amount, tx: settlement.transaction, message: `${this.name} paid ${amount} → ${payee}` });
+      emit(escrow
+        ? { kind: "payment.settled", actor: this.name, task, from: this.name, to: ESCROW, amount, tx: settlement.transaction, message: `${this.name} locked ${amount} in Masumi escrow for ${payee}`, data: { escrow: true, seller: payee } }
+        : { kind: "payment.settled", actor: this.name, task, from: this.name, to: payee, amount, tx: settlement.transaction, message: `${this.name} paid ${amount} → ${payee}` });
       return { response, retry: false };
     }
     this.add(task, intent, -1n);

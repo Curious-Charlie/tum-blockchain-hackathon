@@ -18,7 +18,7 @@
 import type { Request, Response } from "express";
 import { decodePaymentResponseHeader } from "@x402/fetch";
 import { decodePaymentRequiredHeader } from "@x402/core/http";
-import { AgentGuard, SONNET, Seller, emit, formatAmount, runAgent, sleep, tool, waitForTx, webSearch, type GuardPolicy, type Wallet } from "@agentic/core";
+import { AgentGuard, SONNET, Seller, emit, formatAmount, payees, runAgent, sleep, tool, waitForTx, webSearch, type GuardPolicy, type Wallet } from "@agentic/core";
 import { BATCH_SIZE, CHECK_PRICE_PER_CLAIM, INDEX_LAG_MS, MAX_BATCH, MAX_CLAIMS, REPORT_PRICE } from "./config.ts";
 import { fetchPage, findQuote } from "./pages.ts";
 import { MIN_CHECKABLE, claimsHash, gate, type CheckResult, type Claim, type GateResult } from "./verdict.ts";
@@ -191,9 +191,10 @@ export async function buyChecks(guard: AgentGuard, checkerUrl: string, claims: C
     const previous = payments.at(-1);
     if (previous) {
       // One wallet, one transaction at a time: the next payment spends the change of the last one.
+      // (AgentGuard would wait for the confirmation too; doing it here shows it on the dashboard.)
       step(`Waiting for the batch ${i} payment to confirm on Cardano before paying again (~20-60 s)`);
       await waitForTx(previous);
-      await sleep(INDEX_LAG_MS); // Blockfrost's UTxO index trails a fresh block by a few seconds
+      await sleep(INDEX_LAG_MS); // Blockfrost's UTxO index trails a fresh block, sometimes by 10+ s
     }
     step(`Hiring the fact-checker for batch ${i + 1}/${batches.length}: claims ${batch.map((c) => `#${c.id}`).join(", ")} for ${cost}`);
     const pay = () => guard.fetch(
@@ -201,14 +202,8 @@ export async function buyChecks(guard: AgentGuard, checkerUrl: string, claims: C
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ task, claims: batch }) },
       { task, purpose: `fact-check batch ${i + 1}/${batches.length}` },
     );
-    let response = await pay();
-    for (let retry = 1; response.status === 402 && retry <= 2; retry++) {
-      // The signed payment was refused and nothing was paid: typically Blockfrost not yet showing the
-      // input it spends (the change of the previous payment). Wait and sign again.
-      step(`The checker refused the signed payment (${rejection(response)}); nothing was paid. Retry ${retry}/2 in 20 s`);
-      await sleep(20_000);
-      response = await pay();
-    }
+    // AgentGuard retries once by itself if the checker refuses the signed payment (lagging chain view).
+    const response = await pay();
     if (!response.ok) throw new Error(`fact-checker answered HTTP ${response.status} (${response.status === 402 ? rejection(response) : await response.text()})`);
     const header = response.headers.get("PAYMENT-RESPONSE");
     const tx = header ? decodePaymentResponseHeader(header).transaction : undefined;
@@ -229,7 +224,7 @@ export function researcherPolicy(checker: { name: string; address: string }): Gu
     maxPerPayment: { [unit.asset]: unit.amount * BigInt(MAX_BATCH) },
     maxPerTask: { [unit.asset]: unit.amount * 10n },
     maxPerDay: { [unit.asset]: unit.amount * 200n },
-    payees: { [checker.address]: checker.name },
+    payees: payees(checker),
   };
 }
 

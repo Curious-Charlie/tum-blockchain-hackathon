@@ -8,19 +8,18 @@
  *
  *   npm run demo -w apps/checkedfacts                 # honest researcher: report passes, 3 tUSDM settle
  *   npm run demo -w apps/checkedfacts -- --sloppy     # sloppy researcher: report fails, shop owner pays nothing
- *   npm run demo -w apps/checkedfacts -- --fast       # all claims in one checker payment (no confirmation wait, ≈30 s)
+ *   npm run demo -w apps/checkedfacts -- --fast       # all claims in one checker payment (no confirmation wait, ≈1 min)
  *   npm run demo -w apps/checkedfacts -- --topic "…"  # another topic (first run takes a few minutes, then cached)
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Agent, setGlobalDispatcher } from "undici";
 import { decodePaymentResponseHeader } from "@x402/fetch";
-import { AgentGuard, EXPLORER_TX, ROOT, Wallet, emit, flushEvents, formatAmount, limits, setApp, usageSummary } from "@agentic/core";
+import { AgentGuard, EXPLORER_TX, ROOT, Wallet, payees, emit, flushEvents, formatAmount, limits, setApp, usageSummary, usdm } from "@agentic/core";
 import { startChecker } from "./checker.ts";
-import { CHECKER_PORT, DEFAULT_TOPIC, MAX_BATCH, REPORT_PRICE, RESEARCHER_PORT, tusdm } from "./config.ts";
+import { CHECKER_PORT, DEFAULT_TOPIC, MAX_BATCH, REPORT_PRICE, RESEARCHER_PORT } from "./config.ts";
 import { startResearcher, type ReportBody } from "./researcher.ts";
 import { LABEL } from "./verdict.ts";
-import { waitUntilIdle } from "./chain.ts";
 
 setApp("checkedfacts");
 // A fresh (uncached) research run can take a few minutes; Node's default 300 s header timeout is too tight.
@@ -38,9 +37,6 @@ const customer = (await Wallet.load("CUSTOMER", "Shop owner")).online(`buys a fa
 const researcher = (await Wallet.load("RESEARCHER", "Research agent")).online(`Claude Sonnet + web search; sells reports, pays for fact-checks${sloppy ? " (sloppy today)" : ""}`);
 const checker = (await Wallet.load("CHECKER", "Fact-checker agent")).online("fetches every source, matches quotes in code, Claude Haiku judges support; 0.2 tUSDM per claim");
 
-// A transaction from a previous run may still be in the mempool; spending now would reuse its inputs.
-await Promise.all([waitUntilIdle(customer), waitUntilIdle(researcher), waitUntilIdle(checker)]);
-
 const checkerService = await startChecker(checker, CHECKER_PORT);
 const researcherService = await startResearcher({
   wallet: researcher,
@@ -51,10 +47,10 @@ const researcherService = await startResearcher({
 });
 
 const guard = new AgentGuard(customer, {
-  maxPerPayment: limits(tusdm(5)),
-  maxPerTask: limits(tusdm(5)),
-  maxPerDay: limits(tusdm(60)),
-  payees: { [researcher.address]: researcher.name },
+  maxPerPayment: limits(usdm(5)),
+  maxPerTask: limits(usdm(5)),
+  maxPerDay: limits(usdm(60)),
+  payees: payees(researcher),
 });
 
 const line = "─".repeat(78);

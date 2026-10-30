@@ -18,7 +18,7 @@ import { paymentMiddleware } from "@x402/express";
 import { toFacilitatorCardanoSigner } from "@x402/cardano";
 import { ExactCardanoScheme as ServerScheme } from "@x402/cardano/exact/server";
 import { ExactCardanoScheme as FacilitatorScheme } from "@x402/cardano/exact/facilitator";
-import { NETWORK, formatAmount, provider, shortAddress, type Amount } from "./config.ts";
+import { NETWORK, formatAmount, fromUnit, provider, shortAddress, type Amount } from "./config.ts";
 import { emit } from "./events.ts";
 
 export type Price = Amount | ((context: HTTPRequestContext) => Amount | Promise<Amount>);
@@ -45,12 +45,26 @@ function facilitator(): FacilitatorClient {
   return sharedFacilitator;
 }
 
-const toPrice = ({ asset, amount }: Amount) => ({ asset, amount: amount.toString() });
+const toPrice = ({ asset, amount }: Amount) => ({ asset: fromUnit(asset), amount: amount.toString() });
+
+/** A payment that settled on chain, with the request it paid for. */
+export interface Settled {
+  tx: string;
+  payer?: string;
+  asset: string;
+  amount: bigint;
+  method: string;
+  path: string;
+  query: Record<string, string | string[]>;
+  /** The paid handler's response body, parsed as JSON when possible. */
+  body?: unknown;
+}
 
 export class Seller {
   readonly app = express();
   private readonly routes: Record<string, RouteConfig> = {};
   private middleware?: RequestHandler;
+  private readonly settledListeners: ((settled: Settled) => unknown)[] = [];
 
   constructor(readonly wallet: { name: string; address: string }) {
     this.app.use(express.json({ limit: "5mb" }));
@@ -79,6 +93,15 @@ export class Seller {
     return this;
   }
 
+  /**
+   * Runs `listener` after each payment settles (tx submitted). It runs in the
+   * background, so slow work such as publishing a receipt does not delay the buyer.
+   */
+  onSettled(listener: (settled: Settled) => unknown): this {
+    this.settledListeners.push(listener);
+    return this;
+  }
+
   async listen(port = 0, host = "127.0.0.1"): Promise<{ url: string; close: () => Promise<void> }> {
     const server = new x402ResourceServer(facilitator()).register(NETWORK, new ServerScheme());
     server.onAfterVerify(async ({ requirements, result }) => {
@@ -89,6 +112,31 @@ export class Seller {
         message: `${this.wallet.name} verified a signed ${amount} payment${result.payer ? ` from ${shortAddress(result.payer)}` : ""}; it is held until the work succeeds`,
         data: { payer: result.payer },
       });
+    });
+    server.onAfterSettle(async ({ requirements, result, transportContext }) => {
+      if (!result.success || !result.transaction || !this.settledListeners.length) return;
+      const transport = transportContext as { request?: HTTPRequestContext; responseBody?: Buffer } | undefined;
+      let body: unknown;
+      try {
+        body = transport?.responseBody?.length ? JSON.parse(transport.responseBody.toString("utf8")) : undefined;
+      } catch {
+        body = transport?.responseBody?.toString("utf8");
+      }
+      const settled: Settled = {
+        tx: result.transaction,
+        payer: result.payer,
+        asset: requirements.asset,
+        amount: BigInt(requirements.amount),
+        method: transport?.request?.method ?? "",
+        path: transport?.request?.path ?? "",
+        query: transport?.request?.adapter.getQueryParams?.() ?? {},
+        body,
+      };
+      for (const listener of this.settledListeners) {
+        void Promise.resolve()
+          .then(() => listener(settled))
+          .catch((error) => console.error(`onSettled listener failed: ${String(error)}`));
+      }
     });
     this.middleware = paymentMiddleware(this.routes, server);
     const listener = this.app.listen(port, host);

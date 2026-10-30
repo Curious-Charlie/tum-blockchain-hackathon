@@ -20,6 +20,7 @@ export type EventKind =
   | "payment.held" //    seller verified a signed payment; it settles only if the work succeeds
   | "payment.settled" // transaction submitted on chain
   | "payment.voided" //  work failed, the signed payment was never submitted
+  | "payment.external" // money moved outside Cardano (e.g. an EVM escrow payout); give `link`
   | "chain.published"; // CIP-20 record on chain
 
 export interface AgentEvent {
@@ -34,7 +35,11 @@ export interface AgentEvent {
   from?: string;
   to?: string;
   amount?: string;
+  /** Cardano transaction hash: the dashboard links it to cardanoscan. */
   tx?: string;
+  /** Any other link to show with the event (e.g. a basescan transaction). */
+  link?: string;
+  linkLabel?: string;
   task?: string;
   data?: Record<string, unknown>;
 }
@@ -68,14 +73,15 @@ export function onEvent(listener: (event: AgentEvent) => void): () => void {
 const ICON: Record<EventKind, string> = {
   "agent.online": "●", "task.started": "▶", "task.step": "·", "task.done": "✔", "task.failed": "✘",
   "guard.approved": "🛡", "guard.blocked": "⛔", "payment.held": "⏸", "payment.settled": "₳",
-  "payment.voided": "↺", "chain.published": "⛓",
+  "payment.voided": "↺", "payment.external": "⇄", "chain.published": "⛓",
 };
 
 export function emit(input: EventInput): AgentEvent {
   const event: AgentEvent = { id: randomUUID(), ts: new Date().toISOString(), app, ...input };
   if (process.env.QUIET_EVENTS !== "1") {
     const who = event.actor ? `[${event.actor}] ` : "";
-    console.log(`${ICON[event.kind]} ${who}${event.message}${event.tx ? `\n    ${EXPLORER_TX}${event.tx}` : ""}`);
+    const links = [event.tx ? `${EXPLORER_TX}${event.tx}` : "", event.link ?? ""].filter(Boolean).map((l) => `\n    ${l}`).join("");
+    console.log(`${ICON[event.kind] ?? "·"} ${who}${event.message}${links}`);
   }
   bus.emit("event", event);
   if (!localDashboard) {

@@ -34,8 +34,17 @@ export function provider(): CardanoProviderConfig {
 // ---------------------------------------------------------------- assets
 
 export const LOVELACE = "lovelace";
-/** tUSDM from the Masumi dispenser (not the SDK's default preprod USDM). */
-export const TUSDM = "16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde0014df10745553444d";
+/**
+ * tUSDM from the Masumi dispenser (not the SDK's default preprod USDM), in the
+ * canonical x402 form `policyId.assetNameHex`. Blockfrost and evolution-sdk use
+ * the undotted unit; `toUnit` / `fromUnit` convert at those boundaries.
+ */
+export const TUSDM = "16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde.0014df10745553444d";
+
+/** Canonical x402 asset id → Blockfrost unit (policy id + asset name, no dot). */
+export const toUnit = (asset: string) => asset.replace(".", "");
+/** Blockfrost unit → canonical x402 asset id. */
+export const fromUnit = (unit: string) => (unit === LOVELACE || unit.includes(".") ? unit : `${unit.slice(0, 56)}.${unit.slice(56)}`);
 
 export const ASSETS: Record<string, { symbol: string; decimals: number }> = {
   [LOVELACE]: { symbol: "tADA", decimals: 6 },
@@ -53,12 +62,12 @@ export const ada = (value: number): Amount => ({ asset: LOVELACE, amount: toUnit
 export const usdm = (value: number): Amount => ({ asset: TUSDM, amount: toUnits(value) });
 
 export function symbolOf(asset: string): string {
-  return ASSETS[asset]?.symbol ?? `${asset.slice(0, 8)}…`;
+  return ASSETS[fromUnit(asset)]?.symbol ?? `${asset.slice(0, 8)}…`;
 }
 
 /** "1.5 tADA" */
 export function formatAmount(asset: string, amount: bigint | string): string {
-  const decimals = ASSETS[asset]?.decimals ?? 0;
+  const decimals = ASSETS[fromUnit(asset)]?.decimals ?? 0;
   const value = Number(BigInt(amount)) / 10 ** decimals;
   return `${value.toLocaleString("en-US", { maximumFractionDigits: decimals })} ${symbolOf(asset)}`;
 }

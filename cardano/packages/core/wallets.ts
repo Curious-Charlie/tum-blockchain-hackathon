@@ -5,15 +5,19 @@
  *
  * Spending from one wallet is serialized with `exclusive()`: it waits until the
  * wallet's previous transaction is in a block, so the next transaction never
- * picks a UTxO that is already spent in the mempool.
+ * picks a UTxO that is already spent in the mempool. The last transaction is
+ * also kept on disk, so a second run right after the first waits too.
  */
-import { appendFileSync, chmodSync, existsSync, readFileSync } from "node:fs";
+
+const PENDING_DIR = path.join(ROOT, ".cache", "pending");
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { generateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import dotenv from "dotenv";
 import { Address, Assets, Client, TransactionHash, preprod } from "@evolution-sdk/evolution";
 import { toClientCardanoSigner, type ClientCardanoSigner } from "@x402/cardano";
-import { BLOCKFROST_URL, NETWORK, blockfrost, provider, required, sleep, waitForTx, type Amount } from "./config.ts";
+import { BLOCKFROST_URL, LOVELACE, NETWORK, ROOT, blockfrost, fromUnit, provider, required, sleep, toUnit, waitForTx, type Amount } from "./config.ts";
 import { emit } from "./events.ts";
 
 /** One wallet role of an app, listed in the app's roles.ts. */
@@ -27,7 +31,7 @@ export interface RoleSpec {
 }
 
 export interface Balance {
-  /** Asset unit → quantity in smallest units ("lovelace" for ADA). */
+  /** Canonical asset id (`TUSDM`, "lovelace") → quantity in smallest units. */
   [asset: string]: bigint;
 }
 
@@ -35,7 +39,6 @@ export class Wallet {
   private signingClient?: ReturnType<typeof makeSigningClient>;
   private x402?: ClientCardanoSigner;
   private queue: Promise<unknown> = Promise.resolve();
-  private unconfirmed?: string;
 
   private constructor(
     /** Env name, e.g. "REPLICATOR". */
@@ -74,11 +77,13 @@ export class Wallet {
    */
   exclusive<T>(work: () => Promise<T>): Promise<T> {
     const run = this.queue.then(async () => {
-      if (this.unconfirmed) {
-        const tx = this.unconfirmed;
+      const tx = this.unconfirmed();
+      if (tx) {
         console.log(`  … ${this.name}: waiting for ${tx.slice(0, 10)}… to confirm before spending again`);
         await waitForTx(tx).catch((error) => console.warn(`  ! ${String(error)}`));
-        this.unconfirmed = undefined;
+        // Blockfrost's UTxO index can trail /txs by a few seconds.
+        await sleep(5_000);
+        rmSync(this.pendingFile(), { force: true });
       }
       return work();
     });
@@ -87,7 +92,16 @@ export class Wallet {
   }
 
   submitted(txHash: string) {
-    this.unconfirmed = txHash;
+    mkdirSync(PENDING_DIR, { recursive: true });
+    writeFileSync(this.pendingFile(), txHash);
+  }
+
+  private pendingFile() {
+    return path.join(PENDING_DIR, `${this.address}.txt`);
+  }
+
+  private unconfirmed(): string | undefined {
+    return existsSync(this.pendingFile()) ? readFileSync(this.pendingFile(), "utf8").trim() || undefined : undefined;
   }
 
   async balance(): Promise<Balance> {
@@ -130,10 +144,11 @@ function makeSigningClient(mnemonic: string) {
 }
 
 export function toAssets(amounts: Amount[]) {
-  let assets = Assets.fromLovelace(amounts.filter((a) => a.asset === "lovelace").reduce((sum, a) => sum + a.amount, 0n));
+  let assets = Assets.fromLovelace(amounts.filter((a) => a.asset === LOVELACE).reduce((sum, a) => sum + a.amount, 0n));
   for (const { asset, amount } of amounts) {
-    if (asset === "lovelace") continue;
-    assets = Assets.addByHex(assets, asset.slice(0, 56), asset.slice(56), amount);
+    if (asset === LOVELACE) continue;
+    const unit = toUnit(asset);
+    assets = Assets.addByHex(assets, unit.slice(0, 56), unit.slice(56), amount);
   }
   return assets;
 }
@@ -141,7 +156,7 @@ export function toAssets(amounts: Amount[]) {
 export async function balanceOf(address: string): Promise<Balance> {
   const info = await blockfrost<{ amount: { unit: string; quantity: string }[] }>(`/addresses/${address}`);
   const balance: Balance = { lovelace: 0n };
-  for (const { unit, quantity } of info?.amount ?? []) balance[unit] = BigInt(quantity);
+  for (const { unit, quantity } of info?.amount ?? []) balance[fromUnit(unit)] = BigInt(quantity);
   return balance;
 }
 

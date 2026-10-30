@@ -1,0 +1,6 @@
+{
+  "base-sepolia": {
+    "usd": "0xdf6ffd0bccb883cf14bf45c2ef54f4ee95b2cbcf",
+    "escrow": "0x63e2b722725eda487a9d76962ef4633dcc5e571a"
+  }
+}

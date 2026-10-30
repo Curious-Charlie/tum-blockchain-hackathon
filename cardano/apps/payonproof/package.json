@@ -1,0 +1,22 @@
+{
+  "name": "@agentic/payonproof",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "wallets": "tsx ../../packages/core/cli/wallets.ts",
+    "demo": "tsx demo.ts",
+    "tamper": "tsx tamper.ts",
+    "deploy": "tsx deploy.ts",
+    "keepers": "tsx keepers.ts",
+    "escrow": "tsx escrow.ts",
+    "check": "tsx check.ts",
+    "autopilot": "tsx autopilot.ts"
+  },
+  "dependencies": {
+    "@agentic/core": "*",
+    "@x402/evm": "2.26.0",
+    "@x402/fetch": "2.26.0",
+    "viem": "2.57.13"
+  }
+}

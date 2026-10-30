@@ -40,6 +40,10 @@
   - 锁定 → 超时退款（`--vanish`）：锁定 [b46e99e4…](https://preprod.cardanoscan.io/transaction/b46e99e4b4408e741d966391869dea361d50dad91b3f0338a073c538994d0e69)，截止后期刊取回 [208664bc…](https://preprod.cardanoscan.io/transaction/208664bc753aa7aa8ad49e9d3a866564fd5ef71ac7528969f980a9d5383c89cb)
   - 锁定 → 授权退款（`--tamper`）：锁定 [5a60fe25…](https://preprod.cardanoscan.io/transaction/5a60fe254a2af44c791206126a81500aa69392b6173bbe4aaec30808a7e6708e)，Replicator 授权退款 [55955002…](https://preprod.cardanoscan.io/transaction/559550022adb6bf34e2b77c9daf3bef23db66f90dbb7f5bfb34da77c1a628fd5)，期刊立即取回 [237136cb…](https://preprod.cardanoscan.io/transaction/237136cb67bb1abba23e26f33c3cb9b8be66588955974262cfdde5bd2652a91e)
   - Buyer：三个算力 agent 比价，Replicator 按 AgentGuard 预算和口碑在代码里选择（口碑起点为预设数据）
+- [x] **改为提交 D1 PayOnProof（周五 17:00），报 Cardano 和 API3 两个赛道**；D5 存档在 `d5/reprobounty` 和 `archive/d5-main`。D1 补上 core 的两个提交（cherry-pick），回归通过：
+  - Coworker：Keeper 服务费先锁进 Masumi escrow，盯盘多个周期，执行后写入结果哈希（绑定 execute 交易和 InvoicePaid 事件）；锁定 [adcbd6fc…](https://preprod.cardanoscan.io/transaction/adcbd6fc3d078d233e1ff462ac90695dd3a394a5c065f77fb8bf22cfd2cad652)，Base Sepolia 执行 [0xe66ff958…](https://sepolia.basescan.org/tx/0xe66ff9582763a1a74b0bdb8865ce6a319e28ad92e194faeb7c2c7e75be08d38c)，结果哈希 [8d18c05e…](https://preprod.cardanoscan.io/transaction/8d18c05eca703f424efb687c90a6df182fb1ba6a040b87afbfe72eb6900ec0e2)，收据 [5e5a0eff…](https://preprod.cardanoscan.io/transaction/5e5a0eff49ab64355fa06eb79e6b0000c82a7a3279de44143a592eb87229bba3)；未满足条件的订单授权退款 [3778343d…](https://preprod.cardanoscan.io/transaction/3778343d6685fe19662d82a94c59454ee8f6c6b0d10dcc308e9f1bee10937bf0)，Lena 取回 [2e0105a5…](https://preprod.cardanoscan.io/transaction/2e0105a5d83aac9b3ac7509ecdbf933191f7d1e3d1b3e22277862999bfd654b1)
+  - Buyer：三个 Keeper（2 / 1 / 4 tUSDM），记录从链上算（Cardano 收据对 Base Sepolia 的 InvoicePaid），试用规则 €250
+  - API3 加分：autopilot 多张发票多轮自动执行；执行前用 x402 付 0.01 aUSD 买 Frankfurter 签名汇率交叉核对
 
 ## 提交清单（Devfolio）
 

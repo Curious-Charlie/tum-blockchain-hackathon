@@ -22,6 +22,8 @@ export const CHECK_PRICE_PER_CLAIM = tusdm(0.2);
 /** Claims per paid check request; a report of 8 claims costs two payments. */
 export const BATCH_SIZE = Number(process.env.BATCH_SIZE ?? 4);
 export const MAX_BATCH = 5;
+/** Pause after a confirmation before spending again: Blockfrost's UTxO index trails new blocks. */
+export const INDEX_LAG_MS = Number(process.env.INDEX_LAG_MS ?? 12_000);
 /** The research agent keeps at most this many claims in a report. */
 export const MAX_CLAIMS = 8;
 

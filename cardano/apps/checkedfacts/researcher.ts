@@ -11,14 +11,15 @@
  *    customer's payment settles; fail → 422 and the customer pays nothing.
  *    The checks it bought are its own cost either way.
  *
- * `sloppy: true` simulates a careless researcher: it skips the self-check and
- * mangles four claims (altered quote, wrong source, overstated claim, invented
- * quote) so the failure path is deterministic.
+ * `sloppy: true` simulates a careless write-up: after the self-check it mangles
+ * four claims (altered quote, wrong source, overstated claim, invented quote),
+ * so the failure path is deterministic.
  */
 import type { Request, Response } from "express";
 import { decodePaymentResponseHeader } from "@x402/fetch";
-import { AgentGuard, SONNET, Seller, emit, formatAmount, runAgent, tool, webSearch, type GuardPolicy, type Wallet } from "@agentic/core";
-import { BATCH_SIZE, CHECK_PRICE_PER_CLAIM, MAX_CLAIMS, REPORT_PRICE } from "./config.ts";
+import { decodePaymentRequiredHeader } from "@x402/core/http";
+import { AgentGuard, SONNET, Seller, emit, formatAmount, runAgent, sleep, tool, waitForTx, webSearch, type GuardPolicy, type Wallet } from "@agentic/core";
+import { BATCH_SIZE, CHECK_PRICE_PER_CLAIM, INDEX_LAG_MS, MAX_CLAIMS, REPORT_PRICE } from "./config.ts";
 import { fetchPage, findQuote } from "./pages.ts";
 import { MIN_CHECKABLE, gate, type CheckResult, type Claim, type GateResult } from "./verdict.ts";
 
@@ -147,23 +148,45 @@ export function sloppify(claims: Claim[]): Claim[] {
 
 const chunk = <T>(items: T[], size: number) => Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, i * size + size));
 
+/** Why a seller refused a signed payment (x402 puts it in the PAYMENT-REQUIRED header). */
+function rejection(response: globalThis.Response): string {
+  const header = response.headers.get("PAYMENT-REQUIRED");
+  try {
+    return (header && decodePaymentRequiredHeader(header).error) || `HTTP ${response.status}`;
+  } catch {
+    return `HTTP ${response.status}`;
+  }
+}
+
 /** Step 3: buys fact-checks per batch through AgentGuard. Throws if a check could not be bought. */
 export async function buyChecks(guard: AgentGuard, checkerUrl: string, claims: Claim[], task: string) {
   const results: CheckResult[] = [];
   const payments: string[] = [];
   const batches = chunk(claims, BATCH_SIZE);
+  const step = (message: string) => emit({ kind: "task.step", actor: guard.name, task, message });
   for (const [i, batch] of batches.entries()) {
     const cost = formatAmount(CHECK_PRICE_PER_CLAIM.asset, CHECK_PRICE_PER_CLAIM.amount * BigInt(batch.length));
-    if (i > 0) {
-      emit({ kind: "task.step", actor: guard.name, task, message: `Waiting for the batch ${i} payment to confirm on Cardano before paying again (one wallet, one transaction at a time; ~20-60 s)` });
+    const previous = payments.at(-1);
+    if (previous) {
+      // One wallet, one transaction at a time: the next payment spends the change of the last one.
+      step(`Waiting for the batch ${i} payment to confirm on Cardano before paying again (~20-60 s)`);
+      await waitForTx(previous);
+      await sleep(INDEX_LAG_MS); // Blockfrost's UTxO index trails a fresh block by a few seconds
     }
-    emit({ kind: "task.step", actor: guard.name, task, message: `Hiring the fact-checker for batch ${i + 1}/${batches.length}: claims ${batch.map((c) => `#${c.id}`).join(", ")} for ${cost}` });
-    const response = await guard.fetch(
+    step(`Hiring the fact-checker for batch ${i + 1}/${batches.length}: claims ${batch.map((c) => `#${c.id}`).join(", ")} for ${cost}`);
+    const pay = () => guard.fetch(
       `${checkerUrl}/check`,
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ task, claims: batch }) },
       { task, purpose: `fact-check batch ${i + 1}/${batches.length}` },
     );
-    if (!response.ok) throw new Error(`fact-checker answered HTTP ${response.status}: ${await response.text()}`);
+    let response = await pay();
+    if (response.status === 402) {
+      // The signed payment was refused (nothing was paid), typically a stale UTxO view right after a block. Once more.
+      step(`The checker refused the signed payment (${rejection(response)}); nothing was paid. Retrying in 20 s`);
+      await sleep(20_000);
+      response = await pay();
+    }
+    if (!response.ok) throw new Error(`fact-checker answered HTTP ${response.status} (${response.status === 402 ? rejection(response) : await response.text()})`);
     const header = response.headers.get("PAYMENT-RESPONSE");
     const tx = header ? decodePaymentResponseHeader(header).transaction : undefined;
     if (tx) payments.push(tx);
@@ -210,18 +233,16 @@ export async function startResearcher(options: {
       const step = (message: string, data?: Record<string, unknown>) => emit({ kind: "task.step", actor: wallet.name, task, message, data });
       try {
         step(`Order accepted: "${topic}". The customer's ${formatAmount(REPORT_PRICE.asset, REPORT_PRICE.amount)} stays held until the report passes the fact-check`);
-        step(`Researching with Claude Sonnet + web search${sloppy ? " (SLOPPY MODE: no self-check, careless quoting)" : ""}…`);
+        step(`Researching with Claude Sonnet + web search${sloppy ? " (sloppy researcher today)" : ""}…`);
         const draft = await draftReport(topic, wallet.name, task);
         step(`Draft ready: ${draft.claims.length} claims from ${new Set(draft.claims.map((c) => c.url)).size} sources`);
 
-        let claims: Claim[];
+        const { kept, dropped } = await selfCheck(draft.claims);
+        step(`Self-check: ${kept.length} claims have their quote on the page; dropped ${dropped.length} before paying for checks`, { dropped: dropped.map((d) => d.reason) });
+        let claims = kept;
         if (sloppy) {
-          claims = sloppify(draft.claims);
-          step(`Sloppy mode: skipped the self-check; claims #1-#4 carry an altered quote, a wrong source, an overstatement and an invented quote`);
-        } else {
-          const { kept, dropped } = await selfCheck(draft.claims);
-          claims = kept;
-          step(`Self-check: ${kept.length} claims have their quote on the page; dropped ${dropped.length} before paying for checks`, { dropped: dropped.map((d) => d.reason) });
+          claims = sloppify(kept);
+          step(`SLOPPY write-up: claim #1 has an altered quote, #2 cites the wrong source, #3 overstates its quote, #4 has an invented quote`);
         }
         if (claims.length < MIN_CHECKABLE) {
           step(`Only ${claims.length} sourced claims; at least ${MIN_CHECKABLE} are needed. Refusing the order, the customer is not charged`);

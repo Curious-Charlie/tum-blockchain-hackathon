@@ -23,13 +23,9 @@ const topic = topicArg >= 0 && args[topicArg + 1] ? args[topicArg + 1]! : DEFAUL
 const started = Date.now();
 const draft = await draftReport(topic, "Research agent");
 console.log(`Research: ${draft.claims.length} claims in ${Math.round((Date.now() - started) / 1000)} s\n${draft.summary}\n`);
-let claims = draft.claims;
-if (sloppy) claims = sloppify(claims);
-else {
-  const { kept, dropped } = await selfCheck(claims);
-  for (const d of dropped) console.log(`self-check dropped: ${d.claim.url} (${d.reason})`);
-  claims = kept;
-}
+const { kept, dropped } = await selfCheck(draft.claims);
+for (const d of dropped) console.log(`self-check dropped: ${d.claim.url} (${d.reason})`);
+const claims = sloppy ? sloppify(kept) : kept;
 const results = await Promise.all(claims.map(checkClaim));
 for (const [i, claim] of claims.entries()) {
   const r = results[i]!;

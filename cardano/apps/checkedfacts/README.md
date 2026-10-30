@@ -45,7 +45,7 @@ npm test -w apps/checkedfacts                      # quote matching, the gate an
 ```
 
 - Claude answers and fetched pages are cached on disk (`cardano/.cache/claude`, `cardano/.cache/pages/<agent>/`), so a rerun gives the same report and verdicts in seconds. `CLAUDE_CACHE=0` / `REFETCH=1` force fresh ones. A new topic (`-- --topic "…"`) takes about a minute of research on its first run.
-- `--sloppy` reuses the same research, then simulates a careless researcher: no self-check, and claims #1–#4 get an altered quote, a wrong source, an overstated claim and an invented quote. The fact-checker catches them, the report fails with HTTP 422.
+- `--sloppy` reuses the same research, then simulates a careless write-up: claim #1 gets an altered quote, #2 the wrong source, #3 an overstated claim and #4 an invented quote. The fact-checker catches all four (three by code, the overstatement by Haiku), the report fails with HTTP 422.
 - Each demo saves the full result (report, check table, tx hashes) to `cardano/.cache/checkedfacts/<task>.json`.
 - Between runs the demo waits until the wallets have no transaction left in the mempool (a back-to-back run would otherwise reuse a spent input).
 

@@ -7,7 +7,9 @@
     "wallets": "tsx ../../packages/core/cli/wallets.ts",
     "demo": "tsx demo.ts",
     "tamper": "tsx tamper.ts",
-    "deploy": "tsx deploy.ts"
+    "deploy": "tsx deploy.ts",
+    "keepers": "tsx keepers.ts",
+    "escrow": "tsx escrow.ts"
   },
   "dependencies": {
     "@agentic/core": "*",

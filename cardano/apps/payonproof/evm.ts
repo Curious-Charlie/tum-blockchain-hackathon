@@ -188,15 +188,16 @@ function requiredHex(name: string): Hex {
   return value as Hex;
 }
 
-/** The Keeper's own EVM key, so Lena's treasury and the Keeper are different accounts. */
-export function keeperKey(): Hex {
-  if (!process.env.KEEPER_EVM_PRIVATE_KEY) {
+/** A Keeper's own EVM key (`<ROLE>_EVM_PRIVATE_KEY`), so Lena's treasury and each Keeper are different accounts. */
+export function keeperKey(role = "KEEPER"): Hex {
+  const name = `${role}_EVM_PRIVATE_KEY`;
+  if (!process.env[name]) {
     const key = generatePrivateKey();
-    appendFileSync(APP_ENV, `KEEPER_EVM_PRIVATE_KEY=${key}\n`);
-    process.env.KEEPER_EVM_PRIVATE_KEY = key;
-    console.log(`  Created the Keeper's EVM account ${privateKeyToAddress(key)} (key in apps/payonproof/.env)`);
+    appendFileSync(APP_ENV, `${name}=${key}\n`);
+    process.env[name] = key;
+    console.log(`  Created ${role}'s EVM account ${privateKeyToAddress(key)} (key in apps/payonproof/.env)`);
   }
-  return requiredHex("KEEPER_EVM_PRIVATE_KEY");
+  return requiredHex(name);
 }
 
 export function lenaKey(): Hex {
@@ -213,7 +214,7 @@ export function bytecode(contract: string): Hex {
 export type Evm = Awaited<ReturnType<typeof connectEvm>>;
 
 /** Connects to Base Sepolia (deployed escrow) or starts anvil and deploys there. */
-export async function connectEvm(requested?: string) {
+export async function connectEvm(requested?: string, keeperRoles: string[] = ["KEEPER"]) {
   const deployments = readDeployments();
   const name: NetworkName = (requested ?? process.env.EVM_NETWORK ?? (deployments["base-sepolia"]?.escrow ? "base-sepolia" : "anvil")) as NetworkName;
   if (name !== "base-sepolia" && name !== "anvil") throw new Error(`Unknown EVM network ${name}`);
@@ -233,12 +234,13 @@ export async function connectEvm(requested?: string) {
   const transport = http(rpcUrl);
   const publicClient = createPublicClient({ chain, transport });
   const lena = createWalletClient({ account: privateKeyToAccount(lenaKey()), chain, transport });
-  const keeper = createWalletClient({ account: privateKeyToAccount(keeperKey()), chain, transport });
+  const keepers = Object.fromEntries(keeperRoles.map((role) => [role, createWalletClient({ account: privateKeyToAccount(keeperKey(role)), chain, transport })]));
+  const keeper = keepers[keeperRoles[0]!]!;
 
   let deployment: Required<Deployment>;
   if (name === "anvil") {
     const test = createTestClient({ chain, transport, mode: "anvil" });
-    for (const address of [lena.account.address, keeper.account.address]) await test.setBalance({ address, value: parseEther("10") });
+    for (const address of [lena.account.address, ...Object.values(keepers).map((k) => k.account.address)]) await test.setBalance({ address, value: parseEther("10") });
     const deploy = async (contract: string, args: readonly unknown[] = []) => {
       const hash = await lena.deployContract({ abi: [{ type: "constructor", inputs: args.length ? [{ type: "bytes32" }, { type: "uint256" }] : [], stateMutability: "nonpayable" }], bytecode: bytecode(contract), args });
       return (await publicClient.waitForTransactionReceipt({ hash })).contractAddress as Address;
@@ -274,6 +276,10 @@ export async function connectEvm(requested?: string) {
     usdToken: deployment.usd,
     lenaAddress: lena.account.address,
     keeperAddress: keeper.account.address,
+    /** The EVM account a Keeper executes from. */
+    keeperAddressOf: (role: string) => keepers[role]!.account.address,
+    /** A Keeper signs a statement with its EVM key (binds its Cardano identity to its EVM account). */
+    signAsKeeper: (role: string, message: string) => keepers[role]!.signMessage({ account: keepers[role]!.account, message }),
 
     async getOrder(orderId: bigint): Promise<Order> {
       return (await publicClient.readContract({ address: deployment.escrow, abi: escrowAbi, functionName: "getOrder", args: [orderId] })) as Order;
@@ -319,15 +325,24 @@ export async function connectEvm(requested?: string) {
         .then(() => undefined, (error) => { try { explainRevert(error); } catch (e) { return (e as Error).message; } });
     },
 
-    /** The Keeper submits the signed rate. Simulates first, so a failing call costs no gas. */
-    async execute(orderId: bigint, signed: Pick<SignedRate, "timestamp" | "data" | "signature">) {
+    /** A Keeper submits the signed rate. Simulates first, so a failing call costs no gas. */
+    async execute(orderId: bigint, signed: Pick<SignedRate, "timestamp" | "data" | "signature">, role = keeperRoles[0]!) {
+      const executor = keepers[role]!;
       const args = [orderId, BigInt(signed.timestamp), toHex(signed.data), signed.signature] as const;
-      const { request } = await publicClient.simulateContract({ address: deployment.escrow, abi: escrowAbi, functionName: "execute", args, account: keeper.account }).catch(explainRevert);
-      const hash = await keeper.writeContract(request);
+      const { request } = await publicClient.simulateContract({ address: deployment.escrow, abi: escrowAbi, functionName: "execute", args, account: executor.account }).catch(explainRevert);
+      const hash = await executor.writeContract(request);
       const receipt = await confirm(hash);
       const [paid] = parseEventLogs({ abi: escrowAbi, eventName: "InvoicePaid", logs: receipt.logs });
       if (!paid) throw new Error(`No InvoicePaid event in ${txLink(hash)}`);
       return { hash, payout: paid.args.payout, refund: paid.args.refund, rate: paid.args.rate, block: receipt.blockNumber };
+    },
+
+    /** The InvoicePaid event our escrow emitted in `hash`, if any (null if the transaction does not exist). */
+    async invoicePaidIn(hash: Hex) {
+      const receipt = await publicClient.getTransactionReceipt({ hash }).catch(() => undefined);
+      if (!receipt || receipt.status !== "success") return null;
+      const [paid] = parseEventLogs({ abi: escrowAbi, eventName: "InvoicePaid", logs: receipt.logs.filter((l) => isAddressEqual(l.address, deployment.escrow)) });
+      return paid ? { ...paid.args, txHash: hash, blockNumber: receipt.blockNumber, logIndex: paid.logIndex } : null;
     },
 
     close() {

@@ -1,0 +1,37 @@
+# Secrets: wallet keys, mnemonics, API keys (track rules: keep them out of the repo)
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*mnemonic*
+*seed*phrase*
+wallet*.json
+keystore/
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Foundry (API3 track)
+cache/
+broadcast/*/31337/
+forge-out/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

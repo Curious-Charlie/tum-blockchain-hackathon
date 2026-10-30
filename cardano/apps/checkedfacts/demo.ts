@@ -8,6 +8,7 @@
  *
  *   npm run demo -w apps/checkedfacts                 # honest researcher: report passes, 3 tUSDM settle
  *   npm run demo -w apps/checkedfacts -- --sloppy     # sloppy researcher: report fails, shop owner pays nothing
+ *   npm run demo -w apps/checkedfacts -- --fast       # all claims in one checker payment (no confirmation wait, ≈30 s)
  *   npm run demo -w apps/checkedfacts -- --topic "…"  # another topic (first run takes a few minutes, then cached)
  */
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -16,7 +17,7 @@ import { Agent, setGlobalDispatcher } from "undici";
 import { decodePaymentResponseHeader } from "@x402/fetch";
 import { AgentGuard, EXPLORER_TX, ROOT, Wallet, emit, flushEvents, formatAmount, limits, setApp, usageSummary } from "@agentic/core";
 import { startChecker } from "./checker.ts";
-import { CHECKER_PORT, DEFAULT_TOPIC, REPORT_PRICE, RESEARCHER_PORT, tusdm } from "./config.ts";
+import { CHECKER_PORT, DEFAULT_TOPIC, MAX_BATCH, REPORT_PRICE, RESEARCHER_PORT, tusdm } from "./config.ts";
 import { startResearcher, type ReportBody } from "./researcher.ts";
 import { LABEL } from "./verdict.ts";
 import { waitUntilIdle } from "./chain.ts";
@@ -27,6 +28,7 @@ setGlobalDispatcher(new Agent({ headersTimeout: 600_000, bodyTimeout: 600_000 })
 
 const args = process.argv.slice(2);
 const sloppy = args.includes("--sloppy");
+const fast = args.includes("--fast");
 const topicArg = args.indexOf("--topic");
 const topic = topicArg >= 0 && args[topicArg + 1] ? args[topicArg + 1]! : DEFAULT_TOPIC;
 const task = `${sloppy ? "sloppy" : "report"}-${new Date().toISOString().slice(11, 19).replaceAll(":", "")}`;
@@ -45,6 +47,7 @@ const researcherService = await startResearcher({
   checker: { name: checker.name, address: checker.address, url: checkerService.url },
   port: RESEARCHER_PORT,
   sloppy,
+  batchSize: fast ? MAX_BATCH : undefined,
 });
 
 const guard = new AgentGuard(customer, {
@@ -92,7 +95,7 @@ try {
 
   const out = path.join(ROOT, ".cache", "checkedfacts", `${task}.json`);
   mkdirSync(path.dirname(out), { recursive: true });
-  writeFileSync(out, JSON.stringify({ topic, status: response.status, paidTx, ...body }, null, 2));
+  writeFileSync(out, JSON.stringify({ task, topic, status: response.status, paidTx, ...body }, null, 2));
   console.log(`\nSaved ${path.relative(process.cwd(), out)}\n${usageSummary()}\n${line}`);
 } finally {
   await researcherService.close();

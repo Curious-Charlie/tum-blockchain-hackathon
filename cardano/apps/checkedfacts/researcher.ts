@@ -19,7 +19,7 @@ import type { Request, Response } from "express";
 import { decodePaymentResponseHeader } from "@x402/fetch";
 import { decodePaymentRequiredHeader } from "@x402/core/http";
 import { AgentGuard, SONNET, Seller, emit, formatAmount, runAgent, sleep, tool, waitForTx, webSearch, type GuardPolicy, type Wallet } from "@agentic/core";
-import { BATCH_SIZE, CHECK_PRICE_PER_CLAIM, INDEX_LAG_MS, MAX_CLAIMS, REPORT_PRICE } from "./config.ts";
+import { BATCH_SIZE, CHECK_PRICE_PER_CLAIM, INDEX_LAG_MS, MAX_BATCH, MAX_CLAIMS, REPORT_PRICE } from "./config.ts";
 import { fetchPage, findQuote } from "./pages.ts";
 import { MIN_CHECKABLE, claimsHash, gate, type CheckResult, type Claim, type GateResult } from "./verdict.ts";
 
@@ -181,10 +181,10 @@ function rejection(response: globalThis.Response): string {
 }
 
 /** Step 3: buys fact-checks per batch through AgentGuard. Throws if a check could not be bought. */
-export async function buyChecks(guard: AgentGuard, checkerUrl: string, claims: Claim[], task: string) {
+export async function buyChecks(guard: AgentGuard, checkerUrl: string, claims: Claim[], task: string, batchSize = BATCH_SIZE) {
   const results: CheckResult[] = [];
   const payments: string[] = [];
-  const batches = chunk(claims, BATCH_SIZE);
+  const batches = chunk(claims, Math.min(batchSize, MAX_BATCH));
   const step = (message: string) => emit({ kind: "task.step", actor: guard.name, task, message });
   for (const [i, batch] of batches.entries()) {
     const cost = formatAmount(CHECK_PRICE_PER_CLAIM.asset, CHECK_PRICE_PER_CLAIM.amount * BigInt(batch.length));
@@ -219,13 +219,13 @@ export async function buyChecks(guard: AgentGuard, checkerUrl: string, claims: C
 
 /**
  * The research agent's AgentGuard policy: it may pay only the fact-checker, at
- * most one batch (5 claims × 0.2 tUSDM = 1 tUSDM) per payment, 2 tUSDM per
- * report and 40 tUSDM per day. Nothing else, whatever a web page tells the LLM.
+ * most one full batch (8 claims × 0.2 tUSDM = 1.6 tUSDM) per payment, 2 tUSDM
+ * per report and 40 tUSDM per day. Nothing else, whatever a web page tells the LLM.
  */
 export function researcherPolicy(checker: { name: string; address: string }): GuardPolicy {
   const unit = CHECK_PRICE_PER_CLAIM;
   return {
-    maxPerPayment: { [unit.asset]: unit.amount * 5n },
+    maxPerPayment: { [unit.asset]: unit.amount * BigInt(MAX_BATCH) },
     maxPerTask: { [unit.asset]: unit.amount * 10n },
     maxPerDay: { [unit.asset]: unit.amount * 200n },
     payees: { [checker.address]: checker.name },
@@ -238,8 +238,10 @@ export async function startResearcher(options: {
   checker: { name: string; address: string; url: string };
   port: number;
   sloppy?: boolean;
+  /** Claims per checker payment (default BATCH_SIZE). */
+  batchSize?: number;
 }) {
-  const { wallet, checker, sloppy } = options;
+  const { wallet, checker, sloppy, batchSize } = options;
   const guard = new AgentGuard(wallet, researcherPolicy(checker));
 
   const seller = new Seller(wallet).paid(
@@ -272,7 +274,7 @@ export async function startResearcher(options: {
           return;
         }
 
-        const { results, payments } = await buyChecks(guard, checker.url, claims, task);
+        const { results, payments } = await buyChecks(guard, checker.url, claims, task, batchSize);
         const verdict = gate(results);
         step(`Verdict: ${verdict.summary}. Asking the fact-checker to publish its certificate on Cardano`);
         const certificate = await requestCertificate(checker.url, task, wallet.name);

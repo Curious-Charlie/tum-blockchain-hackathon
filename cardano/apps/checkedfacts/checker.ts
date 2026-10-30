@@ -1,6 +1,6 @@
 /**
  * Fact-checker agent: an x402 service that checks claims against their sources,
- * priced per claim (0.2 tUSDM each, at most 5 claims per request).
+ * priced per claim (0.2 tUSDM each, at most 8 claims per request).
  *
  * For each claim it fetches the source page itself and checks in code that the
  * quote is really on it (normalized exact match). Only then does Claude Haiku
@@ -78,7 +78,7 @@ export async function startChecker(wallet: Wallet, port: number) {
   const seller = new Seller(wallet).paid(
     "POST /check",
     {
-      // Priced per claim in the request body (1..5 claims); a malformed body is quoted at 1 claim and then refused.
+      // Priced per claim in the request body (1..8 claims); a malformed body is quoted at 1 claim and then refused.
       price: (context) => price(validClaims(context.adapter.getBody?.())?.length ?? 1),
       description: `Fact-check claims against their sources: ${formatAmount(CHECK_PRICE_PER_CLAIM.asset, CHECK_PRICE_PER_CLAIM.amount)} per claim, at most ${MAX_BATCH} per request`,
     },

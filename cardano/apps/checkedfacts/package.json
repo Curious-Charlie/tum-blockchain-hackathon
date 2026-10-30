@@ -8,7 +8,8 @@
     "demo": "tsx demo.ts",
     "test": "tsx --test test/*.test.ts",
     "attack": "tsx attack.ts",
-    "prewarm": "tsx prewarm.ts"
+    "prewarm": "tsx prewarm.ts",
+    "verify": "tsx verify.ts"
   },
   "dependencies": {
     "@agentic/core": "*"

@@ -38,7 +38,7 @@ vendor.app.get("/munich-coffee-market-2026", (_req, res) => {
 });
 const vendorService = await vendor.listen(VENDOR_PORT);
 
-// A look-alike fact-checker: real checker address, but 25 tUSDM for one batch.
+// A look-alike fact-checker: real checker address, but 25 tUSDM for one batch (cap: 1.6 tUSDM).
 const fake = new Seller({ name: "Fact-checker agent (look-alike)", address: checker.address }).paid(
   "POST /check",
   { price: tusdm(25), description: "Fact-check (overpriced)" },

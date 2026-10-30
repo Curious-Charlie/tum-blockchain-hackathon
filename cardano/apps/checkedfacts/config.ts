@@ -19,9 +19,10 @@ export const VENDOR_PORT = Number(process.env.VENDOR_PORT ?? 4124);
 export const REPORT_PRICE = tusdm(3);
 /** What the research agent pays the fact-checker per claim checked. */
 export const CHECK_PRICE_PER_CLAIM = tusdm(0.2);
-/** Claims per paid check request; a report of 8 claims costs two payments. */
+/** Claims per paid check request by default: a report of 8 claims costs two payments. */
 export const BATCH_SIZE = Number(process.env.BATCH_SIZE ?? 4);
-export const MAX_BATCH = 5;
+/** Most claims the checker takes in one request (`--fast` sends them all at once: one payment, no confirmation wait). */
+export const MAX_BATCH = 8;
 /** Pause after a confirmation before spending again: Blockfrost's UTxO index trails new blocks. */
 export const INDEX_LAG_MS = Number(process.env.INDEX_LAG_MS ?? 12_000);
 /** The research agent keeps at most this many claims in a report. */

@@ -17,7 +17,8 @@ Full design: `docs/DESIGN.md` (§4 D5 is the submission). Honest limitations: `d
 - **Primary track: Cardano** ("Agentic Commerce on Cardano", €6k). BSV and API3 are dropped.
 - **The submission is D5 ReproBounty** (chosen Fri 12:40; the 18:30 internal demo is cancelled). It is on `main`. D1 PayOnProof (`d1/payonproof`) and D2 CheckedFacts (`d2/checkedfacts`) stay on their branches and never go into `main`.
 - Judges stress three directions, and D5 covers all three: **Seller** (x402 paid endpoints), **Buyer** (an agent finds services, decides what they are worth and pays without overspending: AgentGuard), **Coworker** (Masumi: agents work together, settlement after delivery, escrow).
-- Work order: (1) safety net on `main`: three demo paths, cold-start README, clean history, limitations doc; (2) Masumi escrow for the Requester → Replicator bounty only (testnet by 20:00, else roadmap), x402 stays as the fallback behind a flag; (3) Buyer: two compute agents with different quotes and reputations, the Replicator chooses within its AgentGuard budget and explains why on the dashboard.
+- Work order (done Fri 13:30): (1) safety net on `main`: three demo paths, cold-start README, clean history, limitations doc; (2) Masumi escrow for the Requester → Replicator bounty only (`--escrow`), x402 stays the default; (3) Buyer: three compute agents with different prices and track records, the Replicator chooses in code within its AgentGuard budget and explains why on the dashboard.
+- Masumi escrow facts: collect is possible only from the unlock time (32 min after the quote with the shortest legal deadlines), a no-show refund from the submit-result deadline (17 min); a seller-authorized refund is immediate. On stage show the lock live and earlier collect/refund transactions.
 - **D4 AgentGuard** (spend policies for paying agents) is the shared buyer-side infrastructure.
 - Rejected, don't propose again: a listing-optimizer agent team, the BSV track, a single-design plan.
 - Principle: **AI interprets, deterministic checks gate money.** An LLM never decides alone whether a payment settles.
@@ -62,7 +63,8 @@ cd cardano && npm run smoke                           # real 1 tADA x402 payment
 cd cardano && npm run publish-test                    # CIP-20 record on preprod
 cd cardano && npm test                                # AgentGuard policy tests
 cd cardano && npm run typecheck
-cd cardano && npm run demo -w apps/<app>              # one design end to end
+cd cardano && npm run demo -w apps/reprobounty        # ReproBounty end to end (-- --altered | --tamper | --escrow [--tamper|--vanish])
+cd cardano && npm run escrow -w apps/reprobounty      # escrow jobs; -- finish --wait collects / refunds when due
 ```
 
 ## Secrets and wallets

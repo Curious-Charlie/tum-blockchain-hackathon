@@ -35,6 +35,11 @@
   - D1 `d1/payonproof`: Base Sepolia InvoiceEscrow `0x63e2b722…`，服务费 `4a5300fe…`，Keeper 收据 `d578fe53…`；tamper 测试 4 种篡改全被拒
   - D2 `d2/checkedfacts`: 店主付款 `a43ea137…`，PASS 证书 `76e54008…`，FAIL 证书 `b81428cf…`（店主未付款）
   - D5 `d5/reprobounty`: 赏金 `a4b5a81d…`，证书 `80f0deef…`；`--altered` 证书 `38b977f7…`；`--tamper` 时 Requester 未付款
+- [x] **Phase 2（周五 13:36）**: D5 合入 main，冷启动和历史扫描通过，局限文档中英文；Masumi escrow 赏金在 preprod 上跑通三条路径：
+  - 锁定 → 放款：锁定 [1c7ab469…](https://preprod.cardanoscan.io/transaction/1c7ab46900668fd0a55931ed081636a73e95f1dbbbd729f2ac37600cc27e9721)，结果哈希 [4af00ea3…](https://preprod.cardanoscan.io/transaction/4af00ea37471f9314234c09e7b03b2377bc5e6caee00b1d8e65f20b6ae615e44)，证书 [ee93a1a8…](https://preprod.cardanoscan.io/transaction/ee93a1a8855e246e318977a584f55aeb80be8edb0add6868112b6c78d1a7b508)，解锁后 Replicator 领钱 [237ffb9f…](https://preprod.cardanoscan.io/transaction/237ffb9f344957df32dfd6d68cf5046d6a58d443417b3cc496bee0586cb59975)
+  - 锁定 → 超时退款（`--vanish`）：锁定 [b46e99e4…](https://preprod.cardanoscan.io/transaction/b46e99e4b4408e741d966391869dea361d50dad91b3f0338a073c538994d0e69)，截止后期刊取回 [208664bc…](https://preprod.cardanoscan.io/transaction/208664bc753aa7aa8ad49e9d3a866564fd5ef71ac7528969f980a9d5383c89cb)
+  - 锁定 → 授权退款（`--tamper`）：锁定 [5a60fe25…](https://preprod.cardanoscan.io/transaction/5a60fe254a2af44c791206126a81500aa69392b6173bbe4aaec30808a7e6708e)，Replicator 授权退款 [55955002…](https://preprod.cardanoscan.io/transaction/559550022adb6bf34e2b77c9daf3bef23db66f90dbb7f5bfb34da77c1a628fd5)，期刊立即取回 [237136cb…](https://preprod.cardanoscan.io/transaction/237136cb67bb1abba23e26f33c3cb9b8be66588955974262cfdde5bd2652a91e)
+  - Buyer：三个算力 agent 比价，Replicator 按 AgentGuard 预算和口碑在代码里选择（口碑起点为预设数据）
 
 ## 提交清单（Devfolio）
 

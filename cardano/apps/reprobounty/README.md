@@ -141,6 +141,20 @@ Without escrow (`npm run demo -w apps/reprobounty`) the same flow settles in one
 | | Replicator → Verifier 1 tUSDM (paid for the check) | [6b4504bf…](https://preprod.cardanoscan.io/transaction/6b4504bf4bd1b4729e3f9c2724e582bf2603595ec07e0879d138198c668346e3) |
 | | Requester → Replicator 5 tUSDM | HTTP 422: signed but never submitted, no transaction (Requester balance unchanged) |
 
+### Masumi escrow runs (`--escrow`)
+
+| Run | Step | Transaction |
+|---|---|---|
+| lock → release | journal locks 5 tUSDM in Masumi escrow | [1c7ab469…](https://preprod.cardanoscan.io/transaction/1c7ab46900668fd0a55931ed081636a73e95f1dbbbd729f2ac37600cc27e9721) |
+| | Replicator submits the result hash (= evidence bundle hash) | [4af00ea3…](https://preprod.cardanoscan.io/transaction/4af00ea37471f9314234c09e7b03b2377bc5e6caee00b1d8e65f20b6ae615e44) |
+| | certificate (CIP-20, names the lock and result transactions) | [ee93a1a8…](https://preprod.cardanoscan.io/transaction/ee93a1a8855e246e318977a584f55aeb80be8edb0add6868112b6c78d1a7b508) |
+| | Replicator collects the 5 tUSDM after the unlock time | [237ffb9f…](https://preprod.cardanoscan.io/transaction/237ffb9f344957df32dfd6d68cf5046d6a58d443417b3cc496bee0586cb59975) |
+| lock → no-show refund (`--vanish`) | journal locks 5 tUSDM | [b46e99e4…](https://preprod.cardanoscan.io/transaction/b46e99e4b4408e741d966391869dea361d50dad91b3f0338a073c538994d0e69) |
+| | journal withdraws after the submit-result deadline | [208664bc…](https://preprod.cardanoscan.io/transaction/208664bc753aa7aa8ad49e9d3a866564fd5ef71ac7528969f980a9d5383c89cb) |
+| lock → authorized refund (`--tamper`) | journal locks 5 tUSDM | [5a60fe25…](https://preprod.cardanoscan.io/transaction/5a60fe254a2af44c791206126a81500aa69392b6173bbe4aaec30808a7e6708e) |
+| | verification fails, Replicator authorizes the refund | [55955002…](https://preprod.cardanoscan.io/transaction/559550022adb6bf34e2b77c9daf3bef23db66f90dbb7f5bfb34da77c1a628fd5) |
+| | journal withdraws at once | [237136cb…](https://preprod.cardanoscan.io/transaction/237136cb67bb1abba23e26f33c3cb9b8be66588955974262cfdde5bd2652a91e) |
+
 Check a certificate yourself: `npm run check -w apps/reprobounty -- 80f0deef03da8ea44cfac8f15443102dd4690b26fa618810384f696338755f23`.
 
 ## Files

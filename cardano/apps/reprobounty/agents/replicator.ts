@@ -3,7 +3,9 @@
  *
  *   1. Claude (Sonnet) extracts the target claims from the manuscript;
  *      code keeps only numbers that are really printed there.
- *   2. Pays the Compute agent (AgentGuard) to run the pinned package.
+ *   2. Asks the compute agents for a price, picks one within its AgentGuard
+ *      budget and with a good track record (lib/market.ts), pays it to run the
+ *      pinned package.
  *   3. Claude (Haiku) maps each claim to an output column; code checks the mapping.
  *   4. Deterministic comparison → REPRODUCED / PARTIAL / NOT REPRODUCED.
  *   5. Evidence bundle (hashes of code, data, outputs, log, comparison).
@@ -27,16 +29,18 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { Assets } from "@evolution-sdk/evolution";
 import {
-  AgentGuard, HAIKU, PaymentBlocked, SONNET, Seller, askJson, emit, formatAmount, limits, publish, toUnit, usdm,
+  AgentGuard, HAIKU, PaymentBlocked, SONNET, Seller, TUSDM, askJson, emit, formatAmount, limits, publish, toUnit, usdm,
   type Published, type Settled, type Wallet,
 } from "@agentic/core";
 import { compare, validateClaims, validateMappings, type Comparison, type ExtractedClaim, type Mapping, type ValidClaim } from "../lib/compare.ts";
 import { bundleHash, hashTree, parseCsv, sha256, type EvidenceBundle } from "../lib/evidence.ts";
 import { settlementTx, wrapWords } from "../lib/chain.ts";
 import { authorizeRefund, escrowOutputOf, loadJob, paymentKeyHash, record, saveJob, submitResult, type EscrowJob } from "../lib/escrow.ts";
+import { chooseProvider, getQuote, type Provider, type Quote } from "../lib/market.ts";
+import { addRun, loadRecords } from "../lib/reputation.ts";
 import { findPackage, type ReplicationPackage } from "../registry.ts";
 import type { RunRequest, RunResult } from "./compute.ts";
-import type { VerifyReport, VerifyRequest } from "./verifier.ts";
+import { VERIFIER_PRICE, type VerifyReport, type VerifyRequest } from "./verifier.ts";
 
 export const REPLICATOR_PRICE = usdm(5);
 const EVIDENCE_DIR = fileURLToPath(new URL("../evidence/", import.meta.url));
@@ -192,13 +196,13 @@ type Outcome =
 
 const clock = (ms: number | bigint) => new Date(Number(ms)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-export async function startReplicator(options: { wallet: Wallet; port: number; compute: Counterpart; verifier: Counterpart; tamper?: boolean; vanish?: boolean }) {
-  const { wallet, compute, verifier, tamper, vanish } = options;
+export async function startReplicator(options: { wallet: Wallet; port: number; computes: Provider[]; verifier: Counterpart; tamper?: boolean; vanish?: boolean }) {
+  const { wallet, computes, verifier, tamper, vanish } = options;
   const guard = new AgentGuard(wallet, {
     maxPerPayment: limits(usdm(1.5)),
     maxPerTask: limits(usdm(2.5)),
     maxPerDay: limits(usdm(40)),
-    payees: { [compute.address]: compute.name, [verifier.address]: verifier.name },
+    payees: Object.fromEntries([...computes, verifier].map((c) => [c.address, c.name])),
   });
   const certificates = new Map<string, Promise<Published | undefined>>();
 
@@ -218,13 +222,24 @@ export async function startReplicator(options: { wallet: Wallet; port: number; c
       if (!claims.length) return fail(422, "no checkable numeric claim found");
       step(task, `${claims.length} claims: ${claims.map((c) => `${c.symbol} = ${c.value_text}`).join(", ")} (each ± one unit in the last printed digit)`);
 
-      // 2. Compute (paid through AgentGuard)
+      // 2. Compute: ask every compute agent for a price, choose one, pay it through AgentGuard
       const pkg = findPackage(request.code.repo, request.code.commit);
       if (!pkg) return fail(422, `${request.code.repo}@${request.code.commit} is not a package we can run`);
       const tree = hashTree(pkg.dir);
-      step(task, `Hiring the Compute agent to run ${pkg.repo.replace("https://github.com/", "")}@${pkg.commit.slice(0, 7)} (package hash ${tree.sha256.slice(0, 12)}…)`);
       const runBody: RunRequest = { task, repo: pkg.repo, commit: pkg.commit, packageSha256: tree.sha256 };
-      const runResponse = await guard.fetch(`${compute.url}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(runBody) }, { task, purpose: "one code run" });
+      step(task, `Asking ${computes.length} compute agents for a price to run ${pkg.repo.replace("https://github.com/", "")}@${pkg.commit.slice(0, 7)} (package hash ${tree.sha256.slice(0, 12)}…)`);
+      const quotes = (await Promise.all(computes.map((c) => getQuote(c, "/run", runBody).catch(() => undefined)))).filter((q): q is Quote => Boolean(q));
+      const spent = guard.state(task).spentOnTask[TUSDM] ?? 0n;
+      const budget = {
+        asset: TUSDM,
+        maxPerPayment: guard.policy.maxPerPayment[TUSDM] ?? 0n,
+        availableForCompute: (guard.policy.maxPerTask[TUSDM] ?? 0n) - spent - VERIFIER_PRICE.amount,
+      };
+      const { chosen, assessments } = chooseProvider(quotes, loadRecords(), budget);
+      for (const a of assessments) step(task, `${a.chosen ? "✓" : "✗"} ${a.name}: ${a.price}, ${a.record} (demo seed + live runs) → ${a.chosen ? "CHOSEN" : "rejected"}: ${a.why}`);
+      if (!chosen) return fail(503, "no compute agent is within budget with a good enough track record");
+      emit({ kind: "task.step", actor: wallet.name, task, message: `Buyer decision: hire ${chosen.name} for ${formatAmount(chosen.asset, chosen.amount)} (budget: ${formatAmount(TUSDM, budget.availableForCompute)} for compute after keeping ${formatAmount(TUSDM, VERIFIER_PRICE.amount)} for the Verifier)`, data: { assessments } });
+      const runResponse = await guard.fetch(`${chosen.url}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(runBody) }, { task, purpose: "one code run" });
       if (!runResponse.ok) return fail(502, `compute run failed (HTTP ${runResponse.status})`, { detail: await runResponse.json().catch(() => undefined) });
       const computeTx = settlementTx(runResponse.headers.get("PAYMENT-RESPONSE"));
       let run = (await runResponse.json()) as RunResult;
@@ -265,6 +280,7 @@ export async function startReplicator(options: { wallet: Wallet; port: number; c
       if (!verifyResponse.ok) return fail(502, `verifier unavailable (HTTP ${verifyResponse.status})`);
       const verifierTx = settlementTx(verifyResponse.headers.get("PAYMENT-RESPONSE"));
       const verification = (await verifyResponse.json()) as VerifyReport;
+      addRun(chosen.role, verification.passed);
       if (!verification.passed) return fail(422, "evidence bundle failed verification", { verification, bundleHash: hash });
 
       const datasets = new Set(comparison.rows.map((r) => `${r.file}:${r.dataset}`)).size;

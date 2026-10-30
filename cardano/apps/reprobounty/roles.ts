@@ -12,8 +12,10 @@ export const roles: RoleSpec[] = [
   { role: "REQUESTER", name: "Requester (journal)", fund: [ada(25), usdm(30)] },
   // reproduces the paper; pays compute and verifier; publishes the certificate
   { role: "REPLICATOR", name: "Replicator agent", fund: [ada(30), usdm(20)] },
-  // sells sandboxed code runs
+  // sell sandboxed code runs at different prices; the Replicator picks one (only receive)
   { role: "COMPUTE", name: "Compute agent" },
+  { role: "COMPUTE_B", name: "Budget compute agent" },
+  { role: "COMPUTE_C", name: "Premium compute agent" },
   // spot-checks the evidence bundle
   { role: "VERIFIER", name: "Verifier agent" },
 ];

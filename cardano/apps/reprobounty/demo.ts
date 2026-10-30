@@ -34,19 +34,28 @@ const escrow = args.includes("--escrow");
 const vanish = escrow && args.includes("--vanish");
 const PORT = Number(process.env.REPROBOUNTY_PORT ?? 4151);
 
-const [requester, replicator, computeWallet, verifierWallet] = await Promise.all([
+const [requester, replicator, computeWallet, verifierWallet, budgetWallet, premiumWallet] = await Promise.all([
   Wallet.load("REQUESTER", "Requester (journal)"),
   Wallet.load("REPLICATOR", "Replicator agent"),
   Wallet.load("COMPUTE", "Compute agent"),
   Wallet.load("VERIFIER", "Verifier agent"),
+  Wallet.load("COMPUTE_B", "Budget compute agent"),
+  Wallet.load("COMPUTE_C", "Premium compute agent"),
 ]);
 
+// Three compute agents sell the same runs at different prices; the Replicator chooses (lib/market.ts).
 const compute = await startCompute(computeWallet.online("sells sandboxed code runs, 1 tUSDM per run"), PORT + 1);
+const budgetCompute = await startCompute(budgetWallet.online("sells sandboxed code runs, 0.5 tUSDM per run"), PORT + 3, usdm(0.5));
+const premiumCompute = await startCompute(premiumWallet.online("sells sandboxed code runs, 3 tUSDM per run"), PORT + 4, usdm(3));
 const verifier = await startVerifier(verifierWallet.online("spot-checks evidence bundles, 1 tUSDM per check"), PORT + 2);
 const replicatorServer = await startReplicator({
   wallet: replicator.online(`sells verified reproductions, 5 tUSDM${tamper ? " (DEMO: dishonest mode)" : ""}`),
   port: PORT,
-  compute: { url: compute.url, name: computeWallet.name, address: computeWallet.address },
+  computes: [
+    { role: "COMPUTE", url: compute.url, name: computeWallet.name, address: computeWallet.address },
+    { role: "COMPUTE_B", url: budgetCompute.url, name: budgetWallet.name, address: budgetWallet.address },
+    { role: "COMPUTE_C", url: premiumCompute.url, name: premiumWallet.name, address: premiumWallet.address },
+  ],
   verifier: { url: verifier.url, name: verifierWallet.name, address: verifierWallet.address },
   tamper,
   vanish,
@@ -192,7 +201,7 @@ try {
     const b = balances[i];
     console.log(`  ${w.name.padEnd(20)} ${b ? `${formatAmount(LOVELACE, b[LOVELACE] ?? 0n)}, ${formatAmount(TUSDM, b[TUSDM] ?? 0n)}` : "?"}`);
   }
-  await Promise.all([replicatorServer.close(), compute.close(), verifier.close()]);
+  await Promise.all([replicatorServer.close(), compute.close(), budgetCompute.close(), premiumCompute.close(), verifier.close()]);
   await flushEvents();
 }
 process.exit(exitCode);

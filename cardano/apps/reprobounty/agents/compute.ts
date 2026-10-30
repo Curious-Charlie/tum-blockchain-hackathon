@@ -10,7 +10,7 @@ import { spawn } from "node:child_process";
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { Seller, emit, usdm, type Wallet } from "@agentic/core";
+import { Seller, emit, usdm, type Amount, type Wallet } from "@agentic/core";
 import { sha256, hashTree, type FileHash } from "../lib/evidence.ts";
 import { findPackage, type ReplicationPackage } from "../registry.ts";
 
@@ -81,8 +81,8 @@ export async function executePackage(pkg: ReplicationPackage, computeAgent: stri
   }
 }
 
-export async function startCompute(wallet: Wallet, port: number) {
-  const seller = new Seller(wallet).paid("POST /run", { price: COMPUTE_PRICE, description: "Run a pinned replication package in a sandboxed temp dir" }, async (req, res) => {
+export async function startCompute(wallet: Wallet, port: number, price: Amount = COMPUTE_PRICE) {
+  const seller = new Seller(wallet).paid("POST /run", { price, description: "Run a pinned replication package in a sandboxed temp dir" }, async (req, res) => {
     const body = req.body as RunRequest;
     const pkg = findPackage(body.repo, body.commit);
     if (!pkg) {

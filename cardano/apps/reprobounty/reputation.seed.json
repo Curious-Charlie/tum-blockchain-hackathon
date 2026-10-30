@@ -1,0 +1,8 @@
+{
+  "note": "Made-up starting history for the demo, so the compute agents have different track records. Real runs add to it in cardano/.cache/reputation.json.",
+  "providers": {
+    "COMPUTE": { "runs": 42, "verified": 41 },
+    "COMPUTE_B": { "runs": 10, "verified": 6 },
+    "COMPUTE_C": { "runs": 50, "verified": 50 }
+  }
+}

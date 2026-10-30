@@ -11,19 +11,29 @@
  *   7. Verified → HTTP 200 → the requester's payment settles → certificate on
  *      Cardano (CIP-20). Not verified → HTTP 422 → the requester pays nothing.
  *
+ * `POST /reproduce/escrow` sells the same job through Masumi escrow instead:
+ * the requester locks the 5 tUSDM first (HTTP 202 accepts the job), the work
+ * starts once the lock is on chain, and then either the result hash goes into
+ * the escrow (the Replicator collects after the unlock time) or, if the work
+ * fails verification, the Replicator authorizes a refund. `GET /jobs/:id`
+ * reports the job.
+ *
  * The verdict does not affect the price: a verified NOT REPRODUCED is paid and
  * published like a REPRODUCED. Only an unverifiable attempt is unpaid.
  */
+import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { Assets } from "@evolution-sdk/evolution";
 import {
-  AgentGuard, HAIKU, PaymentBlocked, SONNET, Seller, askJson, emit, limits, publish, usdm,
-  type Published, type Wallet,
+  AgentGuard, HAIKU, PaymentBlocked, SONNET, Seller, askJson, emit, formatAmount, limits, publish, toUnit, usdm,
+  type Published, type Settled, type Wallet,
 } from "@agentic/core";
 import { compare, validateClaims, validateMappings, type Comparison, type ExtractedClaim, type Mapping, type ValidClaim } from "../lib/compare.ts";
 import { bundleHash, hashTree, parseCsv, sha256, type EvidenceBundle } from "../lib/evidence.ts";
 import { settlementTx, wrapWords } from "../lib/chain.ts";
+import { authorizeRefund, escrowOutputOf, loadJob, paymentKeyHash, record, saveJob, submitResult, type EscrowJob } from "../lib/escrow.ts";
 import { findPackage, type ReplicationPackage } from "../registry.ts";
 import type { RunRequest, RunResult } from "./compute.ts";
 import type { VerifyReport, VerifyRequest } from "./verifier.ts";
@@ -176,8 +186,14 @@ export function buildBundle(input: {
   return { bundle, hash: bundleHash(bundle), files };
 }
 
-export async function startReplicator(options: { wallet: Wallet; port: number; compute: Counterpart; verifier: Counterpart; tamper?: boolean }) {
-  const { wallet, compute, verifier, tamper } = options;
+type Outcome =
+  | { ok: true; body: ReproResponse; certificate: (bounty: string[]) => string[] }
+  | { ok: false; status: number; error: string; extra?: Record<string, unknown> };
+
+const clock = (ms: number | bigint) => new Date(Number(ms)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+export async function startReplicator(options: { wallet: Wallet; port: number; compute: Counterpart; verifier: Counterpart; tamper?: boolean; vanish?: boolean }) {
+  const { wallet, compute, verifier, tamper, vanish } = options;
   const guard = new AgentGuard(wallet, {
     maxPerPayment: limits(usdm(1.5)),
     maxPerTask: limits(usdm(2.5)),
@@ -188,13 +204,9 @@ export async function startReplicator(options: { wallet: Wallet; port: number; c
 
   const step = (task: string, message: string) => emit({ kind: "task.step", actor: wallet.name, task, message });
 
-  const seller = new Seller(wallet).paid("POST /reproduce", { price: REPLICATOR_PRICE, description: "Verified reproduction of a paper's numeric claims" }, async (req, res) => {
-    const request = req.body as ReproRequest;
-    const task = request.task ?? `repro-${Date.now()}`;
-    const fail = (status: number, error: string, extra: Record<string, unknown> = {}) => {
-      emit({ kind: "task.failed", actor: wallet.name, task, message: `${error} → HTTP ${status}, the requester's payment is not taken` });
-      res.status(status).json({ error, ...extra });
-    };
+  /** Steps 1–6: claims, compute, mapping, comparison, evidence, verification. Never throws. */
+  async function reproduce(request: ReproRequest, task: string): Promise<Outcome> {
+    const fail = (status: number, error: string, extra: Record<string, unknown> = {}): Outcome => ({ ok: false, status, error, extra });
     try {
       emit({ kind: "task.started", actor: wallet.name, task, message: `Reproduction job: ${request.paper.title}, target "${request.target}"` });
 
@@ -253,59 +265,160 @@ export async function startReplicator(options: { wallet: Wallet; port: number; c
       if (!verifyResponse.ok) return fail(502, `verifier unavailable (HTTP ${verifyResponse.status})`);
       const verifierTx = settlementTx(verifyResponse.headers.get("PAYMENT-RESPONSE"));
       const verification = (await verifyResponse.json()) as VerifyReport;
+      if (!verification.passed) return fail(422, "evidence bundle failed verification", { verification, bundleHash: hash });
 
-      // 7. Verified → 200 (payment settles, then the certificate); else 422 (nothing paid)
-      if (!verification.passed) {
-        return fail(422, "evidence bundle failed verification", { verification, bundleHash: hash });
-      }
-      let resolveCertificate!: (published: Published | undefined) => void;
-      certificates.set(task, new Promise((resolve) => (resolveCertificate = resolve)));
-      res.on("finish", () => {
-        const paidTx = res.statusCode === 200 ? settlementTx(res.getHeader("PAYMENT-RESPONSE")) : undefined;
-        if (!paidTx) return resolveCertificate(undefined);
-        const datasets = new Set(comparison.rows.map((r) => `${r.file}:${r.dataset}`)).size;
-        const lines = wrapWords([
-          "ReproBounty reproduction certificate v1",
-          `doi:${request.paper.doi}`,
-          request.paper.title,
-          `target: ${request.target}`,
-          `claims: ${claims.map((c) => `${c.symbol.replace("Pearson's ", "")}=${c.value_text}`).join(" ")}`,
-          `verdict: ${comparison.verdict} (${comparison.passed}/${comparison.total} checks, ${datasets} datasets)`,
-          `code: ${pkg.repo.replace("https://", "")}@${pkg.commit.slice(0, 12)}`,
-          "evidence sha256:",
-          hash,
-          "verified by:",
-          verifier.address,
-          "bounty paid in tx:",
-          paidTx,
-        ]);
-        step(task, "Requester's payment settled. Publishing the certificate on Cardano (after the verifier payment confirms)…");
-        publish(wallet, lines, { task, title: `the reproduction certificate (${comparison.verdict})` })
-          .then(resolveCertificate)
-          .catch((error) => {
-            emit({ kind: "task.failed", actor: wallet.name, task, message: `Certificate publish failed: ${String(error)}` });
-            resolveCertificate(undefined);
-          });
-      });
-      emit({ kind: "task.done", actor: wallet.name, task, message: `Verified ${comparison.verdict}: answering 200, so the requester's payment settles` });
-      const body: ReproResponse = {
-        verdict: comparison.verdict,
-        passed: comparison.passed,
-        total: comparison.total,
-        claims: comparison.claims,
-        conventions: { rounding: comparison.rounding, truncation: comparison.truncation },
-        bundleHash: hash,
-        evidenceFile,
-        verification,
-        payments: { compute: computeTx, verifier: verifierTx },
+      const datasets = new Set(comparison.rows.map((r) => `${r.file}:${r.dataset}`)).size;
+      const certificate = (bounty: string[]) => wrapWords([
+        "ReproBounty reproduction certificate v1",
+        `doi:${request.paper.doi}`,
+        request.paper.title,
+        `target: ${request.target}`,
+        `claims: ${claims.map((c) => `${c.symbol.replace("Pearson's ", "")}=${c.value_text}`).join(" ")}`,
+        `verdict: ${comparison.verdict} (${comparison.passed}/${comparison.total} checks, ${datasets} datasets)`,
+        `code: ${pkg.repo.replace("https://", "")}@${pkg.commit.slice(0, 12)}`,
+        "evidence sha256:",
+        hash,
+        "verified by:",
+        verifier.address,
+        ...bounty,
+      ]);
+      return {
+        ok: true,
+        certificate,
+        body: {
+          verdict: comparison.verdict,
+          passed: comparison.passed,
+          total: comparison.total,
+          claims: comparison.claims,
+          conventions: { rounding: comparison.rounding, truncation: comparison.truncation },
+          bundleHash: hash,
+          evidenceFile,
+          verification,
+          payments: { compute: computeTx, verifier: verifierTx },
+        },
       };
-      res.json(body);
     } catch (error) {
       if (error instanceof PaymentBlocked) return fail(503, `AgentGuard blocked a payment: ${error.reason}`);
       console.error(error);
       return fail(500, `replicator error: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  // ------------------------------------------------------------ x402: pay on success
+
+  const seller = new Seller(wallet).paid("POST /reproduce", { price: REPLICATOR_PRICE, description: "Verified reproduction of a paper's numeric claims" }, async (req, res) => {
+    const request = req.body as ReproRequest;
+    const task = request.task ?? `repro-${Date.now()}`;
+    const outcome = await reproduce(request, task);
+    if (!outcome.ok) {
+      emit({ kind: "task.failed", actor: wallet.name, task, message: `${outcome.error} → HTTP ${outcome.status}, the requester's payment is not taken` });
+      return res.status(outcome.status).json({ error: outcome.error, ...outcome.extra });
+    }
+    // 7. Verified → 200 (payment settles, then the certificate)
+    let resolveCertificate!: (published: Published | undefined) => void;
+    certificates.set(task, new Promise((resolve) => (resolveCertificate = resolve)));
+    res.on("finish", () => {
+      const paidTx = res.statusCode === 200 ? settlementTx(res.getHeader("PAYMENT-RESPONSE")) : undefined;
+      if (!paidTx) return resolveCertificate(undefined);
+      step(task, "Requester's payment settled. Publishing the certificate on Cardano (after the verifier payment confirms)…");
+      publish(wallet, outcome.certificate(["bounty paid in tx:", paidTx]), { task, title: `the reproduction certificate (${outcome.body.verdict})` })
+        .then(resolveCertificate)
+        .catch((error) => {
+          emit({ kind: "task.failed", actor: wallet.name, task, message: `Certificate publish failed: ${String(error)}` });
+          resolveCertificate(undefined);
+        });
+    });
+    emit({ kind: "task.done", actor: wallet.name, task, message: `Verified ${outcome.body.verdict}: answering 200, so the requester's payment settles` });
+    res.json(outcome.body);
   });
+
+  // ------------------------------------------------------------ Masumi escrow: lock first, then work
+
+  const requests = new Map<string, ReproRequest>();
+  const price = formatAmount(REPLICATOR_PRICE.asset, REPLICATOR_PRICE.amount);
+
+  seller.paid("POST /reproduce/escrow", { price: REPLICATOR_PRICE, description: "Verified reproduction, paid into Masumi escrow", escrow: true }, (req, res) => {
+    const request = req.body as ReproRequest;
+    const job: EscrowJob = { jobId: randomUUID(), task: request.task ?? `repro-${Date.now()}`, status: "awaiting_lock", amount: price, history: [] };
+    requests.set(job.jobId, request);
+    saveJob(job);
+    step(job.task, `Job ${job.jobId.slice(0, 8)} accepted. The ${price} bounty goes into Masumi escrow first; work starts once the lock is on chain`);
+    res.status(202).json({ jobId: job.jobId, status: job.status });
+  });
+
+  seller.app.get("/jobs/:id", (req, res) => {
+    const job = loadJob(req.params.id);
+    if (job) res.json(job);
+    else res.status(404).json({ error: "unknown job" });
+  });
+
+  seller.onSettled(async (settled) => {
+    if (settled.path !== "/reproduce/escrow") return;
+    const { jobId } = settled.body as { jobId: string };
+    const job = loadJob(jobId);
+    const request = requests.get(jobId);
+    if (!job || !request) return;
+    try {
+      await runEscrowJob(job, request, settled);
+    } catch (error) {
+      job.status = "failed";
+      job.error = error instanceof Error ? error.message : String(error);
+      saveJob(job);
+      emit({ kind: "task.failed", actor: wallet.name, task: job.task, message: `Escrow job failed: ${job.error}` });
+    }
+  });
+
+  async function runEscrowJob(job: EscrowJob, request: ReproRequest, settled: Settled) {
+    const { task } = job;
+    const terms = (settled.requirements.extra as { terms: { sellerNonce: string; submitResultTime: string; unlockTime: string } }).terms;
+    job.lockTx = settled.tx;
+    job.status = "locked";
+    job.submitResultTime = Number(terms.submitResultTime);
+    job.unlockTime = Number(terms.unlockTime);
+    record(job, "lock", settled.tx);
+    step(task, `Bounty locked in Masumi escrow. Result due by ${clock(job.submitResultTime)}, collectable from ${clock(job.unlockTime)}. Waiting for the lock to confirm…`);
+
+    // The lock must be exactly what we signed before we spend anything on the job.
+    const lock = await escrowOutputOf(wallet, settled.tx);
+    const d = lock?.datum;
+    const locked = lock ? Assets.getByUnit(lock.utxo.assets, toUnit(REPLICATOR_PRICE.asset)) : 0n;
+    const mismatch = !lock || !d ? "no escrow output in the lock transaction"
+      : d.seller.payment.hash !== paymentKeyHash(wallet.address) ? "the escrow names another seller"
+      : d.state !== 0n || d.resultHash !== "" ? "the escrow is not freshly locked"
+      : d.sellerNonce !== terms.sellerNonce || d.submitResultTime !== BigInt(terms.submitResultTime) || d.unlockTime !== BigInt(terms.unlockTime) ? "the escrow terms differ from the signed terms"
+      : locked < REPLICATOR_PRICE.amount ? `the escrow holds less than ${price}`
+      : undefined;
+    if (mismatch || !lock) throw new Error(`refusing the job: ${mismatch}`);
+    step(task, `Lock confirmed: ${price} in escrow ${lock.ref.slice(0, 12)}…, terms match what we signed`);
+
+    if (vanish) {
+      job.status = "vanished";
+      saveJob(job);
+      emit({ kind: "task.step", actor: wallet.name, task, message: `⚠ DEMO --vanish: the Replicator takes the job and disappears. Nothing reaches the escrow, so the journal can take its ${price} back from ${clock(job.submitResultTime)}` });
+      return;
+    }
+
+    job.status = "working";
+    saveJob(job);
+    const outcome = await reproduce(request, task);
+    if (outcome.ok) {
+      step(task, `Verified ${outcome.body.verdict}. Putting the result hash (= evidence bundle hash) into the escrow…`);
+      const tx = await submitResult(wallet, lock, outcome.body.bundleHash);
+      Object.assign(job, { status: "result_submitted", resultHash: outcome.body.bundleHash, verdict: outcome.body.verdict });
+      record(job, "submit_result", tx);
+      emit({ kind: "task.done", actor: wallet.name, task, tx, message: `Result hash is in the escrow. ${wallet.name} can collect the ${price} from ${clock(job.unlockTime!)}, after the journal's dispute window` });
+      const certificate = await publish(wallet, outcome.certificate(["bounty in Masumi escrow, lock tx:", settled.tx, "result hash submitted in tx:", tx]), { task, title: `the reproduction certificate (${outcome.body.verdict})` });
+      job.certificateTx = certificate.tx;
+      saveJob(job);
+    } else {
+      job.error = outcome.error;
+      emit({ kind: "task.failed", actor: wallet.name, task, message: `${outcome.error}: authorizing a refund in the escrow, so the journal gets its ${price} back at once` });
+      const tx = await authorizeRefund(wallet, lock);
+      job.status = "refund_authorized";
+      record(job, "authorize_refund", tx);
+      emit({ kind: "task.step", actor: wallet.name, task, tx, message: `Refund authorized in the escrow: the journal can withdraw its ${price} now` });
+    }
+  }
 
   const server = await seller.listen(options.port);
   return {

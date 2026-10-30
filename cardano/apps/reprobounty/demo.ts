@@ -5,17 +5,24 @@
  *   npm run demo -w apps/reprobounty -- --altered    # one number changed → NOT REPRODUCED, still paid and published
  *   npm run demo -w apps/reprobounty -- --tamper     # fabricated evidence → verifier rejects → requester pays nothing
  *
+ * Add --escrow to pay the bounty through Masumi escrow instead of x402 pay-on-success:
+ * the journal locks 5 tUSDM first, the Replicator works, then puts the result hash
+ * into the escrow (collected later: npm run escrow -w apps/reprobounty) or, with
+ * --tamper, authorizes a refund that the journal withdraws at once. --escrow --vanish:
+ * the Replicator takes the job and disappears; the journal refunds after the deadline.
+ *
  * Four agents with their own wallets: Requester (journal) → Replicator →
  * Compute and Verifier. Events stream to the dashboard (npm run dashboard).
  */
 import {
-  AgentGuard, EXPLORER_TX, LOVELACE, TUSDM, Wallet, balanceOf, emit, flushEvents, formatAmount, limits,
-  setApp, usageSummary, usdm, waitForTx,
+  AgentGuard, ESCROW, EXPLORER_TX, LOVELACE, TUSDM, Wallet, balanceOf, emit, flushEvents, formatAmount, limits,
+  setApp, sleep, usageSummary, usdm, waitForTx,
 } from "@agentic/core";
 import { startCompute } from "./agents/compute.ts";
 import { startReplicator, type ReproRequest, type ReproResponse } from "./agents/replicator.ts";
 import { startVerifier, type VerifyReport } from "./agents/verifier.ts";
 import { settlementTx } from "./lib/chain.ts";
+import { escrowOutputOf, record, withdrawRefund, type EscrowJob } from "./lib/escrow.ts";
 import { DEMO_TARGET, PACKAGES, demoPaper } from "./registry.ts";
 
 setApp("reprobounty");
@@ -23,6 +30,8 @@ const args = process.argv.slice(2);
 const altered = args.includes("--altered");
 const tamper = args.includes("--tamper");
 const noWait = args.includes("--no-wait");
+const escrow = args.includes("--escrow");
+const vanish = escrow && args.includes("--vanish");
 const PORT = Number(process.env.REPROBOUNTY_PORT ?? 4151);
 
 const [requester, replicator, computeWallet, verifierWallet] = await Promise.all([
@@ -40,6 +49,7 @@ const replicatorServer = await startReplicator({
   compute: { url: compute.url, name: computeWallet.name, address: computeWallet.address },
   verifier: { url: verifier.url, name: verifierWallet.name, address: verifierWallet.address },
   tamper,
+  vanish,
 });
 requester.online("journal: posts reproduction bounties, pays through AgentGuard");
 
@@ -52,7 +62,7 @@ const guard = new AgentGuard(requester, {
 
 const paper = demoPaper(altered);
 const pkg = PACKAGES[0]!;
-const task = `repro-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}${altered ? "-altered" : ""}${tamper ? "-tamper" : ""}`;
+const task = `repro-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}${altered ? "-altered" : ""}${tamper ? "-tamper" : ""}${escrow ? "-escrow" : ""}${vanish ? "-vanish" : ""}`;
 const request: ReproRequest = {
   task,
   paper: { doi: paper.doi, title: paper.title },
@@ -61,17 +71,75 @@ const request: ReproRequest = {
   target: DEMO_TARGET,
 };
 
-console.log(`\n=== ReproBounty: ${paper.title}${tamper ? " · DEMO: tampered evidence" : ""} ===\n`);
+console.log(`\n=== ReproBounty: ${paper.title}${tamper ? " · DEMO: tampered evidence" : ""}${escrow ? " · Masumi escrow" : ""} ===\n`);
 emit({
   kind: "task.started",
   actor: requester.name,
   task,
-  message: `Bounty: reproduce "${DEMO_TARGET}" of ${paper.title} (doi:${paper.doi}). Pays 5 tUSDM for a verified attempt, whatever the verdict`,
+  message: `Bounty: reproduce "${DEMO_TARGET}" of ${paper.title} (doi:${paper.doi}). Pays 5 tUSDM for a verified attempt, whatever the verdict${escrow ? ", locked in Masumi escrow first" : ""}`,
 });
 
 const started = Date.now();
 let exitCode = 0;
-try {
+
+/** --escrow: lock the bounty in Masumi escrow, then follow the job until it is delivered or refunded. */
+async function escrowRun(): Promise<number> {
+  const jobUrl = (id: string) => `${replicatorServer.url}/jobs/${id}`;
+  const response = await guard.fetch(`${replicatorServer.url}/reproduce/escrow`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request) },
+    { task, purpose: "a verified reproduction (escrow)" },
+  );
+  if (response.status !== 202) {
+    console.log(`\nReplicator answered HTTP ${response.status}: no lock was made`);
+    return 1;
+  }
+  const { jobId } = (await response.json()) as { jobId: string };
+  const lockTx = settlementTx(response.headers.get("PAYMENT-RESPONSE"));
+  console.log(`\nJob ${jobId}: 5 tUSDM locked in Masumi escrow${lockTx ? `\n  ${EXPLORER_TX}${lockTx}` : ""}`);
+
+  // Follow the job (local HTTP, no chain calls) until the Replicator delivers, refunds or vanishes.
+  const deadline = Date.now() + 15 * 60_000;
+  let job: EscrowJob | undefined;
+  while (Date.now() < deadline) {
+    job = (await (await fetch(jobUrl(jobId))).json()) as EscrowJob;
+    const delivered = job.status === "result_submitted" && job.certificateTx;
+    if (delivered || job.status === "vanished" || job.status === "refund_authorized" || job.status === "failed") break;
+    await sleep(5_000);
+  }
+  if (!job) return 1;
+  const at = (ms?: number) => (ms ? new Date(ms).toLocaleTimeString() : "?");
+
+  if (job.status === "result_submitted") {
+    console.log(`\nVerified ${job.verdict}: the result hash is in the escrow. The Replicator collects from ${at(job.unlockTime)}:`);
+    console.log("  npm run escrow -w apps/reprobounty -- finish --wait");
+    if (job.certificateTx) console.log(`Certificate: ${EXPLORER_TX}${job.certificateTx}`);
+    emit({ kind: "task.done", actor: requester.name, task, message: `Received a verified ${job.verdict}; the 5 tUSDM stay in escrow until ${at(job.unlockTime)} (the journal's dispute window), then go to the Replicator` });
+    if (job.certificateTx && !noWait) await waitForTx(job.certificateTx);
+    return 0;
+  }
+  if (job.status === "refund_authorized") {
+    console.log(`\nReplicator could not deliver (${job.error}). It authorized a refund; withdrawing the 5 tUSDM now…`);
+    const escrowUtxo = await escrowOutputOf(requester, job.escrowTx!);
+    if (!escrowUtxo) throw new Error("refund authorized, but no escrow output found");
+    const tx = await withdrawRefund(requester, escrowUtxo);
+    job.status = "refunded";
+    record(job, "withdraw_refund", tx);
+    emit({ kind: "payment.settled", actor: requester.name, task, from: ESCROW, to: requester.name, amount: "5 tUSDM", tx, message: `${requester.name} took its 5 tUSDM back from the escrow: the work failed verification, so the journal pays nothing` });
+    console.log(`Refund: ${EXPLORER_TX}${tx}`);
+    return tamper ? 0 : 1;
+  }
+  if (job.status === "vanished") {
+    console.log(`\nThe Replicator vanished. The journal can take its 5 tUSDM back from ${at(job.submitResultTime)}:`);
+    console.log("  npm run escrow -w apps/reprobounty -- finish --wait");
+    emit({ kind: "task.step", actor: requester.name, task, message: `No result reached the escrow. Refundable from ${at(job.submitResultTime)} (the submit-result deadline)` });
+    return 0;
+  }
+  console.log(`\nJob ended as ${job.status}${job.error ? `: ${job.error}` : ""}`);
+  return 1;
+}
+
+/** x402 pay-on-success: the signed 5 tUSDM is submitted only if the Replicator answers 200. */
+async function x402Run(): Promise<number> {
   const response = await guard.fetch(`${replicatorServer.url}/reproduce`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request) },
     { task, purpose: "a verified reproduction" },
@@ -96,16 +164,21 @@ try {
         emit({ kind: "task.done", actor: replicator.name, task, message: "Certificate is on Cardano preprod: anyone can read it in the transaction metadata", tx: certificate.tx });
       }
     } else {
-      exitCode = 1;
       console.log("No certificate was published.");
+      return 1;
     }
   } else {
     const body = (await response.json().catch(() => ({}))) as { error?: string; verification?: VerifyReport };
     console.log(`\nReplicator answered HTTP ${response.status}: ${body.error ?? "error"} (${seconds} s)`);
     for (const c of body.verification?.checks ?? []) console.log(`  ${c.ok ? "✓" : "✗"} ${c.name}${c.ok ? "" : `: ${c.detail}`}`);
     emit({ kind: "task.failed", actor: requester.name, task, message: `Replicator answered HTTP ${response.status} (${body.error ?? "error"}): the signed 5 tUSDM was never submitted, the journal pays nothing` });
-    if (!tamper) exitCode = 1;
+    if (!tamper) return 1;
   }
+  return 0;
+}
+
+try {
+  exitCode = escrow ? await escrowRun() : await x402Run();
 } catch (error) {
   exitCode = 1;
   console.error(error);

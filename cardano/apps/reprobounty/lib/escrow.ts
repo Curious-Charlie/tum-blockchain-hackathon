@@ -219,7 +219,8 @@ export async function withdrawRefund(buyer: Wallet, lock: EscrowUtxo): Promise<s
 export interface EscrowJob {
   jobId: string;
   task: string;
-  status: "awaiting_lock" | "locked" | "working" | "result_submitted" | "refund_authorized" | "collected" | "refunded" | "failed";
+  /** "vanished" only in the --vanish demo: the seller took the job and never delivers. */
+  status: "awaiting_lock" | "locked" | "vanished" | "working" | "result_submitted" | "refund_authorized" | "collected" | "refunded" | "failed";
   lockTx?: string;
   /** Latest transaction that holds the escrow output. */
   escrowTx?: string;

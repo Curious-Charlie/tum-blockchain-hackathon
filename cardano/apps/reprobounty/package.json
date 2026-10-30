@@ -8,9 +8,12 @@
     "demo": "tsx demo.ts",
     "rehearse": "tsx rehearse.ts",
     "test": "tsx --test test/*.test.ts",
-    "check": "tsx check.ts"
+    "check": "tsx check.ts",
+    "escrow": "tsx escrow.ts"
   },
   "dependencies": {
-    "@agentic/core": "*"
+    "@agentic/core": "*",
+    "@evolution-sdk/evolution": "0.5.13",
+    "@x402/cardano": "2.26.0"
   }
 }

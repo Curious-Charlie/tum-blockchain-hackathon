@@ -36,6 +36,7 @@
   .edge.held, .edge.approved { stroke: var(--amber); stroke-dasharray: 6 5; }
   .edge.voided { stroke: var(--grey); stroke-dasharray: 3 6; }
   .edge.blocked { stroke: var(--red); stroke-dasharray: 2 5; }
+  .edge.external { stroke: var(--blue); }
   .elabel { font-size: 11.5px; fill: var(--text); paint-order: stroke; stroke: var(--panel); stroke-width: 5px; text-anchor: middle; font-weight: 600; }
   .elabel.blocked { fill: #ffb3bb; } .elabel.voided { fill: var(--muted); }
   .empty { color: var(--muted); padding: 30px; text-align: center; }
@@ -56,6 +57,8 @@
   .rec .k { font-size: 11px; border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
   .k.pay { background: rgba(61, 220, 151, .15); color: var(--green); }
   .k.pub { background: rgba(179, 140, 255, .18); color: var(--violet); }
+  .k.ext { background: rgba(90, 169, 255, .16); color: var(--blue); }
+  .ev.payment-external { background: rgba(90, 169, 255, .07); }
   .rec .m { flex: 1; min-width: 0; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; color: var(--muted); }
   @keyframes fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
@@ -87,6 +90,7 @@
             <marker id="arrow-settled" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3ddc97"/></marker>
             <marker id="arrow-held" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ffb547"/></marker>
             <marker id="arrow-voided" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b7896"/></marker>
+            <marker id="arrow-external" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5aa9ff"/></marker>
             <marker id="arrow-blocked" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff5d6c"/></marker>
           </defs>
           <g id="edges"></g><g id="nodes"></g><g id="pulses"></g>
@@ -107,7 +111,7 @@
 <script>
 const EXPLORER_TX = "https://preprod.cardanoscan.io/transaction/";
 const EXPLORER_ADDR = "https://preprod.cardanoscan.io/address/";
-const ICON = { "agent.online": "●", "task.started": "▶", "task.step": "·", "task.done": "✔", "task.failed": "✘", "guard.approved": "🛡", "guard.blocked": "⛔", "payment.held": "⏸", "payment.settled": "₳", "payment.voided": "↺", "chain.published": "⛓" };
+const ICON = { "agent.online": "●", "task.started": "▶", "task.step": "·", "task.done": "✔", "task.failed": "✘", "guard.approved": "🛡", "guard.blocked": "⛔", "payment.held": "⏸", "payment.settled": "₳", "payment.voided": "↺", "payment.external": "⇄", "chain.published": "⛓" };
 const GLYPH = (name) => /request|customer|lena|buyer|journal/i.test(name) ? "👤" : /verif|check/i.test(name) ? "🔍" : /compute/i.test(name) ? "🖥" : /keeper/i.test(name) ? "⏱" : /replic|research/i.test(name) ? "🤖" : /seller/i.test(name) ? "🏪" : "🤖";
 
 let state;
@@ -133,7 +137,7 @@ function edge(e, status) {
   node(e.from); node(e.to);
   const key = `${e.from}→${e.to}`;
   const ed = state.edges.get(key) || { from: e.from, to: e.to, totals: new Map(), status, count: 0 };
-  if (status === "settled") {
+  if (status === "settled" || status === "external") {
     const amt = parseAmount(e.amount);
     if (amt) ed.totals.set(amt[1], (ed.totals.get(amt[1]) || 0) + amt[0]);
     ed.count++;
@@ -157,6 +161,7 @@ function handle(e) {
       const amt = parseAmount(e.amount); if (amt) state.volume.set(amt[1], (state.volume.get(amt[1]) || 0) + amt[0]);
       state.records.unshift({ kind: "pay", e }); pulse(e); break;
     }
+    case "payment.external": edge(e, "external"); state.records.unshift({ kind: "ext", e }); break;
     case "chain.published": state.counts.published++; state.records.unshift({ kind: "pub", e }); break;
   }
   timeline(e);
@@ -168,7 +173,8 @@ function timeline(e) {
   div.className = `ev ${e.kind.replace(".", "-")}`;
   const time = new Date(e.ts).toLocaleTimeString([], { hour12: false });
   const lines = e.kind === "chain.published" && e.data?.lines ? `<pre>${esc(e.data.lines.join("\n"))}</pre>` : "";
-  const tx = e.tx ? ` <a href="${EXPLORER_TX}${e.tx}" target="_blank">view tx ↗</a>` : "";
+  const link = e.link || e.data?.link;
+  const tx = (e.tx ? ` <a href="${EXPLORER_TX}${e.tx}" target="_blank">view tx ↗</a>` : "") + (link ? ` <a href="${esc(link)}" target="_blank">${esc(e.linkLabel || e.data?.linkLabel || "open ↗")}</a>` : "");
   div.innerHTML = `<div class="t">${time}</div><div class="i">${ICON[e.kind] || "·"}</div><div>${e.actor ? `<div class="actor">${esc(e.actor)}${e.task ? ` · ${esc(e.task)}` : ""}</div>` : ""}<div>${esc(e.message)}${tx}</div>${lines}</div>`;
   document.getElementById("timeline").prepend(div);
 }
@@ -210,9 +216,14 @@ function render() {
   document.getElementById("apps").textContent = `preprod · ${[...state.apps].join(", ") || "waiting for events…"}`;
   for (const k of Object.keys(state.counts)) document.getElementById(`c-${k}`).textContent = state.counts[k];
   document.getElementById("c-volume").textContent = [...state.volume].map(([s, v]) => `${+v.toFixed(2)} ${s}`).join(" · ") || "–";
-  document.getElementById("records").innerHTML = state.records.length ? state.records.map(({ kind, e }) => kind === "pay"
-    ? `<div class="rec"><span class="k pay">payment</span><span class="m">${esc(e.from)} → ${esc(e.to)} · <b>${esc(e.amount)}</b></span><a href="${EXPLORER_TX}${e.tx}" target="_blank" class="mono">${e.tx.slice(0, 16)}… ↗</a></div>`
-    : `<div class="rec"><span class="k pub">record</span><span class="m">${esc(e.message)}</span><a href="${EXPLORER_TX}${e.tx}" target="_blank" class="mono">${e.tx.slice(0, 16)}… ↗</a></div>`).join("")
+  const recordRow = ({ kind, e }) => {
+    const link = e.tx ? `${EXPLORER_TX}${e.tx}` : (e.link || e.data?.link || "");
+    const ref = e.tx ? `${e.tx.slice(0, 16)}… ↗` : esc(e.linkLabel || e.data?.linkLabel || "open ↗");
+    const tag = { pay: "payment", pub: "record", ext: "external" }[kind];
+    const text = kind === "pub" ? esc(e.message) : `${esc(e.from)} → ${esc(e.to)} · <b>${esc(e.amount)}</b>`;
+    return `<div class="rec"><span class="k ${kind}">${tag}</span><span class="m">${text}</span>${link ? `<a href="${esc(link)}" target="_blank" class="mono">${ref}</a>` : ""}</div>`;
+  };
+  document.getElementById("records").innerHTML = state.records.length ? state.records.map(recordRow).join("")
     : `<div class="empty">Settled payments and published records will be listed here.</div>`;
 }
 

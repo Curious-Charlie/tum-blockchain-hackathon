@@ -10,20 +10,26 @@
  *   (`npm run freeze`, dashboard button) for every agent on this machine
  *
  * Budgets count settled payments only. A payment the seller voids (its work
- * failed, so x402 never submits the transaction) is released again.
+ * failed, so x402 never submits the transaction) is released again. If the
+ * seller rejects the signed payment itself (402 after paying, usually a lagging
+ * chain view), nothing was paid and the request is retried once after 15 s.
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { decodePaymentResponseHeader, wrapFetchWithPayment, x402Client } from "@x402/fetch";
 import { ExactCardanoScheme } from "@x402/cardano/exact/client";
-import { NETWORK, ROOT, formatAmount, shortAddress, symbolOf, type Amount } from "./config.ts";
+import { NETWORK, ROOT, formatAmount, fromUnit, shortAddress, sleep, symbolOf, type Amount } from "./config.ts";
 import { appName, emit } from "./events.ts";
 import type { Wallet } from "./wallets.ts";
 
 /** Asset unit → limit in smallest units. */
 export type Limits = Partial<Record<string, bigint>>;
 
-export const limits = (...amounts: Amount[]): Limits => Object.fromEntries(amounts.map((a) => [a.asset, a.amount]));
+export const limits = (...amounts: Amount[]): Limits => Object.fromEntries(amounts.map((a) => [fromUnit(a.asset), a.amount]));
+
+/** Payee allowlist from the counterpart wallets: address → display name. */
+export const payees = (...wallets: { address: string; name: string }[]): Record<string, string> =>
+  Object.fromEntries(wallets.map((w) => [w.address, w.name]));
 
 export interface GuardPolicy {
   /** Largest single payment per asset. Assets missing here cannot be paid. */
@@ -166,61 +172,72 @@ export class AgentGuard {
     const task = meta.task ?? "default";
     const url = String(input);
     return this.wallet.exclusive(async () => {
-      let attempt: { intent: PaymentIntent; payee: string } | undefined;
-      let blocked: { rule: GuardRule; reason: string } | undefined;
-
-      const client = x402Client.fromConfig({
-        schemes: [{ network: NETWORK, client: new ExactCardanoScheme(this.wallet.signer()) }],
-        // AgentGuard enforces the caps; the SDK's own control only has to let our assets through.
-        spendControls: { allowedAssets: Object.keys(this.policy.maxPerPayment).map((asset) => ({ network: NETWORK, asset })) },
-      });
-      client.onBeforePaymentCreation(async ({ selectedRequirements: req }) => {
-        const intent: PaymentIntent = { payTo: req.payTo, asset: req.asset, amount: BigInt(req.amount) };
-        const payee = this.policy.payees[req.payTo] ?? shortAddress(req.payTo);
-        const amount = formatAmount(intent.asset, intent.amount);
-        const verdict = checkPayment(this.policy, this.state(task), intent);
-        const base = { task, url, payTo: req.payTo, payee, asset: req.asset, amount: req.amount };
-        if (!verdict.ok) {
-          blocked = verdict;
-          this.audit({ ...base, decision: "blocked", rule: verdict.rule, reason: verdict.reason });
-          emit({ kind: "guard.blocked", actor: this.name, task, from: this.name, to: payee, amount, message: `AgentGuard BLOCKED ${amount} → ${payee}: ${verdict.reason}`, data: { rule: verdict.rule } });
-          return { abort: true, reason: verdict.reason };
-        }
-        attempt = { intent, payee };
-        this.add(task, intent, 1n);
-        this.audit({ ...base, decision: "approved" });
-        emit({ kind: "guard.approved", actor: this.name, task, from: this.name, to: payee, amount, message: `AgentGuard approved ${amount} → ${payee}${meta.purpose ? ` for ${meta.purpose}` : ""}` });
-      });
-
-      let response: Response;
-      try {
-        response = await wrapFetchWithPayment(fetch, client)(input, init);
-      } catch (error) {
-        if (blocked) throw new PaymentBlocked(blocked.rule, blocked.reason);
-        if (attempt) {
-          this.add(task, attempt.intent, -1n);
-          this.audit({ task, url, decision: "error", payTo: attempt.intent.payTo, reason: String(error) });
-        }
-        throw error;
-      }
-      if (!attempt) return response;
-
-      const { intent, payee } = attempt;
-      const amount = formatAmount(intent.asset, intent.amount);
-      const base = { task, url, payTo: intent.payTo, payee, asset: intent.asset, amount: String(intent.amount), status: response.status };
-      const header = response.headers.get("PAYMENT-RESPONSE");
-      const settlement = header ? decodePaymentResponseHeader(header) : undefined;
-      if (response.ok && settlement?.success && settlement.transaction) {
-        this.wallet.submitted(settlement.transaction);
-        this.audit({ ...base, decision: "settled", tx: settlement.transaction });
-        emit({ kind: "payment.settled", actor: this.name, task, from: this.name, to: payee, amount, tx: settlement.transaction, message: `${this.name} paid ${amount} → ${payee}` });
-      } else {
-        this.add(task, intent, -1n);
-        this.audit({ ...base, decision: "voided" });
-        emit({ kind: "payment.voided", actor: this.name, task, from: this.name, to: payee, amount, message: `${payee} answered HTTP ${response.status}: the signed ${amount} was never submitted, nothing paid`, data: { status: response.status } });
-      }
-      return response;
+      const first = await this.attempt(input, init, task, url, meta.purpose);
+      if (!first.retry) return first.response;
+      // The seller rejected the signed payment itself (HTTP 402 after paying): usually
+      // Blockfrost still lists a UTxO our previous transaction just spent. Nothing was paid.
+      emit({ kind: "task.step", actor: this.name, task, message: "Seller rejected the signed payment (chain view lagging); nothing paid, retrying in 15 s" });
+      await sleep(15_000);
+      return (await this.attempt(input, init, task, url, meta.purpose)).response;
     });
+  }
+
+  private async attempt(input: string | URL, init: RequestInit, task: string, url: string, purpose?: string): Promise<{ response: Response; retry: boolean }> {
+    let attempt: { intent: PaymentIntent; payee: string } | undefined;
+    let blocked: { rule: GuardRule; reason: string } | undefined;
+
+    const client = x402Client.fromConfig({
+      schemes: [{ network: NETWORK, client: new ExactCardanoScheme(this.wallet.signer()) }],
+      // AgentGuard enforces the caps; the SDK's own control only has to let our assets through.
+      spendControls: { allowedAssets: Object.keys(this.policy.maxPerPayment).map((asset) => ({ network: NETWORK, asset })) },
+    });
+    client.onBeforePaymentCreation(async ({ selectedRequirements: req }) => {
+      const intent: PaymentIntent = { payTo: req.payTo, asset: fromUnit(req.asset), amount: BigInt(req.amount) };
+      const payee = this.policy.payees[req.payTo] ?? shortAddress(req.payTo);
+      const amount = formatAmount(intent.asset, intent.amount);
+      const verdict = checkPayment(this.policy, this.state(task), intent);
+      const base = { task, url, payTo: req.payTo, payee, asset: intent.asset, amount: req.amount };
+      if (!verdict.ok) {
+        blocked = verdict;
+        this.audit({ ...base, decision: "blocked", rule: verdict.rule, reason: verdict.reason });
+        emit({ kind: "guard.blocked", actor: this.name, task, from: this.name, to: payee, amount, message: `AgentGuard BLOCKED ${amount} → ${payee}: ${verdict.reason}`, data: { rule: verdict.rule } });
+        return { abort: true, reason: verdict.reason };
+      }
+      attempt = { intent, payee };
+      this.add(task, intent, 1n);
+      this.audit({ ...base, decision: "approved" });
+      emit({ kind: "guard.approved", actor: this.name, task, from: this.name, to: payee, amount, message: `AgentGuard approved ${amount} → ${payee}${purpose ? ` for ${purpose}` : ""}` });
+    });
+
+    let response: Response;
+    try {
+      response = await wrapFetchWithPayment(fetch, client)(input, init);
+    } catch (error) {
+      if (blocked) throw new PaymentBlocked(blocked.rule, blocked.reason);
+      if (attempt) {
+        this.add(task, attempt.intent, -1n);
+        this.audit({ task, url, decision: "error", payTo: attempt.intent.payTo, reason: String(error) });
+      }
+      throw error;
+    }
+    if (!attempt) return { response, retry: false };
+
+    const { intent, payee } = attempt;
+    const amount = formatAmount(intent.asset, intent.amount);
+    const base = { task, url, payTo: intent.payTo, payee, asset: intent.asset, amount: String(intent.amount), status: response.status };
+    const header = response.headers.get("PAYMENT-RESPONSE");
+    const settlement = header ? decodePaymentResponseHeader(header) : undefined;
+    if (response.ok && settlement?.success && settlement.transaction) {
+      this.wallet.submitted(settlement.transaction);
+      this.audit({ ...base, decision: "settled", tx: settlement.transaction });
+      emit({ kind: "payment.settled", actor: this.name, task, from: this.name, to: payee, amount, tx: settlement.transaction, message: `${this.name} paid ${amount} → ${payee}` });
+      return { response, retry: false };
+    }
+    this.add(task, intent, -1n);
+    this.audit({ ...base, decision: "voided" });
+    if (response.status === 402) return { response, retry: true };
+    emit({ kind: "payment.voided", actor: this.name, task, from: this.name, to: payee, amount, message: `${payee} answered HTTP ${response.status}: the signed ${amount} was never submitted, nothing paid`, data: { status: response.status } });
+    return { response, retry: false };
   }
 
   private add(task: string, intent: PaymentIntent, sign: 1n | -1n) {

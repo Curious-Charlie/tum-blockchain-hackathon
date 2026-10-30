@@ -38,17 +38,19 @@ reference/      upstream demos cloned for reading only (gitignored, never edit)
 ### `@agentic/core` in one screen
 
 ```ts
-import { Wallet, AgentGuard, Seller, publish, runAgent, askJson, emit, ada, usdm, limits, SONNET, HAIKU } from "@agentic/core";
+import { Wallet, AgentGuard, Seller, publish, runAgent, askJson, emit, ada, usdm, limits, payees, SONNET, HAIKU } from "@agentic/core";
 const me = (await Wallet.load("REPLICATOR", "Replicator agent")).online();   // <ROLE>_MNEMONIC from the app's .env
 const shop = new Seller(me).paid("POST /replicate", { price: usdm(5), description: "..." }, handler); // handler status >= 400 => buyer pays nothing
 await shop.listen(4150);
-const guard = new AgentGuard(me, { maxPerPayment: limits(ada(3)), maxPerTask: limits(ada(5)), maxPerDay: limits(ada(30)), payees: { [compute.address]: compute.name } });
+shop.onSettled(({ tx, body }) => { /* runs after settlement, e.g. publish a receipt */ });
+const guard = new AgentGuard(me, { maxPerPayment: limits(ada(3)), maxPerTask: limits(ada(5)), maxPerDay: limits(ada(30)), payees: payees(compute) });
 const res = await guard.fetch(url, init, { task: "job-1", purpose: "compute run" }); // throws PaymentBlocked when the policy refuses
 await publish(me, ["line <= 64 bytes", "..."], { title: "a certificate" });   // CIP-20 label 674
 emit({ kind: "task.step", actor: me.name, message: "..." });                  // dashboard timeline
+emit({ kind: "payment.external", from: "Escrow", to: "Supplier", amount: "448 dUSD", message: "...", link: basescanUrl, linkLabel: "basescan ↗" });
 ```
 
-- `wallet.exclusive()` serializes spending per wallet and waits for the previous tx to confirm; `guard.fetch`, `publish` and `wallet.send` already use it.
+- `wallet.exclusive()` serializes spending per wallet and waits for the previous tx to confirm (remembered on disk across runs); `guard.fetch`, `publish` and `wallet.send` already use it. `guard.fetch` retries once when a seller rejects the signed payment with 402 (lagging chain view).
 - `runAgent` (tool-use loop) and `askJson` (structured output) cache every Claude response on disk (`cardano/.cache/claude`, `CLAUDE_CACHE=0` to bypass); `usageSummary()` prints cost.
 - Audit logs: `cardano/.audit/<app>-<role>.jsonl`. Kill switch: `npm run freeze` / dashboard button.
 
@@ -82,7 +84,7 @@ cd api3 && forge test && pnpm test
 - Blockfrost starter plan: 50,000 requests a day. No tight polling loops.
 - The buyer must allow tADA explicitly: `spendControls: { allowedAssets: [{ network: "cardano:preprod", asset: "lovelace", maxAmountPerPayment: "..." }] }`, otherwise the client refuses to pay.
 - **Settle only on success:** if the paid handler responds with status >= 400, `@x402/express` cancels settlement and the buyer's signed transaction is never submitted (checked in the SDK source). Every design relies on this.
-- tUSDM from the Masumi dispenser has policy `16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde` (unit `...0014df10745553444d`). The SDK's default preprod USDM is a *different* token, so pass Masumi's unit explicitly when charging in tUSDM.
+- tUSDM from the Masumi dispenser has policy `16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde` (asset name `0014df10745553444d`). The SDK's default preprod USDM is a *different* token. x402 requires the canonical dotted form `policyId.assetNameHex` (core `TUSDM`); Blockfrost and evolution-sdk use the undotted unit (`toUnit` / `fromUnit` convert).
 - To publish a record on Cardano, use transaction metadata (CIP-20, label 674, strings of at most 64 bytes).
 - Explorer link: `https://preprod.cardanoscan.io/transaction/<hash>`.
 - Right after a tx confirms, Blockfrost's UTxO index can lag a few seconds; `wallet.transact` retries once after 15 s.

@@ -18,17 +18,18 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import {
-  AgentGuard, HAIKU, PaymentBlocked, SONNET, Seller, askJson, emit, limits, publish, usdm,
+  AgentGuard, HAIKU, PaymentBlocked, SONNET, Seller, askJson, emit, limits, publish,
   type Published, type Wallet,
 } from "@agentic/core";
 import { compare, validateClaims, validateMappings, type Comparison, type ExtractedClaim, type Mapping, type ValidClaim } from "../lib/compare.ts";
 import { bundleHash, hashTree, parseCsv, sha256, type EvidenceBundle } from "../lib/evidence.ts";
 import { settlementTx } from "../lib/chain.ts";
 import { findPackage, type ReplicationPackage } from "../registry.ts";
+import { tusdm } from "../lib/assets.ts";
 import type { RunRequest, RunResult } from "./compute.ts";
 import type { VerifyReport, VerifyRequest } from "./verifier.ts";
 
-export const REPLICATOR_PRICE = usdm(5);
+export const REPLICATOR_PRICE = tusdm(5);
 const EVIDENCE_DIR = fileURLToPath(new URL("../.evidence/", import.meta.url));
 
 export interface ReproRequest {
@@ -179,9 +180,9 @@ export function buildBundle(input: {
 export async function startReplicator(options: { wallet: Wallet; port: number; compute: Counterpart; verifier: Counterpart; tamper?: boolean }) {
   const { wallet, compute, verifier, tamper } = options;
   const guard = new AgentGuard(wallet, {
-    maxPerPayment: limits(usdm(1.5)),
-    maxPerTask: limits(usdm(2.5)),
-    maxPerDay: limits(usdm(40)),
+    maxPerPayment: limits(tusdm(1.5)),
+    maxPerTask: limits(tusdm(2.5)),
+    maxPerDay: limits(tusdm(40)),
     payees: { [compute.address]: compute.name, [verifier.address]: verifier.name },
   });
   const certificates = new Map<string, Promise<Published | undefined>>();

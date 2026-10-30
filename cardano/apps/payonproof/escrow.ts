@@ -4,6 +4,7 @@
  *   npm run escrow -w apps/payonproof                    # status of every escrow job
  *   npm run escrow -w apps/payonproof -- finish          # do what is due now
  *   npm run escrow -w apps/payonproof -- finish --wait   # keep going until every job is closed
+ *   npm run escrow -w apps/payonproof -- report          # every job and its transactions as a Markdown table
  *
  * Due means: a delivered job (result hash in the escrow) once its unlock time has
  * passed → the Keeper collects its fee; an undelivered job once its result
@@ -18,7 +19,7 @@ setApp("payonproof");
 const args = process.argv.slice(2);
 const command = args[0] ?? "status";
 const wait = args.includes("--wait");
-const at = (ms?: number) => (ms ? new Date(ms).toLocaleTimeString() : "?");
+const at = (ms?: number) => (ms ? new Date(ms).toLocaleTimeString([], { hourCycle: "h23" }) : "?");
 
 const wallets = new Map<string, Wallet>();
 const wallet = async (role: string) => {
@@ -81,6 +82,27 @@ async function finish() {
   }
 }
 
-if (command === "finish") await finish();
-status();
+/** A Markdown table of every job: who did it, what happened, every transaction on both chains. */
+function report() {
+  const link = (tx?: string) => (tx ? `[\`${tx.slice(0, 8)}…\`](${EXPLORER_TX}${tx})` : "");
+  const evmLink = (tx?: string) => (tx ? `[\`${tx.slice(0, 10)}…\`](https://sepolia.basescan.org/tx/${tx})` : "");
+  console.log("| Invoice | Keeper | Outcome | Fee lock | Execute (Base Sepolia) | Result hash in escrow | Receipt | Collect / refund |");
+  console.log("|---|---|---|---|---|---|---|---|");
+  const jobs = listJobs().filter((j) => j.lockTx).sort((a, b) => (a.history[0]?.at ?? "").localeCompare(b.history[0]?.at ?? ""));
+  for (const job of jobs) {
+    const tx = (action: string) => job.history.find((h) => h.action === action)?.tx;
+    const keeper = roles.find((r) => r.role === job.seller)?.name ?? job.seller;
+    // A Keeper that gave up writes why (summary); a vanished one writes nothing.
+    const outcome = job.resultHash ? "executed" : job.summary ? `limit not reached${tx("authorize_refund") ? "" : " (refund after the deadline)"}` : "Keeper vanished";
+    const end = tx("collect") ? `collect ${link(tx("collect"))}` : tx("withdraw_refund") ? `${tx("authorize_refund") ? `authorize ${link(tx("authorize_refund"))}, ` : ""}refund ${link(tx("withdraw_refund"))}` : job.status;
+    const execute = (job.result as { executeTx?: string } | undefined)?.executeTx;
+    console.log(`| ${job.task.split(" ")[0]} | ${keeper} (${job.amount}) | ${outcome} | ${link(job.lockTx)} | ${evmLink(execute)} | ${link(tx("submit_result"))} | ${link(job.receiptTx)} | ${end} |`);
+  }
+}
+
+if (command === "report") report();
+else {
+  if (command === "finish") await finish();
+  status();
+}
 await flushEvents();

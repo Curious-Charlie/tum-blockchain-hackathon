@@ -303,6 +303,8 @@ export function record(job: EscrowJob, action: string, tx: string) {
 export function nextStep(job: EscrowJob): { at: number; action: "collect" | "refund" } | undefined {
   if (job.status === "result_submitted") return { at: job.unlockTime!, action: "collect" };
   if (job.status === "refund_authorized") return { at: 0, action: "refund" };
-  if (job.status === "locked" || job.status === "vanished" || job.status === "working") return { at: job.submitResultTime!, action: "refund" };
+  // A job that failed before its result hash reached the escrow is refundable like a no-show.
+  const undelivered = ["locked", "vanished", "working"].includes(job.status) || (job.status === "failed" && Boolean(job.lockTx) && !job.resultHash);
+  if (undelivered && job.submitResultTime) return { at: job.submitResultTime, action: "refund" };
   return undefined;
 }

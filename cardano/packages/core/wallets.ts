@@ -124,7 +124,19 @@ export class Wallet {
         return TransactionHash.toHex(await signed.submit());
       };
       const tx = await attempt().catch(async (error) => {
-        console.warn(`  ! ${this.name}: transaction failed (${error instanceof Error ? error.message : String(error)}), retrying in 15 s`);
+        const message = error instanceof Error ? error.message : String(error);
+        // Script transactions need about 5 tADA of pure-ADA collateral from at most 3 UTxOs; a wallet split into
+        // small or token-carrying UTxOs has none. Pay ourselves one pure-ADA output and try again once it is on chain.
+        if (/collateral/i.test(message)) {
+          emit({ kind: "task.step", actor: this.name, message: `${this.name} has no UTxO fit for collateral; paying itself 7 tADA as one output first` });
+          const signed = await (await this.client().newTx().payToAddress({ address: Address.fromBech32(this.address), assets: Assets.fromLovelace(7_000_000n) }).build()).sign();
+          const fix = TransactionHash.toHex(await signed.submit());
+          this.submitted(fix);
+          await waitForTx(fix);
+          await sleep(10_000);
+          return attempt();
+        }
+        console.warn(`  ! ${this.name}: transaction failed (${message}), retrying in 15 s`);
         await sleep(15_000);
         return attempt();
       });

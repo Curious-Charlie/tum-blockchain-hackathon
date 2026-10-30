@@ -202,9 +202,10 @@ export async function buyChecks(guard: AgentGuard, checkerUrl: string, claims: C
       { task, purpose: `fact-check batch ${i + 1}/${batches.length}` },
     );
     let response = await pay();
-    if (response.status === 402) {
-      // The signed payment was refused (nothing was paid), typically a stale UTxO view right after a block. Once more.
-      step(`The checker refused the signed payment (${rejection(response)}); nothing was paid. Retrying in 20 s`);
+    for (let retry = 1; response.status === 402 && retry <= 2; retry++) {
+      // The signed payment was refused and nothing was paid: typically Blockfrost not yet showing the
+      // input it spends (the change of the previous payment). Wait and sign again.
+      step(`The checker refused the signed payment (${rejection(response)}); nothing was paid. Retry ${retry}/2 in 20 s`);
       await sleep(20_000);
       response = await pay();
     }

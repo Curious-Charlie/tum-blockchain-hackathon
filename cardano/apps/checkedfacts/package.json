@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "wallets": "tsx ../../packages/core/cli/wallets.ts",
-    "demo": "tsx demo.ts"
+    "demo": "tsx demo.ts",
+    "test": "tsx --test test/*.test.ts",
+    "attack": "tsx attack.ts"
   },
   "dependencies": {
     "@agentic/core": "*"

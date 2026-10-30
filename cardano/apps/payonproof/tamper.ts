@@ -70,7 +70,7 @@ try {
     const ref = evm.txRef(result.hash);
     emit({ kind: "task.done", actor, message: `ACCEPTED the valid, fresh response (EUR/USD ${showRate(result.rate)}): paid ${usd(result.payout)}, refunded ${usd(result.refund)}${ref.note}`, link: ref.link, linkLabel: ref.linkLabel, data: { evmTx: result.hash } });
   }
-  console.log(failures ? `\n${failures} tampered response(s) were not rejected` : "\nTamper test passed: the valid response executed, every tampered response was rejected.");
+  console.log(failures ? `\n${failures} tampered response(s) were not rejected` : `\nTamper test passed: ${args["skip-valid"] ? "" : "the valid response executed, "}every tampered response was rejected.`);
 } catch (error) {
   failures++;
   emit({ kind: "task.failed", actor, message: `Tamper test stopped: ${error instanceof Error ? error.message : String(error)}` });

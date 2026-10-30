@@ -45,7 +45,8 @@ PayOnProof makes each of those impossible or visible:
 - **Checks in the contract:** expected signer, expected request hash, response signed ≤ 5 minutes ago, rate taken ≤ 3 days ago, rate below the order's limit, order open and before its deadline; an order pays once.
 - **What the value drives:** whether the invoice is paid and how much the supplier gets (`€ × signed rate`); the rest returns to the payer.
 - **Tamper test:** `npm run tamper -w apps/payonproof`: one valid, fresh response executes; four are rejected (value edited, too old, another request, another signer). **Judges' own response:** `npm run tamper -w apps/payonproof -- --file <response.json>` (from `cardano/`; make one with `pnpm --silent fetch-response EUR/USD` in `api3/`).
-- **Autonomous agent, several cycles:** `npm run autopilot -w apps/payonproof`: new invoices every round; each Keeper loops on signed rates and executes on its own.
+- **Autonomous agent, several cycles:** `npm run autopilot -w apps/payonproof`: new invoices every round; each Keeper loops on signed rates and executes on its own (last run: 6 invoices, 3 rounds, 5 executed).
+- **Pays over x402 for data when it matters:** before moving money a Keeper buys a second signed EUR/USD from Frankfurter on AirnodeHub (0.01 aUSD, x402 on Base Sepolia), verifies signer and request hash, and executes only if the two sources agree within 1 %.
 
 ### API3 questions
 
@@ -79,7 +80,7 @@ PayOnProof makes each of those impossible or visible:
 ## What's next
 
 - Count refunds and no-shows in a Keeper's record, and let Lena dispute a false result hash through Masumi.
-- Cross-check the rate with a second signed source bought over x402 on AirnodeHub (ECB or Frankfurter, 0.01 aUSD per call).
+- Move the second-source check (now done by the Keeper) into the contract: require two Airnodes to agree before paying.
 - Real stablecoins on mainnet, more currency pairs, and conditions beyond FX (delivery events, flight delays).
 
 ## Honest limitations

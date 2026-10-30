@@ -43,6 +43,6 @@ FX markets close on Friday evening, and Nodary's EUR/USD can stop updating after
 
 ## 6. Other limits
 
-- **The signature proves who said it, not that it is true.** Lena still trusts Nodary for the EUR/USD value. Within the 5-minute window a Keeper could pick the more favorable of several signed rates; a shorter window narrows that.
+- **The signature proves who said it, not that it is true.** Lena still trusts Nodary for the EUR/USD value. Before executing, a Keeper buys a second signed rate (Frankfurter on AirnodeHub) and refuses to act if the two differ by more than 1 %, but that check runs in the Keeper, not in the contract: the contract accepts any valid Nodary response. Within the 5-minute window a Keeper could also pick the more favorable of several signed rates; a shorter window narrows that.
 - **Two chains, no bridge.** The fee (Cardano) and the payment (Base Sepolia) are linked by hashes and receipts, not by a cross-chain message.
 - **Test money.** dUSD is a demo stablecoin; everything runs on Cardano preprod and Base Sepolia.

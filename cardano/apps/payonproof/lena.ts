@@ -178,7 +178,7 @@ export class LenaAgent {
       },
       rank: (a, b) => records.get(b.role)!.verified - records.get(a.role)!.verified,
     });
-    for (const a of assessments) this.step(`${a.chosen ? "✓" : "✗"} ${a.name}: ${a.price}, ${a.record} → ${a.chosen ? "CHOSEN" : "rejected"}: ${a.why}`, task);
+    for (const a of assessments) this.step(`${a.chosen ? "✓" : "✗"} ${a.name}: ${a.price}, ${a.record} → ${a.chosen ? "CHOSEN" : "not chosen"}: ${a.why}`, task);
     if (!chosen) {
       this.step(`No Keeper is acceptable for ${order.invoiceRef}; nothing is locked`, task, { assessments });
       return undefined;

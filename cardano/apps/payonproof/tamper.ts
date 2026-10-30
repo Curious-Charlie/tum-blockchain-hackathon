@@ -48,7 +48,8 @@ try {
     [`4 · signed by another key (${impostor.address.slice(0, 10)}…)`, { timestamp: live.signed.timestamp, data: forgedData, signature: await impostor.signMessage({ message: { raw: responseDigest(EUR_USD_REQUEST_HASH, live.signed.timestamp, forgedData) } }) }],
   ];
   if (args.file) {
-    const own = JSON.parse(readFileSync(args.file, "utf8")) as SignedRate;
+    // Relative to where npm was run (npm -w runs scripts in the app directory).
+    const own = JSON.parse(readFileSync(path.resolve(process.env.INIT_CWD ?? process.cwd(), args.file), "utf8")) as SignedRate;
     cases.push([`your response (${args.file})`, own]);
   }
 

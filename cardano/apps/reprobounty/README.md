@@ -88,10 +88,11 @@ For a longer slot, run `-- --tamper` next (about 40 s): the dashboard shows the 
 
 | Run | Step | Transaction |
 |---|---|---|
-| real paper → REPRODUCED 65/65 | Replicator → Compute 1 tUSDM | [907c4883…](https://preprod.cardanoscan.io/transaction/907c48830290e723587de6afa79a86d3d4365b7041806c133b104cb2c45b9e4f) |
-| | Replicator → Verifier 1 tUSDM | [1025c84f…](https://preprod.cardanoscan.io/transaction/1025c84f371cdd23e7ed8f64201ed3ba17b62dc4022aa6bc4adfe9e795fdd060) |
-| | Requester → Replicator 5 tUSDM (bounty) | [c84d1ea9…](https://preprod.cardanoscan.io/transaction/c84d1ea930b4f444d62ac46e4a9d886f7594deba38287572c75e86aea5ae0fa6) |
-| | certificate (CIP-20) | [4e1bb6cd…](https://preprod.cardanoscan.io/transaction/4e1bb6cd294158d5e119bb7a0efc17532038dc91b3d1c70d54b229dc0b5dd779) |
+| real paper → REPRODUCED 65/65 (final code) | Replicator → Compute 1 tUSDM | [6b1bfcfc…](https://preprod.cardanoscan.io/transaction/6b1bfcfcccd2c9200dcfc6d6f283e4cbb5d47eabc2d15cf724e1314005afb8cd) |
+| | Replicator → Verifier 1 tUSDM | [b891d9ed…](https://preprod.cardanoscan.io/transaction/b891d9edc1ed56c469a1b4b252af35d14fc51105945c71d8f51f0e20549a0b2a) |
+| | Requester → Replicator 5 tUSDM (bounty) | [a4b5a81d…](https://preprod.cardanoscan.io/transaction/a4b5a81d37d2e52bcba52f34e060aa06a8e60c52dd780379feec0425718dc56f) |
+| | certificate (CIP-20) | [80f0deef…](https://preprod.cardanoscan.io/transaction/80f0deef03da8ea44cfac8f15443102dd4690b26fa618810384f696338755f23) |
+| real paper, first run | bounty / certificate | [c84d1ea9…](https://preprod.cardanoscan.io/transaction/c84d1ea930b4f444d62ac46e4a9d886f7594deba38287572c75e86aea5ae0fa6) / [4e1bb6cd…](https://preprod.cardanoscan.io/transaction/4e1bb6cd294158d5e119bb7a0efc17532038dc91b3d1c70d54b229dc0b5dd779) |
 | `--altered` → NOT REPRODUCED 52/65 | Replicator → Compute 1 tUSDM | [6151bb0e…](https://preprod.cardanoscan.io/transaction/6151bb0e2df0ee1581cd6d7e6eb40b165e384625ddaf39b067d4def31f0db4b4) |
 | | Replicator → Verifier 1 tUSDM | [e270c185…](https://preprod.cardanoscan.io/transaction/e270c1850141db1035a2207bb118df0223d08fb79de718729ef5e8b32413649f) |
 | | Requester → Replicator 5 tUSDM (bounty) | [8ee8aaaf…](https://preprod.cardanoscan.io/transaction/8ee8aaafb0b13a723eeb01d55ed15d3da4f8d6d7f2a7c8af82369299b5537a61) |
@@ -100,7 +101,7 @@ For a longer slot, run `-- --tamper` next (about 40 s): the dashboard shows the 
 | | Replicator → Verifier 1 tUSDM (paid for the check) | [6b4504bf…](https://preprod.cardanoscan.io/transaction/6b4504bf4bd1b4729e3f9c2724e582bf2603595ec07e0879d138198c668346e3) |
 | | Requester → Replicator 5 tUSDM | HTTP 422: signed but never submitted, no transaction (Requester balance unchanged) |
 
-Check a certificate yourself: `npm run check -w apps/reprobounty -- 4e1bb6cd294158d5e119bb7a0efc17532038dc91b3d1c70d54b229dc0b5dd779`.
+Check a certificate yourself: `npm run check -w apps/reprobounty -- 80f0deef03da8ea44cfac8f15443102dd4690b26fa618810384f696338755f23`.
 
 ## Files
 

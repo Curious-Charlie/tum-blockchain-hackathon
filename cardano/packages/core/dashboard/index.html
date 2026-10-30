@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic Commerce on Cardano — live</title>
+<style>
+  :root {
+    --bg: #0b1020; --panel: #121a2f; --line: #22304f; --text: #e6ecff; --muted: #8b98b8;
+    --green: #3ddc97; --amber: #ffb547; --red: #ff5d6c; --blue: #5aa9ff; --violet: #b38cff; --grey: #6b7896;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 22px; border-bottom: 1px solid var(--line); background: #0e1528; position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .chips { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; font-size: 12px; color: var(--muted); }
+  .chip b { color: var(--text); font-weight: 600; }
+  button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
+  button:hover { border-color: var(--blue); }
+  button.kill { border-color: #5a2630; color: #ffb3bb; }
+  button.kill.on { background: var(--red); color: #fff; border-color: var(--red); }
+  main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(360px, 1fr); gap: 16px; padding: 16px 22px; height: calc(100vh - 62px); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+  .panel h2 { margin: 0; padding: 12px 16px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); border-bottom: 1px solid var(--line); }
+  .left { display: grid; grid-template-rows: 1.4fr 1fr; gap: 16px; min-height: 0; }
+  svg { width: 100%; height: 100%; display: block; }
+  .node circle { fill: #18233f; stroke: var(--blue); stroke-width: 2; }
+  .node text { fill: var(--text); text-anchor: middle; }
+  .node .name { font-size: 13px; font-weight: 600; }
+  .node .addr { font-size: 10.5px; fill: var(--muted); }
+  .node .glyph { font-size: 22px; dominant-baseline: central; }
+  .edge { fill: none; stroke-width: 2.4; }
+  .edge.settled { stroke: var(--green); }
+  .edge.held, .edge.approved { stroke: var(--amber); stroke-dasharray: 6 5; }
+  .edge.voided { stroke: var(--grey); stroke-dasharray: 3 6; }
+  .edge.blocked { stroke: var(--red); stroke-dasharray: 2 5; }
+  .elabel { font-size: 11.5px; fill: var(--text); paint-order: stroke; stroke: var(--panel); stroke-width: 5px; text-anchor: middle; font-weight: 600; }
+  .elabel.blocked { fill: #ffb3bb; } .elabel.voided { fill: var(--muted); }
+  .empty { color: var(--muted); padding: 30px; text-align: center; }
+  .scroll { overflow-y: auto; min-height: 0; flex: 1; }
+  .ev { display: grid; grid-template-columns: 62px 22px 1fr; gap: 6px; padding: 9px 14px; border-bottom: 1px solid #1a2542; animation: fade .5s ease; }
+  .ev .t { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; padding-top: 1px; }
+  .ev .i { text-align: center; }
+  .ev .actor { font-size: 11px; color: var(--muted); }
+  .ev a, .rec a { color: var(--blue); text-decoration: none; font-size: 12px; }
+  .ev a:hover, .rec a:hover { text-decoration: underline; }
+  .ev.payment-settled { background: rgba(61, 220, 151, .06); }
+  .ev.guard-blocked { background: rgba(255, 93, 108, .08); }
+  .ev.payment-voided { background: rgba(139, 152, 184, .07); }
+  .ev.chain-published { background: rgba(179, 140, 255, .08); }
+  .ev.task-failed { background: rgba(255, 93, 108, .05); }
+  pre { margin: 6px 0 0; padding: 8px 10px; background: #0b1226; border: 1px solid var(--line); border-radius: 8px; font-size: 11.5px; white-space: pre-wrap; word-break: break-all; color: #cdbbff; }
+  .rec { padding: 10px 16px; border-bottom: 1px solid #1a2542; display: flex; gap: 10px; align-items: baseline; }
+  .rec .k { font-size: 11px; border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
+  .k.pay { background: rgba(61, 220, 151, .15); color: var(--green); }
+  .k.pub { background: rgba(179, 140, 255, .18); color: var(--violet); }
+  .rec .m { flex: 1; min-width: 0; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; color: var(--muted); }
+  @keyframes fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Agentic Commerce on Cardano <span style="color:var(--muted);font-weight:400">· live</span></h1>
+    <div class="sub" id="apps">preprod · waiting for events…</div>
+  </div>
+  <div class="chips">
+    <span class="chip">settled <b id="c-settled">0</b></span>
+    <span class="chip">volume <b id="c-volume">–</b></span>
+    <span class="chip">voided <b id="c-voided">0</b></span>
+    <span class="chip">blocked <b id="c-blocked">0</b></span>
+    <span class="chip">published <b id="c-published">0</b></span>
+  </div>
+  <button class="kill" id="kill" title="AgentGuard kill switch: every agent on this machine stops paying">Kill switch</button>
+  <button id="reset" title="Clear the dashboard (not the chain)">Clear</button>
+</header>
+<main>
+  <section class="left">
+    <div class="panel">
+      <h2>Money flow between agents</h2>
+      <div style="flex:1;min-height:0;position:relative">
+        <svg id="graph" viewBox="0 0 900 460" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <marker id="arrow-settled" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3ddc97"/></marker>
+            <marker id="arrow-held" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ffb547"/></marker>
+            <marker id="arrow-voided" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b7896"/></marker>
+            <marker id="arrow-blocked" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff5d6c"/></marker>
+          </defs>
+          <g id="edges"></g><g id="nodes"></g><g id="pulses"></g>
+        </svg>
+        <div class="empty" id="graph-empty" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">Agents appear here when they come online.</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>On-chain proof (Cardano preprod)</h2>
+      <div class="scroll" id="records"><div class="empty">Settled payments and published records will be listed here.</div></div>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Timeline</h2>
+    <div class="scroll" id="timeline"></div>
+  </section>
+</main>
+<script>
+const EXPLORER_TX = "https://preprod.cardanoscan.io/transaction/";
+const EXPLORER_ADDR = "https://preprod.cardanoscan.io/address/";
+const ICON = { "agent.online": "●", "task.started": "▶", "task.step": "·", "task.done": "✔", "task.failed": "✘", "guard.approved": "🛡", "guard.blocked": "⛔", "payment.held": "⏸", "payment.settled": "₳", "payment.voided": "↺", "chain.published": "⛓" };
+const GLYPH = (name) => /request|customer|lena|buyer|journal/i.test(name) ? "👤" : /verif|check/i.test(name) ? "🔍" : /compute/i.test(name) ? "🖥" : /keeper/i.test(name) ? "⏱" : /replic|research/i.test(name) ? "🤖" : /seller/i.test(name) ? "🏪" : "🤖";
+
+let state;
+function resetState() {
+  state = { nodes: new Map(), edges: new Map(), apps: new Set(), counts: { settled: 0, voided: 0, blocked: 0, published: 0 }, volume: new Map(), records: [] };
+  document.getElementById("timeline").innerHTML = "";
+  render();
+}
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const short = (a) => a ? `${a.slice(0, 10)}…${a.slice(-5)}` : "";
+const parseAmount = (s) => { const m = /^([\d.,]+)\s+(\S+)$/.exec(s || ""); return m ? [Number(m[1].replace(/,/g, "")), m[2]] : null; };
+
+function node(name, extra = {}) {
+  if (!name) return;
+  const existing = state.nodes.get(name) || { name, order: state.nodes.size };
+  state.nodes.set(name, Object.assign(existing, extra));
+}
+
+const RANK = { approved: 1, held: 1, blocked: 2, voided: 2, settled: 3 };
+function edge(e, status) {
+  if (!e.from || !e.to) return;
+  node(e.from); node(e.to);
+  const key = `${e.from}→${e.to}`;
+  const ed = state.edges.get(key) || { from: e.from, to: e.to, totals: new Map(), status, count: 0 };
+  if (status === "settled") {
+    const amt = parseAmount(e.amount);
+    if (amt) ed.totals.set(amt[1], (ed.totals.get(amt[1]) || 0) + amt[0]);
+    ed.count++;
+  }
+  // A settled edge stays green; otherwise show the latest state.
+  if (ed.status !== "settled" || status === "settled") ed.status = status;
+  ed.last = e;
+  state.edges.set(key, ed);
+  return ed;
+}
+
+function handle(e) {
+  state.apps.add(e.app);
+  switch (e.kind) {
+    case "agent.online": node(e.actor, { address: e.data?.address }); break;
+    case "guard.approved": edge(e, "approved"); break;
+    case "guard.blocked": edge(e, "blocked"); state.counts.blocked++; break;
+    case "payment.voided": edge(e, "voided"); state.counts.voided++; break;
+    case "payment.settled": {
+      edge(e, "settled"); state.counts.settled++;
+      const amt = parseAmount(e.amount); if (amt) state.volume.set(amt[1], (state.volume.get(amt[1]) || 0) + amt[0]);
+      state.records.unshift({ kind: "pay", e }); pulse(e); break;
+    }
+    case "chain.published": state.counts.published++; state.records.unshift({ kind: "pub", e }); break;
+  }
+  timeline(e);
+  render();
+}
+
+function timeline(e) {
+  const div = document.createElement("div");
+  div.className = `ev ${e.kind.replace(".", "-")}`;
+  const time = new Date(e.ts).toLocaleTimeString([], { hour12: false });
+  const lines = e.kind === "chain.published" && e.data?.lines ? `<pre>${esc(e.data.lines.join("\n"))}</pre>` : "";
+  const tx = e.tx ? ` <a href="${EXPLORER_TX}${e.tx}" target="_blank">view tx ↗</a>` : "";
+  div.innerHTML = `<div class="t">${time}</div><div class="i">${ICON[e.kind] || "·"}</div><div>${e.actor ? `<div class="actor">${esc(e.actor)}${e.task ? ` · ${esc(e.task)}` : ""}</div>` : ""}<div>${esc(e.message)}${tx}</div>${lines}</div>`;
+  document.getElementById("timeline").prepend(div);
+}
+
+function layout() {
+  const list = [...state.nodes.values()].sort((a, b) => a.order - b.order);
+  const n = list.length, cx = 450, cy = 220;
+  list.forEach((nd, i) => {
+    if (n === 1) { nd.x = cx; nd.y = cy; return; }
+    if (n === 2) { nd.x = cx + (i ? 260 : -260); nd.y = cy; return; }
+    const angle = Math.PI + (2 * Math.PI * i) / n;
+    nd.x = cx + 330 * Math.cos(angle); nd.y = cy + 150 * Math.sin(angle);
+  });
+  return list;
+}
+
+function curve(a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len, r = 46;
+  const sx = a.x + ux * r, sy = a.y + uy * r, ex = b.x - ux * r, ey = b.y - uy * r;
+  const mx = (sx + ex) / 2 - uy * 38, my = (sy + ey) / 2 + ux * 38;
+  return { d: `M${sx},${sy} Q${mx},${my} ${ex},${ey}`, lx: (sx + 2 * mx + ex) / 4, ly: (sy + 2 * my + ey) / 4 };
+}
+
+function render() {
+  const list = layout();
+  document.getElementById("graph-empty").style.display = list.length ? "none" : "flex";
+  const nodesG = document.getElementById("nodes"), edgesG = document.getElementById("edges");
+  nodesG.innerHTML = list.map((nd) => `<g class="node" transform="translate(${nd.x},${nd.y})"><circle r="34"/><text class="glyph">${GLYPH(nd.name)}</text><text class="name" y="54">${esc(nd.name)}</text>${nd.address ? `<a href="${EXPLORER_ADDR}${nd.address}" target="_blank"><text class="addr" y="70">${short(nd.address)}</text></a>` : ""}</g>`).join("");
+  edgesG.innerHTML = [...state.edges.values()].map((ed) => {
+    const a = state.nodes.get(ed.from), b = state.nodes.get(ed.to);
+    if (!a || !b) return "";
+    const c = curve(a, b);
+    const status = ed.status === "approved" ? "held" : ed.status;
+    const label = ed.totals.size ? [...ed.totals].map(([sym, v]) => `${+v.toFixed(2)} ${sym}`).join(" · ") + (ed.count > 1 ? `  (${ed.count}×)` : "")
+      : status === "blocked" ? `⛔ blocked ${ed.last.amount || ""}` : status === "voided" ? `voided ${ed.last.amount || ""}` : `pending ${ed.last.amount || ""}`;
+    return `<path id="p-${CSS.escape(ed.from + ed.to).replace(/[^\w-]/g, "_")}" class="edge ${status}" d="${c.d}" marker-end="url(#arrow-${status})"/><text class="elabel ${status}" x="${c.lx}" y="${c.ly - 6}">${esc(label)}</text>`;
+  }).join("");
+  document.getElementById("apps").textContent = `preprod · ${[...state.apps].join(", ") || "waiting for events…"}`;
+  for (const k of Object.keys(state.counts)) document.getElementById(`c-${k}`).textContent = state.counts[k];
+  document.getElementById("c-volume").textContent = [...state.volume].map(([s, v]) => `${+v.toFixed(2)} ${s}`).join(" · ") || "–";
+  document.getElementById("records").innerHTML = state.records.length ? state.records.map(({ kind, e }) => kind === "pay"
+    ? `<div class="rec"><span class="k pay">payment</span><span class="m">${esc(e.from)} → ${esc(e.to)} · <b>${esc(e.amount)}</b></span><a href="${EXPLORER_TX}${e.tx}" target="_blank" class="mono">${e.tx.slice(0, 16)}… ↗</a></div>`
+    : `<div class="rec"><span class="k pub">record</span><span class="m">${esc(e.message)}</span><a href="${EXPLORER_TX}${e.tx}" target="_blank" class="mono">${e.tx.slice(0, 16)}… ↗</a></div>`).join("")
+    : `<div class="empty">Settled payments and published records will be listed here.</div>`;
+}
+
+function pulse(e) {
+  requestAnimationFrame(() => {
+    const a = state.nodes.get(e.from), b = state.nodes.get(e.to);
+    if (!a || !b) return;
+    const c = curve(a, b);
+    const g = document.getElementById("pulses");
+    const el = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    el.innerHTML = `<circle r="8" fill="#3ddc97"><animateMotion dur="1.2s" repeatCount="2" path="${c.d}"/></circle>`;
+    g.appendChild(el);
+    setTimeout(() => el.remove(), 2500);
+  });
+}
+
+function setKill(frozen) {
+  const btn = document.getElementById("kill");
+  btn.classList.toggle("on", !!frozen);
+  btn.textContent = frozen ? "Agents FROZEN — click to resume" : "Kill switch";
+  btn.dataset.frozen = frozen ? "1" : "";
+}
+document.getElementById("kill").onclick = async (ev) => {
+  const res = await fetch(ev.currentTarget.dataset.frozen ? "/unfreeze" : "/freeze", { method: "POST" });
+  setKill((await res.json()).frozen);
+};
+document.getElementById("reset").onclick = () => fetch("/reset", { method: "POST" });
+
+resetState();
+const source = new EventSource("/stream");
+source.addEventListener("agent-event", (m) => handle(JSON.parse(m.data)));
+source.addEventListener("reset", resetState);
+source.addEventListener("freeze", (m) => setKill(JSON.parse(m.data).frozen));
+</script>
+</body>
+</html>

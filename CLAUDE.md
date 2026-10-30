@@ -26,27 +26,50 @@ Full design: `docs/DESIGN.md` (read the section for the design you work on). Tim
 ## Repository layout
 
 ```
-cardano/        Cardano package: wallets, x402 kit, designs (main work)
-  scripts/      wallets.ts (create/inspect wallets), smoke-x402.ts (end-to-end paid request)
+cardano/        npm workspaces (Cardano track, main work)
+  packages/core/  @agentic/core: shared infrastructure (Phase 0, done)
+  apps/<design>/  payonproof (D1), checkedfacts (D2), reprobounty (D5): roles.ts, .env.example, README
+  scripts/        smoke-x402.ts (end-to-end paid request), publish-test.ts (CIP-20 record)
 api3/           Foundry project from the API3 AirnodeHub starter (MIT), libs as submodules (only D1)
 docs/           DESIGN.md, PLAN.md, TRACKS.md
 reference/      upstream demos cloned for reading only (gitignored, never edit)
 ```
 
-Target layout after Phase 0 (see DESIGN.md §3): npm workspaces in `cardano/`, with `packages/core` (shared infrastructure) and `apps/<design>` (one per design).
+### `@agentic/core` in one screen
+
+```ts
+import { Wallet, AgentGuard, Seller, publish, runAgent, askJson, emit, ada, usdm, limits, SONNET, HAIKU } from "@agentic/core";
+const me = (await Wallet.load("REPLICATOR", "Replicator agent")).online();   // <ROLE>_MNEMONIC from the app's .env
+const shop = new Seller(me).paid("POST /replicate", { price: usdm(5), description: "..." }, handler); // handler status >= 400 => buyer pays nothing
+await shop.listen(4150);
+const guard = new AgentGuard(me, { maxPerPayment: limits(ada(3)), maxPerTask: limits(ada(5)), maxPerDay: limits(ada(30)), payees: { [compute.address]: compute.name } });
+const res = await guard.fetch(url, init, { task: "job-1", purpose: "compute run" }); // throws PaymentBlocked when the policy refuses
+await publish(me, ["line <= 64 bytes", "..."], { title: "a certificate" });   // CIP-20 label 674
+emit({ kind: "task.step", actor: me.name, message: "..." });                  // dashboard timeline
+```
+
+- `wallet.exclusive()` serializes spending per wallet and waits for the previous tx to confirm; `guard.fetch`, `publish` and `wallet.send` already use it.
+- `runAgent` (tool-use loop) and `askJson` (structured output) cache every Claude response on disk (`cardano/.cache/claude`, `CLAUDE_CACHE=0` to bypass); `usageSummary()` prints cost.
+- Audit logs: `cardano/.audit/<app>-<role>.jsonl`. Kill switch: `npm run freeze` / dashboard button.
 
 ## Commands
 
 ```sh
-cd cardano && npm run wallets     # create missing wallets in .env, print addresses and balances
-cd cardano && npm run smoke       # real 1 tADA x402 payment on preprod; expect HTTP 200 + tx hash
+cd cardano && npm run dashboard                       # live dashboard on http://127.0.0.1:4000 (keep it running)
+cd cardano && npm run wallets                         # treasury (BUYER) and SELLER: create if missing, print balances
+cd cardano && npm run wallets -w apps/<app> -- --fund # app role wallets; --fund tops up from the treasury
+cd cardano && npm run smoke                           # real 1 tADA x402 payment through AgentGuard; HTTP 200 + tx hash
+cd cardano && npm run publish-test                    # CIP-20 record on preprod
+cd cardano && npm test                                # AgentGuard policy tests
 cd cardano && npm run typecheck
+cd cardano && npm run demo -w apps/<app>              # one design end to end
 cd api3 && forge test && pnpm test
 ```
 
 ## Secrets and wallets
 
-- `cardano/.env`: `BUYER_MNEMONIC`, `SELLER_MNEMONIC`, `BLOCKFROST_PROJECT_ID`, `ANTHROPIC_API_KEY`. `api3/.env`: `PRIVATE_KEY` / `PAYER_PRIVATE_KEY` (Base Sepolia, address `0xA164c012f41909C3eD9a18b86F022a3F5E7f1f1c`), `RPC_URL`.
+- `cardano/.env`: `BUYER_MNEMONIC` (also the treasury), `SELLER_MNEMONIC`, `BLOCKFROST_PROJECT_ID`, `ANTHROPIC_API_KEY`. `api3/.env`: `PRIVATE_KEY` / `PAYER_PRIVATE_KEY` (Base Sepolia, address `0xA164c012f41909C3eD9a18b86F022a3F5E7f1f1c`), `RPC_URL`.
+- Each app keeps its role mnemonics in `cardano/apps/<app>/.env`; shared keys stay in `cardano/.env`.
 - `.env` files are gitignored and **not present in new worktrees**: copy the ones you need.
 - **Give every design and every role its own wallet.** Two processes spending from one Cardano wallet fight over the same UTxOs and their payments fail.
 - Fund preprod wallets at https://dispenser.masumi.network (Testnet, paste the address, Claim Tokens; no captcha; gives 100 tADA + 100 tUSDM). Use Chrome.
@@ -62,6 +85,7 @@ cd api3 && forge test && pnpm test
 - tUSDM from the Masumi dispenser has policy `16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde` (unit `...0014df10745553444d`). The SDK's default preprod USDM is a *different* token, so pass Masumi's unit explicitly when charging in tUSDM.
 - To publish a record on Cardano, use transaction metadata (CIP-20, label 674, strings of at most 64 bytes).
 - Explorer link: `https://preprod.cardanoscan.io/transaction/<hash>`.
+- Right after a tx confirms, Blockfrost's UTxO index can lag a few seconds; `wallet.transact` retries once after 15 s.
 - A Masumi escrow flow (lock, deliver, collect or refund) exists in `reference/x402-cardano-demo/masumi/` and is the upgrade path for the winning design.
 
 ## Anthropic API

@@ -41,3 +41,7 @@ reference/
 
 # Git worktrees for parallel design branches
 .worktrees/
+
+# Runtime data of the Cardano apps
+.audit/
+.cache/

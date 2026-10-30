@@ -1,0 +1,11 @@
+{
+  "name": "@agentic/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared infrastructure: wallets, x402 seller kit, AgentGuard, CIP-20 publishing, Claude helpers, event dashboard",
+  "exports": {
+    ".": "./index.ts",
+    "./*": "./*.ts"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@agentic/reprobounty",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "wallets": "tsx ../../packages/core/cli/wallets.ts",
+    "demo": "tsx demo.ts"
+  },
+  "dependencies": {
+    "@agentic/core": "*"
+  }
+}

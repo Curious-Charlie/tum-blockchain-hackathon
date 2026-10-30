@@ -29,6 +29,7 @@
 - [x] EVM 钱包: Base Sepolia 0.0001 ETH + 10 aUSD（D1 用）
 - [x] Anthropic API key 已验证（Sonnet 5.5、Haiku 5.5）
 - [x] 用户已签到；Blockfrost、Coinbase CDP、Devfolio、Sokosumi 账号都已就绪
+- [x] **Phase 0 地基完成（周五 11:30）**: npm workspaces + `@agentic/core`；smoke 经 AgentGuard 结算 `2df9839f…`；CIP-20 发表 `3186d09a…`；AgentGuard 9 个测试通过；dashboard 实时显示；三个 app 骨架和各自的角色钱包（付款角色已从 Masumi dispenser 领币）
 
 ## 提交清单（Devfolio）
 

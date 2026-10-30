@@ -1,5 +1,5 @@
 {
-  "name": "payonproof-cardano",
+  "name": "agentic-commerce-cardano",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,9 +7,13 @@
     "node": ">=22"
   },
   "scripts": {
-    "wallets": "tsx scripts/wallets.ts",
-    "typecheck": "tsc -p tsconfig.json",
-    "smoke": "tsx scripts/smoke-x402.ts"
+    "wallets": "tsx packages/core/cli/wallets.ts",
+    "smoke": "tsx scripts/smoke-x402.ts",
+    "publish-test": "tsx scripts/publish-test.ts",
+    "dashboard": "tsx packages/core/cli/dashboard.ts",
+    "freeze": "tsx packages/core/cli/freeze.ts",
+    "test": "tsx --test packages/core/test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.3.0",
@@ -27,5 +31,9 @@
     "@types/node": "22.20.5",
     "tsx": "4.23.15",
     "typescript": "5.9.3"
-  }
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ]
 }

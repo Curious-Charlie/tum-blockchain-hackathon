@@ -43,7 +43,7 @@ export async function startKeeper(keeper: Wallet, evm: Evm, port = KEEPER_PORT) 
 
       step(`Nodary-signed EUR/USD ${checked.display} < ${limit}: submitting the signed rate to the escrow on ${evm.name}`, condition);
       try {
-        const result = await evm.execute(orderId, checked);
+        const result = await evm.execute(orderId, checked.signed);
         const link = evm.txLink(result.hash);
         emit({
           kind: "task.done",

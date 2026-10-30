@@ -51,11 +51,6 @@ dotenv.config({ path: path.join(API3_DIR, ".env"), quiet: true });
 export const NODARY_URL = "https://airnode-nodary.fly.dev/";
 export const NODARY_AIRNODE: Address = "0xE70f1e8b22a21e4Bb5188918a3033341b281E4c0";
 const FEED = "EUR/USD";
-const RATE_REQUEST = {
-  operation: "latestFeeds",
-  parameters: { name: FEED },
-  responseProjection: { price: "/EUR~1USD/value", updatedAt: "/EUR~1USD/timestamp" },
-};
 /** `pnpm --silent request-hash EUR/USD` in api3/: the escrow accepts only responses to this request. */
 export const EUR_USD_REQUEST_HASH: Hex = "0x5ccc3aa98c84e0929a84c28f3fe16c2a89b2e58965b487b5580af40be401d3d0";
 
@@ -83,25 +78,35 @@ export interface CheckedRate {
  * checks off chain, so a bad response never costs gas. The contract repeats them.
  */
 export async function fetchSignedRate(): Promise<CheckedRate> {
-  const response = await fetch(NODARY_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(RATE_REQUEST),
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!response.ok) throw new Error(`Nodary answered ${response.status}: ${await response.text()}`);
-  const signed = (await response.json()) as SignedRate;
+  const signed = await fetchSignedFeed(FEED);
   if (signed.requestHash !== EUR_USD_REQUEST_HASH) throw new Error(`Response answers request ${signed.requestHash}, not EUR/USD`);
-  const signer = await recoverMessageAddress({
-    message: { raw: keccak256(encodePacked(["bytes32", "uint256", "bytes"], [EUR_USD_REQUEST_HASH, BigInt(signed.timestamp), toHex(signed.data)])) },
-    signature: signed.signature,
-  });
+  const signer = await recoverSigner(signed);
   if (!isAddressEqual(signer, NODARY_AIRNODE)) throw new Error(`Response signed by ${signer}, not by Nodary`);
   const { price, updatedAt } = JSON.parse(signed.data) as { price: number; updatedAt: number };
   const [whole, fraction = ""] = String(price).split(".");
   const rate = BigInt(whole) * 10n ** 18n + BigInt(fraction.padEnd(18, "0").slice(0, 18) || "0");
   return { signed, rate, display: String(price), signedAt: Number(signed.timestamp), takenAt: Math.floor(updatedAt / 1000) };
 }
+
+/** A signed Nodary price for any feed, projected to {"price","updatedAt"} like the EUR/USD request. */
+export async function fetchSignedFeed(feed: string): Promise<SignedRate> {
+  const pointer = feed.replaceAll("~", "~0").replaceAll("/", "~1");
+  const response = await fetch(NODARY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ operation: "latestFeeds", parameters: { name: feed }, responseProjection: { price: `/${pointer}/value`, updatedAt: `/${pointer}/timestamp` } }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) throw new Error(`Nodary answered ${response.status}: ${await response.text()}`);
+  return (await response.json()) as SignedRate;
+}
+
+/** Airnode v2 attestation: EIP-191 over keccak256(requestHash, timestamp, data). */
+export const responseDigest = (requestHash: Hex, timestamp: string, data: string) =>
+  keccak256(encodePacked(["bytes32", "uint256", "bytes"], [requestHash, BigInt(timestamp), toHex(data)]));
+
+export const recoverSigner = (signed: SignedRate) =>
+  recoverMessageAddress({ message: { raw: responseDigest(EUR_USD_REQUEST_HASH, signed.timestamp, signed.data) }, signature: signed.signature });
 
 /** 1.11 → 1.11e18 */
 export const toRate = (value: number): bigint => BigInt(Math.round(value * 1e6)) * 10n ** 12n;
@@ -182,7 +187,7 @@ function requiredHex(name: string): Hex {
 }
 
 /** The Keeper's own EVM key, so Lena's treasury and the Keeper are different accounts. */
-function keeperKey(): Hex {
+export function keeperKey(): Hex {
   if (!process.env.KEEPER_EVM_PRIVATE_KEY) {
     const key = generatePrivateKey();
     appendFileSync(APP_ENV, `KEEPER_EVM_PRIVATE_KEY=${key}\n`);
@@ -197,7 +202,7 @@ export function lenaKey(): Hex {
 }
 
 /** Reads a contract's creation bytecode from `forge build` output in api3/out. */
-function bytecode(contract: string): Hex {
+export function bytecode(contract: string): Hex {
   const file = path.join(API3_DIR, "out", `${contract}.sol`, `${contract}.json`);
   if (!existsSync(file)) execFileSync("forge", ["build"], { cwd: API3_DIR, stdio: "ignore" });
   return (JSON.parse(readFileSync(file, "utf8")) as { bytecode: { object: Hex } }).bytecode.object;
@@ -302,9 +307,16 @@ export async function connectEvm(requested?: string) {
       return { orderId: created.args.orderId, deposit: created.args.deposit, hash };
     },
 
+    /** Dry run (eth_call) of `execute`: undefined if the escrow would accept the response, else its error. */
+    async simulate(orderId: bigint, signed: Pick<SignedRate, "timestamp" | "data" | "signature">): Promise<string | undefined> {
+      const args = [orderId, BigInt(signed.timestamp), toHex(signed.data), signed.signature] as const;
+      return publicClient.simulateContract({ address: deployment.escrow, abi: escrowAbi, functionName: "execute", args, account: keeper.account })
+        .then(() => undefined, (error) => { try { explainRevert(error); } catch (e) { return (e as Error).message; } });
+    },
+
     /** The Keeper submits the signed rate. Simulates first, so a failing call costs no gas. */
-    async execute(orderId: bigint, checked: CheckedRate) {
-      const args = [orderId, BigInt(checked.signed.timestamp), toHex(checked.signed.data), checked.signed.signature] as const;
+    async execute(orderId: bigint, signed: Pick<SignedRate, "timestamp" | "data" | "signature">) {
+      const args = [orderId, BigInt(signed.timestamp), toHex(signed.data), signed.signature] as const;
       const { request } = await publicClient.simulateContract({ address: deployment.escrow, abi: escrowAbi, functionName: "execute", args, account: keeper.account }).catch(explainRevert);
       const hash = await keeper.writeContract(request);
       const receipt = await confirm(hash);

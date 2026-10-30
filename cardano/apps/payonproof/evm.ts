@@ -146,6 +146,8 @@ export const tokenAbi = parseAbi([
 ]);
 
 export const STATUS = ["None", "Open", "Paid", "Cancelled"] as const;
+/** Dashboard node name of the escrow contract. */
+export const ESCROW_NODE = "Invoice escrow";
 export const USD_DECIMALS = 6;
 export const usd = (units: bigint) => `${Number(formatUnits(units, USD_DECIMALS)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} dUSD`;
 
@@ -251,6 +253,8 @@ export async function connectEvm(requested?: string) {
   const explorer = name === "base-sepolia" ? "https://sepolia.basescan.org" : undefined;
   const txLink = (hash: Hex) => (explorer ? `${explorer}/tx/${hash}` : `anvil tx ${hash}`);
   const addressLink = (address: Address) => (explorer ? `${explorer}/address/${address}` : `anvil ${address}`);
+  /** Event fields for an EVM transaction: a clickable link on Base Sepolia, a note in the message on anvil. */
+  const txRef = (hash: Hex, label = "basescan ↗") => (explorer ? { link: `${explorer}/tx/${hash}`, linkLabel: label, note: "" } : { note: ` (anvil tx ${hash.slice(0, 10)}…)` });
 
   /** Waits for a receipt; throws if the transaction reverted. */
   const confirm = async (hash: Hex) => {
@@ -265,6 +269,7 @@ export async function connectEvm(requested?: string) {
     explorer,
     txLink,
     addressLink,
+    txRef,
     escrow: deployment.escrow,
     usdToken: deployment.usd,
     lenaAddress: lena.account.address,

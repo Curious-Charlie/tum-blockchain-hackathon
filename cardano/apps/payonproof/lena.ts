@@ -9,11 +9,10 @@
  *   AgentGuard (payee allowlist = the Keeper, per-payment, per-invoice and
  *   daily caps). A failed attempt costs nothing.
  */
-import { AgentGuard, HAIKU, PaymentBlocked, ada, askJson, emit, limits, sleep, type Wallet } from "@agentic/core";
+import { AgentGuard, HAIKU, PaymentBlocked, ada, askJson, emit, limits, type Wallet } from "@agentic/core";
 import { keccak256, stringToHex, type Address } from "viem";
 import { privateKeyToAddress } from "viem/accounts";
-import { decodePaymentResponseHeader } from "@x402/fetch";
-import { showRate, toRate, usd, type Evm } from "./evm.ts";
+import { ESCROW_NODE, showRate, toRate, usd, type Evm } from "./evm.ts";
 
 /** Lena's suppliers. The order's payee comes from here, never from the model. */
 const supplier = (slug: string) => privateKeyToAddress(keccak256(stringToHex(`payonproof:supplier:${slug}`)));
@@ -105,8 +104,12 @@ export class LenaAgent {
     const euros = `€${(Number(order.amountEurCents) / 100).toLocaleString("en-US")}`;
     this.step(`Claude read it as ${parsed.invoiceRef}: ${euros} to ${order.payee.name} when EUR/USD < ${parsed.maxRate}, by ${parsed.deadline}; checked against Lena's address book and limits`, parsed.invoiceRef, { parsed });
     const created = await this.evm.createOrder({ ...order, payee: order.payee.address });
-    const link = this.evm.txLink(created.hash);
-    this.step(`Locked ${usd(created.deposit)} (${euros} at ${showRate(order.maxRate)}) in the escrow as order ${created.orderId}; the Keeper can trigger it but never redirect it. ${link}`, parsed.invoiceRef, { evmTx: created.hash, link, orderId: String(created.orderId) });
+    const ref = this.evm.txRef(created.hash);
+    emit({
+      kind: "payment.external", actor: this.wallet.name, task: parsed.invoiceRef, from: this.wallet.name, to: ESCROW_NODE, amount: usd(created.deposit), link: ref.link, linkLabel: ref.link ? "basescan ↗" : undefined,
+      message: `Locked ${usd(created.deposit)} (${euros} at ${showRate(order.maxRate)}) in the escrow as order ${created.orderId}, payable only to ${order.payee.name}; the Keeper can trigger it but never redirect it${ref.note}`,
+      data: { evmTx: created.hash, orderId: String(created.orderId) },
+    });
     return { ...order, orderId: created.orderId, euros };
   }
 
@@ -114,35 +117,15 @@ export class LenaAgent {
    * One paid attempt: "execute order N if its condition holds". The signed fee
    * settles only if the Keeper answers 200.
    */
-  async attempt(orderId: bigint, task: string, keeperUrl = this.keeper.url, retries = 1): Promise<{ status: string; body: Record<string, unknown>; feeTx?: string }> {
+  async attempt(orderId: bigint, task: string, keeperUrl = this.keeper.url): Promise<{ status: string; body: Record<string, unknown> }> {
     try {
       const response = await this.guard.fetch(`${keeperUrl}/orders/${orderId}/execute`, { method: "POST" }, { task, purpose: `an execution attempt on ${task}` });
-      if (response.status === 402 && retries > 0) {
-        // The Keeper's facilitator rejected the signed fee. Right after a confirmation Blockfrost's UTxO view can
-        // lag, so the fee may have spent an input that is already gone. Nothing was paid; build a new one shortly.
-        this.step(`Keeper rejected the signed fee (${paymentError(response) ?? "invalid payment"}); nothing paid, retrying in 20 s`, task);
-        await sleep(20_000);
-        return this.attempt(orderId, task, keeperUrl, retries - 1);
-      }
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-      const settlement = response.headers.get("PAYMENT-RESPONSE");
-      const feeTx = settlement ? decodePaymentResponseHeader(settlement).transaction || undefined : undefined;
-      return { status: String(body.status ?? response.status), body, feeTx };
+      return { status: String(body.status ?? response.status), body };
     } catch (error) {
       if (error instanceof PaymentBlocked) return { status: "blocked", body: { reason: error.reason } };
       throw error;
     }
-  }
-}
-
-/** The reason in an x402 v2 PAYMENT-REQUIRED header, if any. */
-function paymentError(response: Response): string | undefined {
-  const header = response.headers.get("PAYMENT-REQUIRED");
-  if (!header) return undefined;
-  try {
-    return (JSON.parse(Buffer.from(header, "base64").toString("utf8")) as { error?: string }).error;
-  } catch {
-    return undefined;
   }
 }
 

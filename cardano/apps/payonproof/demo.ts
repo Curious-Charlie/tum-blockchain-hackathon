@@ -16,7 +16,7 @@ import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { Address, Client, preprod } from "@evolution-sdk/evolution";
 import { Seller, Wallet, emit, flushEvents, formatAmount, setApp, sleep, usageSummary, EXPLORER_TX } from "@agentic/core";
 import { connectEvm, fetchSignedRate, usd } from "./evm.ts";
-import { KEEPER_FEE, KEEPER_PORT, publishReceipt, startKeeper } from "./keeper.ts";
+import { KEEPER_FEE, KEEPER_PORT, startKeeper } from "./keeper.ts";
 import { ADDRESS_BOOK, LenaAgent } from "./lena.ts";
 
 const { values: args } = parseArgs({
@@ -37,9 +37,9 @@ const fee = formatAmount(KEEPER_FEE.asset, KEEPER_FEE.amount);
 const evm = await connectEvm(args.evm);
 const lenaWallet = (await Wallet.load("LENA", "Lena's finance agent")).online("hires the Keeper per attempt, pays only through AgentGuard");
 const keeperWallet = (await Wallet.load("KEEPER", "Keeper agent")).online(`executes invoice orders on ${evm.name}; ${fee} per success, nothing per failed attempt`);
-emit({ kind: "task.step", actor: "PayOnProof", message: `Invoice escrow on ${evm.name}: ${evm.addressLink(evm.escrow)} (checks Nodary's signature, request, freshness and the limit itself)` });
+emit({ kind: "task.step", actor: "PayOnProof", message: `Invoice escrow on ${evm.name} ${evm.escrow}: checks Nodary's signature, request, freshness and the limit itself`, link: evm.explorer ? evm.addressLink(evm.escrow) : undefined, linkLabel: "contract on basescan ↗" });
 
-const keeper = await startKeeper(keeperWallet, evm);
+const keeper = await startKeeper(keeperWallet, evm, { receipts: !args["no-receipt"] });
 const lena = new LenaAgent(lenaWallet, evm, { url: keeper.url, wallet: keeperWallet });
 
 const results: { invoice: string; status: string; link?: string }[] = [];
@@ -83,14 +83,8 @@ try {
     if (!open.size) continue;
     emit({ kind: "task.step", actor: lenaWallet.name, message: `Round ${round}/${rounds}: asking the Keeper to execute ${[...open.values()].map((o) => o.invoiceRef).join(", ")} (each attempt carries a signed ${fee} fee)` });
     for (const order of [...open.values()]) {
-      const { status, body, feeTx } = await lena.attempt(order.orderId, order.task);
+      const { status, body } = await lena.attempt(order.orderId, order.task);
       results.push({ invoice: order.invoiceRef, status, link: body.link as string | undefined });
-      if (status === "executed" && feeTx && !args["no-receipt"]) {
-        await publishReceipt(keeperWallet, evm, {
-          invoice: order.invoiceRef, orderId: order.orderId, payee: order.payee.name, euros: order.euros,
-          rate: String(body.rate), payout: String(body.payout), evmTx: String(body.evmTx), feeTx,
-        }).catch((error) => console.warn(`  ! receipt not published: ${error instanceof Error ? error.message : String(error)}`));
-      }
       if (status === "executed" || status === "not_open" || status === "blocked") open.delete(order.orderId);
     }
   }
@@ -109,6 +103,7 @@ try {
   emit({ kind: "task.failed", actor: "PayOnProof", message: `Demo stopped: ${error instanceof Error ? error.message : String(error)}` });
   process.exitCode = 1;
 } finally {
+  await keeper.idle();
   await keeper.close();
   evm.close();
   await flushEvents();

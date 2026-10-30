@@ -26,7 +26,7 @@ let failures = 0;
 try {
   const live = await fetchSignedRate();
   const limit = Math.ceil((Number(live.display) + 0.01) * 100) / 100;
-  emit({ kind: "task.started", actor, message: `Tamper test on ${evm.name}, escrow ${evm.addressLink(evm.escrow)}. Live Nodary EUR/USD ${live.display}; opening a €100 order that pays when EUR/USD < ${limit}` });
+  emit({ kind: "task.started", actor, link: evm.explorer ? evm.addressLink(evm.escrow) : undefined, linkLabel: "contract on basescan ↗", message: `Tamper test on ${evm.name}, escrow ${evm.escrow}. Live Nodary EUR/USD ${live.display}; opening a €100 order that pays when EUR/USD < ${limit}` });
   const order = await evm.createOrder({
     invoiceRef: "TAMPER-TEST",
     payee: ADDRESS_BOOK.cafeverde.address,
@@ -34,7 +34,8 @@ try {
     maxRate: toRate(limit),
     deadline: BigInt(Math.floor(Date.now() / 1000) + 86_400),
   });
-  emit({ kind: "task.step", actor, message: `Order ${order.orderId} locks ${usd(order.deposit)}. ${evm.txLink(order.hash)}` });
+  const orderRef = evm.txRef(order.hash);
+  emit({ kind: "task.step", actor, message: `Order ${order.orderId} locks ${usd(order.deposit)}${orderRef.note}`, link: orderRef.link, linkLabel: orderRef.linkLabel });
 
   const editedPrice = (data: string) => data.replace(/"price":([\d.]+)/, (_m, p: string) => `"price":${(Number(p) - 0.1).toFixed(4)}`);
   const impostor = privateKeyToAccount(generatePrivateKey());
@@ -65,7 +66,8 @@ try {
 
   if (!args["skip-valid"]) {
     const result = await evm.execute(order.orderId, live.signed);
-    emit({ kind: "task.done", actor, message: `ACCEPTED the valid, fresh response (EUR/USD ${showRate(result.rate)}): paid ${usd(result.payout)}, refunded ${usd(result.refund)}. ${evm.txLink(result.hash)}`, data: { evmTx: result.hash } });
+    const ref = evm.txRef(result.hash);
+    emit({ kind: "task.done", actor, message: `ACCEPTED the valid, fresh response (EUR/USD ${showRate(result.rate)}): paid ${usd(result.payout)}, refunded ${usd(result.refund)}${ref.note}`, link: ref.link, linkLabel: ref.linkLabel, data: { evmTx: result.hash } });
   }
   console.log(failures ? `\n${failures} tampered response(s) were not rejected` : "\nTamper test passed: the valid response executed, every tampered response was rejected.");
 } catch (error) {

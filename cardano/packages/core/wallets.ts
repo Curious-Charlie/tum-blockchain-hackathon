@@ -79,10 +79,10 @@ export class Wallet {
     const run = this.queue.then(async () => {
       const tx = this.unconfirmed();
       if (tx) {
-        console.log(`  … ${this.name}: waiting for ${tx.slice(0, 10)}… to confirm before spending again`);
+        emit({ kind: "task.step", actor: this.name, message: `Waiting for its previous transaction ${tx.slice(0, 10)}… to confirm before paying again` });
         await waitForTx(tx).catch((error) => console.warn(`  ! ${String(error)}`));
-        // Blockfrost's UTxO index can trail /txs by a few seconds.
-        await sleep(5_000);
+        // Blockfrost's UTxO index can trail /txs by several seconds.
+        await sleep(10_000);
         rmSync(this.pendingFile(), { force: true });
       }
       return work();

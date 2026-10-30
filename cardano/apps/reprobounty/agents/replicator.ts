@@ -23,7 +23,7 @@ import {
 } from "@agentic/core";
 import { compare, validateClaims, validateMappings, type Comparison, type ExtractedClaim, type Mapping, type ValidClaim } from "../lib/compare.ts";
 import { bundleHash, hashTree, parseCsv, sha256, type EvidenceBundle } from "../lib/evidence.ts";
-import { settlementTx } from "../lib/chain.ts";
+import { settlementTx, wrapWords } from "../lib/chain.ts";
 import { findPackage, type ReplicationPackage } from "../registry.ts";
 import { tusdm } from "../lib/assets.ts";
 import type { RunRequest, RunResult } from "./compute.ts";
@@ -264,12 +264,14 @@ export async function startReplicator(options: { wallet: Wallet; port: number; c
       res.on("finish", () => {
         const paidTx = res.statusCode === 200 ? settlementTx(res.getHeader("PAYMENT-RESPONSE")) : undefined;
         if (!paidTx) return resolveCertificate(undefined);
-        const lines = [
+        const datasets = new Set(comparison.rows.map((r) => `${r.file}:${r.dataset}`)).size;
+        const lines = wrapWords([
           "ReproBounty reproduction certificate v1",
           `doi:${request.paper.doi}`,
-          `paper: ${request.paper.title}`,
-          `claim: ${request.target}`,
-          `verdict: ${comparison.verdict} (${comparison.passed}/${comparison.total} checks)`,
+          request.paper.title,
+          `target: ${request.target}`,
+          `claims: ${claims.map((c) => `${c.symbol.replace("Pearson's ", "")}=${c.value_text}`).join(" ")}`,
+          `verdict: ${comparison.verdict} (${comparison.passed}/${comparison.total} checks, ${datasets} datasets)`,
           `code: ${pkg.repo.replace("https://", "")}@${pkg.commit.slice(0, 12)}`,
           "evidence sha256:",
           hash,
@@ -277,7 +279,7 @@ export async function startReplicator(options: { wallet: Wallet; port: number; c
           verifier.address,
           "bounty paid in tx:",
           paidTx,
-        ];
+        ]);
         step(task, "Requester's payment settled. Publishing the certificate on Cardano (after the verifier payment confirms)…");
         publish(wallet, lines, { task, title: `the reproduction certificate (${comparison.verdict})` })
           .then(resolveCertificate)

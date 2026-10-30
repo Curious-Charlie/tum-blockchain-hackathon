@@ -17,7 +17,7 @@
  */
 import type { Request, Response } from "express";
 import { decodePaymentResponseHeader } from "@x402/fetch";
-import { AgentGuard, SONNET, Seller, emit, formatAmount, runAgent, tool, webSearch, type Wallet } from "@agentic/core";
+import { AgentGuard, SONNET, Seller, emit, formatAmount, runAgent, tool, webSearch, type GuardPolicy, type Wallet } from "@agentic/core";
 import { BATCH_SIZE, CHECK_PRICE_PER_CLAIM, MAX_CLAIMS, REPORT_PRICE } from "./config.ts";
 import { fetchPage, findQuote } from "./pages.ts";
 import { MIN_CHECKABLE, gate, type CheckResult, type Claim, type GateResult } from "./verdict.ts";
@@ -172,6 +172,21 @@ export async function buyChecks(guard: AgentGuard, checkerUrl: string, claims: C
   return { results, payments };
 }
 
+/**
+ * The research agent's AgentGuard policy: it may pay only the fact-checker, at
+ * most one batch (5 claims × 0.2 tUSDM = 1 tUSDM) per payment, 2 tUSDM per
+ * report and 40 tUSDM per day. Nothing else, whatever a web page tells the LLM.
+ */
+export function researcherPolicy(checker: { name: string; address: string }): GuardPolicy {
+  const unit = CHECK_PRICE_PER_CLAIM;
+  return {
+    maxPerPayment: { [unit.asset]: unit.amount * 5n },
+    maxPerTask: { [unit.asset]: unit.amount * 10n },
+    maxPerDay: { [unit.asset]: unit.amount * 200n },
+    payees: { [checker.address]: checker.name },
+  };
+}
+
 /** Starts the research agent service. `POST /report` with `{ topic, task? }`, paid by the customer. */
 export async function startResearcher(options: {
   wallet: Wallet;
@@ -180,13 +195,7 @@ export async function startResearcher(options: {
   sloppy?: boolean;
 }) {
   const { wallet, checker, sloppy } = options;
-  const guard = new AgentGuard(wallet, {
-    // A check batch is at most 5 claims × 0.2 tUSDM; a report at most 10 claims.
-    maxPerPayment: { [CHECK_PRICE_PER_CLAIM.asset]: CHECK_PRICE_PER_CLAIM.amount * 5n },
-    maxPerTask: { [CHECK_PRICE_PER_CLAIM.asset]: CHECK_PRICE_PER_CLAIM.amount * 10n },
-    maxPerDay: { [CHECK_PRICE_PER_CLAIM.asset]: CHECK_PRICE_PER_CLAIM.amount * 200n },
-    payees: { [checker.address]: checker.name },
-  });
+  const guard = new AgentGuard(wallet, researcherPolicy(checker));
 
   const seller = new Seller(wallet).paid(
     "POST /report",

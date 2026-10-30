@@ -14,9 +14,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Agent, setGlobalDispatcher } from "undici";
 import { decodePaymentResponseHeader } from "@x402/fetch";
-import { AgentGuard, EXPLORER_TX, ROOT, Wallet, emit, flushEvents, formatAmount, limits, setApp, usageSummary, usdm } from "@agentic/core";
+import { AgentGuard, EXPLORER_TX, ROOT, Wallet, emit, flushEvents, formatAmount, limits, setApp, usageSummary } from "@agentic/core";
 import { startChecker } from "./checker.ts";
-import { CHECKER_PORT, DEFAULT_TOPIC, REPORT_PRICE, RESEARCHER_PORT } from "./config.ts";
+import { CHECKER_PORT, DEFAULT_TOPIC, REPORT_PRICE, RESEARCHER_PORT, tusdm } from "./config.ts";
 import { startResearcher, type ReportBody } from "./researcher.ts";
 import { LABEL } from "./verdict.ts";
 import { waitUntilIdle } from "./chain.ts";
@@ -48,9 +48,9 @@ const researcherService = await startResearcher({
 });
 
 const guard = new AgentGuard(customer, {
-  maxPerPayment: limits(usdm(5)),
-  maxPerTask: limits(usdm(5)),
-  maxPerDay: limits(usdm(60)),
+  maxPerPayment: limits(tusdm(5)),
+  maxPerTask: limits(tusdm(5)),
+  maxPerDay: limits(tusdm(60)),
   payees: { [researcher.address]: researcher.name },
 });
 

@@ -30,6 +30,10 @@
 - [x] Anthropic API key 已验证（Sonnet 5.5、Haiku 5.5）
 - [x] 用户已签到；Blockfrost、Coinbase CDP、Devfolio、Sokosumi 账号都已就绪
 - [x] **Phase 0 地基完成（周五 11:30）**: npm workspaces + `@agentic/core`；smoke 经 AgentGuard 结算 `2df9839f…`；CIP-20 发表 `3186d09a…`；AgentGuard 9 个测试通过；dashboard 实时显示；三个 app 骨架和各自的角色钱包（付款角色已从 Masumi dispenser 领币）
+- [x] **Phase 1 三个设计的 MVP 全部完成（周五 11:55）**，都在 preprod 上真实跑过成功和失败路径，各自 README 有 60 秒演示脚本:
+  - D1 `d1/payonproof`: Base Sepolia InvoiceEscrow `0x63e2b722…`，服务费 `4a5300fe…`，Keeper 收据 `d578fe53…`；tamper 测试 4 种篡改全被拒
+  - D2 `d2/checkedfacts`: 店主付款 `a43ea137…`，PASS 证书 `76e54008…`，FAIL 证书 `b81428cf…`（店主未付款）
+  - D5 `d5/reprobounty`: 赏金 `a4b5a81d…`，证书 `80f0deef…`；`--altered` 证书 `38b977f7…`；`--tamper` 时 Requester 未付款
 
 ## 提交清单（Devfolio）
 

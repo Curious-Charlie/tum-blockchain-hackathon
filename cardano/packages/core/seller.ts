@@ -106,12 +106,19 @@ export class Seller {
     const server = new x402ResourceServer(facilitator()).register(NETWORK, new ServerScheme());
     server.onAfterVerify(async ({ requirements, result }) => {
       const amount = formatAmount(requirements.asset, requirements.amount);
-      emit({
-        kind: "payment.held",
-        actor: this.wallet.name,
-        message: `${this.wallet.name} verified a signed ${amount} payment${result.payer ? ` from ${shortAddress(result.payer)}` : ""}; it is held until the work succeeds`,
-        data: { payer: result.payer },
-      });
+      emit(result.isValid
+        ? {
+            kind: "payment.held",
+            actor: this.wallet.name,
+            message: `${this.wallet.name} verified a signed ${amount} payment${result.payer ? ` from ${shortAddress(result.payer)}` : ""}; it is held until the work succeeds`,
+            data: { payer: result.payer },
+          }
+        : {
+            kind: "task.step",
+            actor: this.wallet.name,
+            message: `${this.wallet.name} rejected a signed ${amount} payment (${result.invalidReason ?? "invalid"}); nothing was paid`,
+            data: { payer: result.payer, reason: result.invalidReason },
+          });
     });
     server.onAfterSettle(async ({ requirements, result, transportContext }) => {
       if (!result.success || !result.transaction || !this.settledListeners.length) return;

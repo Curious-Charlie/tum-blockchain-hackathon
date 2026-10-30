@@ -121,9 +121,9 @@ export async function draftReport(topic: string, actor: string, task?: string): 
 
 Write a competitive-landscape brief for a small business owner as 10 factual claims (the fact-checker may reject some; 8 good ones are the goal).
 1. Use web_search (at most 4 searches) to find sources: local press, city guides, company websites, statistics pages.
-2. Open the pages you want to cite with read_page. Cite only pages that read_page returned text for. Use at least 4 different pages.
+2. Open the pages you want to cite with read_page. Cite only pages that read_page returned text for. Use at least 4 different websites, prefer recent ones (city guides, local press, the businesses' own sites) and use encyclopedias for at most 2 claims.
 3. For every claim, copy a quote of 10 to 40 words EXACTLY, character for character, from the read_page text of the cited URL. No ellipses, no paraphrasing, no joining sentences, nothing from search snippets.
-4. Each claim must be fully supported by its quote alone: no names, numbers or superlatives that are not in the quote. Prefer concrete facts a shop owner can use: named competitors, locations, prices, founding years, market figures.
+4. Each claim must be fully supported by its quote alone: no names, numbers or superlatives that are not in the quote. Prefer concrete, current facts a shop owner can act on: named competitors, their neighbourhoods or addresses, what they are known for, prices, opening years, market trends.
 5. Finish by calling submit_report once with a 2-3 sentence summary and the claims.`,
   });
   if (!submitted) throw new Error("The research agent finished without submitting a report");

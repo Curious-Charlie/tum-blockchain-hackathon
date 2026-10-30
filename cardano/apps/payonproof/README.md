@@ -37,7 +37,7 @@ Lena's finance agent ──(x402: signed 2 tADA, not yet on chain)──▶ Keep
 | `KEEPER` | Keeper agent | Cardano (earns fees); EVM `KEEPER_EVM_PRIVATE_KEY` in this app's `.env` (pays gas for `execute`, created on first run) |
 | — | Café Verde, Fazenda Alta | suppliers' EVM addresses in Lena's address book (`lena.ts`) |
 
-Ports: Keeper 4110, local anvil 4118.
+Ports: Keeper 4110, look-alike Keeper (`--attack`) 4111, local anvil fallback 4118.
 
 ## Setup and run
 
@@ -55,7 +55,7 @@ npm run tamper -w apps/payonproof                   # API3 tamper test: 1 valid 
 
 Demo options: `--limit-a 1.11 --limit-b 1.13` set the two invoices' EUR/USD limits (defaults: just below and just above the live rate, so both paths show), `--rounds 2`, `--interval 12` (seconds between polling rounds), `--evm base-sepolia|anvil`.
 
-**EVM network.** The demo uses Base Sepolia when `deployments.json` lists an escrow there, otherwise it starts a local anvil chain, deploys the same contracts and runs against them (Cardano is always real preprod). To deploy on Base Sepolia:
+**EVM network.** The escrow is deployed on **Base Sepolia** (addresses in `deployments.json`), and the demo and tamper test use it by default; the Keeper's and Lena's EVM accounts need a little Base Sepolia ETH for gas. Fallback without ETH or internet to Base: `--evm anvil` (or `EVM_NETWORK=anvil`) starts a local anvil chain on port 4118, deploys the same contracts and runs against them. Cardano is always real preprod. To deploy afresh on Base Sepolia:
 
 ```sh
 npm run deploy -w apps/payonproof -- --dry-run      # prints the cost; the L1 data fee dominates
@@ -81,13 +81,18 @@ For API3 judges: `npm run tamper -w apps/payonproof` opens an order, shows the f
 
 ## Evidence (2026-10-30)
 
-Cardano preprod (x402 fee settlements, Lena's finance agent → Keeper agent, 2 tADA each, each settled only after the escrow paid):
+**Base Sepolia** (chain 84532):
 
-- [`0203e326…`](https://preprod.cardanoscan.io/transaction/0203e326c6473e654f9f215bd5b4d090d6055dd4f0a36adf62e2b221cd5a15a6), [`f6a71a0a…`](https://preprod.cardanoscan.io/transaction/f6a71a0aae2d57a9fca5df765aa1715110df27a99c13a08523dce121bbb1d246), [`f726efd5…`](https://preprod.cardanoscan.io/transaction/f726efd58c66a57e0ed7cd39236a12a7f0d6f6594479b75b17abb6985b88fe8a)
-- Keeper's CIP-20 receipt: [`be4ec11b…`](https://preprod.cardanoscan.io/transaction/be4ec11b4ef4ad900f7ce2bd5ecc091ce848cbeaf4d299694416c4f93d105786) (Metadata tab)
-- Attempts whose condition was not met: HTTP 409, no transaction exists (see `cardano/.audit/payonproof-lena.jsonl`, decision `voided`).
+- InvoiceEscrow [`0x63e2b722725eda487a9d76962ef4633dcc5e571a`](https://sepolia.basescan.org/address/0x63e2b722725eda487a9d76962ef4633dcc5e571a) (deploy tx [`0x37a2b603…`](https://sepolia.basescan.org/tx/0x37a2b6030c8991943cbddfc291d106b97d5ec4682e04d94a896c9c8f050c37c4)); request hash `0x5ccc3aa9…d3d0` (Nodary EUR/USD), `maxRateAge` 3 days
+- DemoUSD (dUSD, 6 decimals) [`0xdf6ffd0bccb883cf14bf45c2ef54f4ee95b2cbcf`](https://sepolia.basescan.org/address/0xdf6ffd0bccb883cf14bf45c2ef54f4ee95b2cbcf)
+- Demo run: Lena locks INV-17 [`0x07f495f8…`](https://sepolia.basescan.org/tx/0x07f495f8f1c8e32d316ceb85947fc95783fbb2a2cdf71544e580ba8789d8e6ce) and INV-18 [`0xc3fe731d…`](https://sepolia.basescan.org/tx/0xc3fe731dac42ed99561d348b83fc371900cf86ad3cecc63c057a25603c3998cf); the Keeper executes INV-18 at the signed EUR/USD 1.1202, paying 448.08 dUSD to the supplier: [`0x43e772f3…`](https://sepolia.basescan.org/tx/0x43e772f3e4d00b477018ed3f96f4e49c71cdf84c9313fb4771c373fb61e93e8b). INV-17 (limit 1.11) stays open.
+- Tamper test: order 3 [`0xc8bdc470…`](https://sepolia.basescan.org/tx/0xc8bdc470760bf540d48e156aef228da38c24b53def8e7dd6ae12ff938b1845ed); edited value, too old, another request (BTC/USD) and another signer were all rejected by the contract (`NotSignedByAirnode`, `ResponseTooOld`); the valid response executed: [`0x0b240589…`](https://sepolia.basescan.org/tx/0x0b240589f0cc88289bd17d4ef92c864dc6182be30af35dca67d097323443ed24)
 
-EVM: these runs used a local anvil chain with the same contracts. Base Sepolia: DemoUSD [`0xdf6ffd0b…`](https://sepolia.basescan.org/address/0xdf6ffd0bccb883cf14bf45c2ef54f4ee95b2cbcf); the escrow deployment is waiting for Base Sepolia ETH (`npm run deploy -w apps/payonproof -- --dry-run` prints the cost).
+**Cardano preprod** (x402 fee settlements, Lena's finance agent → Keeper agent, 2 tADA each, each settled only after the escrow paid):
+
+- Base Sepolia run: fee [`4a5300fe…`](https://preprod.cardanoscan.io/transaction/4a5300fe0927359c8c1ab84e32befb86e3b14296c4be7e2139cd3c5b754d1534), Keeper's CIP-20 receipt [`d578fe53…`](https://preprod.cardanoscan.io/transaction/d578fe53cd06c3c1d50acba2ee244ee61cc378c5527ec9cf4efd6d0d45dfc7df) (Metadata tab)
+- Earlier runs against anvil: [`0203e326…`](https://preprod.cardanoscan.io/transaction/0203e326c6473e654f9f215bd5b4d090d6055dd4f0a36adf62e2b221cd5a15a6), [`f726efd5…`](https://preprod.cardanoscan.io/transaction/f726efd58c66a57e0ed7cd39236a12a7f0d6f6594479b75b17abb6985b88fe8a), receipt [`be4ec11b…`](https://preprod.cardanoscan.io/transaction/be4ec11b4ef4ad900f7ce2bd5ecc091ce848cbeaf4d299694416c4f93d105786)
+- Attempts whose condition was not met: HTTP 409, no transaction exists (`cardano/.audit/payonproof-lena.jsonl`, decision `voided`).
 
 ## Limits and roadmap
 

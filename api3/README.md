@@ -17,4 +17,4 @@ forge test --match-contract InvoiceEscrow     # 12 tests incl. the four tamper c
 
 Deployment, the end-to-end demo and a tamper-test script judges can run with their own response: [`cardano/apps/payonproof/README.md`](../cardano/apps/payonproof/README.md) (`npm run deploy|demo|tamper -w apps/payonproof`).
 
-Base Sepolia: DemoUSD `0xdf6ffd0bccb883cf14bf45c2ef54f4ee95b2cbcf`; InvoiceEscrow: see `cardano/apps/payonproof/deployments.json`.
+Deployed on Base Sepolia: InvoiceEscrow [`0x63e2b722725eda487a9d76962ef4633dcc5e571a`](https://sepolia.basescan.org/address/0x63e2b722725eda487a9d76962ef4633dcc5e571a), DemoUSD [`0xdf6ffd0bccb883cf14bf45c2ef54f4ee95b2cbcf`](https://sepolia.basescan.org/address/0xdf6ffd0bccb883cf14bf45c2ef54f4ee95b2cbcf).

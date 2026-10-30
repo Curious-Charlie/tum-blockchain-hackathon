@@ -2,7 +2,7 @@
 
 > Submission for the [TUM Blockchain & AI Hackathon 2026](https://hackathon.tum-blockchain.com/) (Munich, 30–31 October 2026).
 
-**Tracks entered:** Cardano (Agentic Commerce on Cardano), API3 (Any API in your contract)
+**Track entered:** Cardano (Agentic Commerce on Cardano)
 
 **Demo video:** TBD
 
@@ -22,8 +22,7 @@ TBD
 
 | Path | What it is |
 |---|---|
-| [`cardano/`](cardano/) | Agent service and its paid endpoint on Cardano preprod |
-| [`api3/`](api3/) | Contracts that verify AirnodeHub signed responses, plus submit scripts |
+| [`cardano/`](cardano/) | Agents and their paid endpoints on Cardano preprod |
 | [`docs/`](docs/) | Track rules and planning notes |
 
 ## Setup and run

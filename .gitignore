@@ -38,3 +38,6 @@ venv/
 
 # Upstream starters and demos cloned for reference (not our code)
 reference/
+
+# Git worktrees for parallel design branches
+.worktrees/

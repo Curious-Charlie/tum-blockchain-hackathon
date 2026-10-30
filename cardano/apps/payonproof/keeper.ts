@@ -285,7 +285,8 @@ export async function startKeeper(
       const watch = jobId ? watches.get(jobId) : undefined;
       if (!job || !watch) return;
       background(runWatch(job, watch, settled).catch((error) => {
-        job.status = "failed";
+        // A failure after the result hash is in the escrow (e.g. the receipt) leaves the fee collectable.
+        if (job.status !== "result_submitted") job.status = "failed";
         job.error = error instanceof Error ? error.message : String(error);
         saveJob(job);
         emit({ kind: "task.failed", actor: keeper.name, task: job.task, message: `Escrow job failed: ${job.error}` });

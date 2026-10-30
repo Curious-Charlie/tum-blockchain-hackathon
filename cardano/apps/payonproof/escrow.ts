@@ -18,7 +18,7 @@ setApp("payonproof");
 const args = process.argv.slice(2);
 const command = args[0] ?? "status";
 const wait = args.includes("--wait");
-const at = (ms?: number) => (ms ? new Date(ms).toLocaleTimeString() : "?");
+const at = (ms?: number) => (ms ? new Date(ms).toLocaleTimeString([], { hourCycle: "h23" }) : "?");
 
 const wallets = new Map<string, Wallet>();
 const wallet = async (role: string) => {

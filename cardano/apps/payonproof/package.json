@@ -11,7 +11,8 @@
     "keepers": "tsx keepers.ts",
     "escrow": "tsx escrow.ts",
     "check": "tsx check.ts",
-    "autopilot": "tsx autopilot.ts"
+    "autopilot": "tsx autopilot.ts",
+    "rate": "tsx rate.ts"
   },
   "dependencies": {
     "@agentic/core": "*",

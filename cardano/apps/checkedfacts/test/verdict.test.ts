@@ -70,3 +70,12 @@ test("sloppify breaks claims 1-4 and leaves the rest", () => {
   assert.notEqual(sloppy[3]!.quote, claims[3]!.quote);
   assert.deepEqual(sloppy.slice(4), claims.slice(4));
 });
+
+test("certificate lines fit CIP-20 (64 bytes each) and carry the verdict", async () => {
+  const { certificateLines } = await import("../checker.ts");
+  const claims = Array.from({ length: 8 }, (_, i) => ({ id: i + 1, claim: `Claim ${i}.`, url: "https://example.com", quote: "q" }));
+  const lines = certificateLines("report-123456", claims, results("supported", "supported", "unsupported", "quote_not_found", "unverifiable", "supported", "supported", "supported"));
+  for (const line of lines) assert.ok(Buffer.byteLength(line) <= 64, line);
+  assert.ok(lines.some((l) => l === "per claim SSUQ?SSS"));
+  assert.ok(lines.some((l) => l.startsWith("verdict FAIL: 5/7")));
+});

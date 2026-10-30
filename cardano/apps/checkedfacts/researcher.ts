@@ -21,7 +21,7 @@ import { decodePaymentRequiredHeader } from "@x402/core/http";
 import { AgentGuard, SONNET, Seller, emit, formatAmount, runAgent, sleep, tool, waitForTx, webSearch, type GuardPolicy, type Wallet } from "@agentic/core";
 import { BATCH_SIZE, CHECK_PRICE_PER_CLAIM, INDEX_LAG_MS, MAX_CLAIMS, REPORT_PRICE } from "./config.ts";
 import { fetchPage, findQuote } from "./pages.ts";
-import { MIN_CHECKABLE, gate, type CheckResult, type Claim, type GateResult } from "./verdict.ts";
+import { MIN_CHECKABLE, claimsHash, gate, type CheckResult, type Claim, type GateResult } from "./verdict.ts";
 
 export interface Draft {
   summary: string;
@@ -37,6 +37,28 @@ export interface ReportBody {
   checker: { name: string; address: string };
   /** Transactions in which the research agent paid the checker. */
   checkPayments: string[];
+  /** sha256 of the checked claims; matches the certificate. */
+  claimsHash: string;
+  /** CIP-20 fact-check certificate published by the checker (best effort). */
+  certificate?: string;
+}
+
+/** Asks the checker to publish its verdict on Cardano. Never blocks delivery: returns undefined on failure. */
+async function requestCertificate(checkerUrl: string, task: string, actor: string): Promise<string | undefined> {
+  try {
+    const response = await fetch(`${checkerUrl}/certify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task }),
+      signal: AbortSignal.timeout(90_000),
+    });
+    const body = (await response.json()) as { tx?: string; error?: string };
+    if (!response.ok || !body.tx) throw new Error(body.error ?? `HTTP ${response.status}`);
+    return body.tx;
+  } catch (error) {
+    emit({ kind: "task.step", actor, task, message: `No on-chain certificate this time (${error instanceof Error ? error.message : String(error)}); the verdict stands` });
+    return undefined;
+  }
 }
 
 const SYSTEM = `You are a research agent that sells short, source-backed market briefs to small business owners.
@@ -252,7 +274,12 @@ export async function startResearcher(options: {
 
         const { results, payments } = await buyChecks(guard, checker.url, claims, task);
         const verdict = gate(results);
-        const body: ReportBody = { topic, summary: draft.summary, claims, checks: results, verdict, checker: { name: checker.name, address: checker.address }, checkPayments: payments };
+        step(`Verdict: ${verdict.summary}. Asking the fact-checker to publish its certificate on Cardano`);
+        const certificate = await requestCertificate(checker.url, task, wallet.name);
+        const body: ReportBody = {
+          topic, summary: draft.summary, claims, checks: results, verdict,
+          checker: { name: checker.name, address: checker.address }, checkPayments: payments, claimsHash: claimsHash(claims), certificate,
+        };
         if (verdict.pass) {
           emit({ kind: "task.done", actor: wallet.name, task, message: `Fact-check PASSED: ${verdict.summary}. Delivering the report; the customer's payment settles now`, data: { verdict } });
           res.json(body);

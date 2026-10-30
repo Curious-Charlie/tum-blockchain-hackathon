@@ -11,6 +11,7 @@
  * fabricated nor as supported; the report flags it. MIN_CHECKABLE stops a
  * report from passing by citing only pages nobody can open.
  */
+import { createHash } from "node:crypto";
 
 export interface Claim {
   id: number;
@@ -73,6 +74,15 @@ export function gate(results: CheckResult[], threshold = PASS_THRESHOLD, minChec
   if (unverifiable) summary += `; ${unverifiable} unverifiable (source unreachable)`;
   return { pass, total, checkable, supported, unverifiable, failed, passRate, summary };
 }
+
+/** sha256 of the claims as checked (id, claim, url, quote), so a report can be matched to its certificate. */
+export function claimsHash(claims: Claim[]): string {
+  const canonical = [...claims].sort((a, b) => a.id - b.id).map(({ id, claim, url, quote }) => ({ id, claim, url, quote }));
+  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
+}
+
+/** One letter per verdict, for the on-chain certificate. */
+export const CODE: Record<CheckVerdict, string> = { supported: "S", unsupported: "U", quote_not_found: "Q", unverifiable: "?" };
 
 /** The verdict label shown in tables. */
 export const LABEL: Record<CheckVerdict, string> = {

@@ -37,7 +37,7 @@ const researcher = (await Wallet.load("RESEARCHER", "Research agent")).online(`C
 const checker = (await Wallet.load("CHECKER", "Fact-checker agent")).online("fetches every source, matches quotes in code, Claude Haiku judges support; 0.2 tUSDM per claim");
 
 // A transaction from a previous run may still be in the mempool; spending now would reuse its inputs.
-await Promise.all([waitUntilIdle(customer), waitUntilIdle(researcher)]);
+await Promise.all([waitUntilIdle(customer), waitUntilIdle(researcher), waitUntilIdle(checker)]);
 
 const checkerService = await startChecker(checker, CHECKER_PORT);
 const researcherService = await startResearcher({
@@ -76,6 +76,7 @@ try {
   }
   if (body.verdict) console.log(`\nFact-check: ${body.verdict.summary} → ${body.verdict.pass ? "PASS" : "FAIL"}`);
   for (const tx of body.checkPayments ?? []) console.log(`Research agent paid the fact-checker: ${EXPLORER_TX}${tx}`);
+  if (body.certificate) console.log(`Fact-check certificate (CIP-20):      ${EXPLORER_TX}${body.certificate}  (Metadata tab)`);
   if (paidTx) console.log(`Shop owner paid ${price} for the report:   ${EXPLORER_TX}${paidTx}`);
   else console.log(`Shop owner paid nothing: ${body.error ?? "the payment was voided"}`);
 

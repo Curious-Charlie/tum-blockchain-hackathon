@@ -44,6 +44,9 @@
   - Coworker：Keeper 服务费先锁进 Masumi escrow，盯盘多个周期，执行后写入结果哈希（绑定 execute 交易和 InvoicePaid 事件）；锁定 [adcbd6fc…](https://preprod.cardanoscan.io/transaction/adcbd6fc3d078d233e1ff462ac90695dd3a394a5c065f77fb8bf22cfd2cad652)，Base Sepolia 执行 [0xe66ff958…](https://sepolia.basescan.org/tx/0xe66ff9582763a1a74b0bdb8865ce6a319e28ad92e194faeb7c2c7e75be08d38c)，结果哈希 [8d18c05e…](https://preprod.cardanoscan.io/transaction/8d18c05eca703f424efb687c90a6df182fb1ba6a040b87afbfe72eb6900ec0e2)，收据 [5e5a0eff…](https://preprod.cardanoscan.io/transaction/5e5a0eff49ab64355fa06eb79e6b0000c82a7a3279de44143a592eb87229bba3)；未满足条件的订单授权退款 [3778343d…](https://preprod.cardanoscan.io/transaction/3778343d6685fe19662d82a94c59454ee8f6c6b0d10dcc308e9f1bee10937bf0)，Lena 取回 [2e0105a5…](https://preprod.cardanoscan.io/transaction/2e0105a5d83aac9b3ac7509ecdbf933191f7d1e3d1b3e22277862999bfd654b1)
   - Buyer：三个 Keeper（2 / 1 / 4 tUSDM），记录从链上算（Cardano 收据对 Base Sepolia 的 InvoicePaid），试用规则 €250
   - API3 加分：autopilot 多张发票多轮自动执行；执行前用 x402 付 0.01 aUSD 买 Frankfurter 签名汇率交叉核对
+  - 18:10 全部 12 个 escrow 任务了结：7 个执行后领钱（如 [27572169…](https://preprod.cardanoscan.io/transaction/275721698939e368cc9bc4ab9be8e295ea351d553c541e17a1fc0d8cbafedb39)），5 个退款（Keeper 授权 2、失联后截止退款 2、授权失败后截止退款 1）；完整表格见 app README
+  - main 切换为 D1（`48d0534`，新提交，未 force-push），旧 main 存为 `archive/d5-main`；新 clone 冷启动验证通过
+  - 待办：23:15 周末汇率检查（后台已排好），视频，Devfolio（用户来交）
 
 ## 提交清单（Devfolio）
 

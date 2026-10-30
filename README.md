@@ -42,6 +42,8 @@ Lena's finance agent ── order + deposit ────────────
 | Atlas puts the result hash into the escrow | [`8d18c05e…`](https://preprod.cardanoscan.io/transaction/8d18c05eca703f424efb687c90a6df182fb1ba6a040b87afbfe72eb6900ec0e2) |
 | Atlas's receipt (CIP-20; `npm run check` verifies it on both chains) | [`5e5a0eff…`](https://preprod.cardanoscan.io/transaction/5e5a0eff49ab64355fa06eb79e6b0000c82a7a3279de44143a592eb87229bba3) |
 | INV-17's limit was never reached: Atlas authorizes the refund, Lena withdraws | [`3778343d…`](https://preprod.cardanoscan.io/transaction/3778343d6685fe19662d82a94c59454ee8f6c6b0d10dcc308e9f1bee10937bf0), [`2e0105a5…`](https://preprod.cardanoscan.io/transaction/2e0105a5d83aac9b3ac7509ecdbf933191f7d1e3d1b3e22277862999bfd654b1) |
+| 32 minutes after the quote, Atlas collects its fee (Withdraw) | [`27572169…`](https://preprod.cardanoscan.io/transaction/275721698939e368cc9bc4ab9be8e295ea351d553c541e17a1fc0d8cbafedb39) |
+| `--vanish`: the Keeper takes the lock [`41f3659c…`](https://preprod.cardanoscan.io/transaction/41f3659cdedab12ff2ecddc28df97920fb8068808c4fe1f80bd4cf4cf2c4b008) and disappears; Lena refunds after the deadline | [`b903d2c3…`](https://preprod.cardanoscan.io/transaction/b903d2c30068d2ae1d897e7ab2e3ab5e05241030d0077ef42d81631713bba2ed) |
 | Per-attempt x402 fee, settled only after the invoice was paid | [`22639574…`](https://preprod.cardanoscan.io/transaction/226395746c8076b5e5fd3279cfd6287d525ef2440582459bd8e9283e83e69c7f) |
 
 ## For API3 judges

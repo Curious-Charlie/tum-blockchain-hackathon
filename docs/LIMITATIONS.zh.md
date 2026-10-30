@@ -39,7 +39,7 @@ Lena 的 agent 只用公开的链上数据算每个 Keeper 的记录：Keeper �
 
 ## 5. 周末外汇休市
 
-外汇市场周五晚上收盘，Nodary 的 EUR/USD 可能在 UTC 22:00 左右之后停止更新。合约接受最多 3 天前的汇率（`maxRateAge`），而签名响应本身必须在 5 分钟以内，所以周末 Keeper 照样能执行，用的是周五的收盘价。那是市场最后的价格，不是实时价格；急着付的款可以接受，其他情况付款人可能宁愿等开盘。收盘后的实测结果见 [app README](../cardano/apps/payonproof/README.md#weekend-fx)。
+外汇市场周五晚上收盘，Nodary 的 EUR/USD 可能在 UTC 22:00 左右之后停止更新。合约接受最多 3 天前的汇率（`maxRateAge`），而签名响应本身必须在 5 分钟以内，所以周末 Keeper 照样能执行，用的是周五的收盘价。那是市场最后的价格，不是实时价格；急着付的款可以接受，其他情况付款人可能宁愿等开盘。2026-10-30 周五 23:16–23:31 CET 实测：Nodary 的汇率从 UTC 21:02 起没有再变，Base Sepolia 上的 escrow demo（一张发票执行、一张退款）和 tamper 测试（4 种篡改被拒、有效响应执行）都通过。交易见 [app README](../cardano/apps/payonproof/README.md#weekend-fx)。
 
 ## 6. 其他局限
 

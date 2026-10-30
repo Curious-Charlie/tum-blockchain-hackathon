@@ -9,8 +9,9 @@
 | 周五 11:30–13:30 | **Phase 0 地基** | workspaces、core、AgentGuard、CIP-20 发表、dashboard 骨架（DESIGN §3） | DESIGN §3.3 |
 | 12:00 | (用户) | Cardano workshop: 把三个设计讲给评委听，看他们更喜欢哪个 | |
 | 13:30–18:30 | **Phase 1 并行** | 三个 worktree: `d1/payonproof`、`d2/checkedfacts`、`d5/reprobounty` | DESIGN §4 的 MVP 标准 |
-| **18:30–19:30** | **内部路演** | 逐个演示，用户用评分卡打分，选出胜出者（DESIGN §5） | 选定一个 |
-| 19:30–01:00 | **Phase 2 打磨** | Masumi escrow、Sokosumi 上架、dashboard（DESIGN §6） | |
+| ~~18:30–19:30~~ | ~~内部路演~~ | **取消：12:40 已选定 D5 ReproBounty** | |
+| 12:40–20:00 | **Phase 2（D5）** | ① 保底：main 上三条路径、冷启动 README、历史扫描、局限文档 ② 赏金接 Masumi escrow（20:00 前测试网跑通，否则写进 roadmap）③ Buyer：两个算力 agent 比价 | 每步都可提交 |
+| 20:00–01:00 | 打磨 | dashboard、视频素材、Sokosumi（可选） | |
 | 01:00–07:00 | 睡觉 | 必须睡，周六要上台 | |
 | 周六 07:00–10:00 | 收尾 | 修 bug，把胜出分支合进 `main`，写 README | |
 | 10:00–13:30 | 材料 | 2.5 分钟视频、Devfolio 描述 | |

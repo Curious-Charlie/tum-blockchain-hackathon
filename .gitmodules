@@ -1,9 +1,0 @@
-[submodule "api3/lib/forge-std"]
-	path = api3/lib/forge-std
-	url = https://github.com/foundry-rs/forge-std
-[submodule "api3/lib/openzeppelin-contracts"]
-	path = api3/lib/openzeppelin-contracts
-	url = https://github.com/OpenZeppelin/openzeppelin-contracts
-[submodule "api3/lib/solady"]
-	path = api3/lib/solady
-	url = https://github.com/vectorized/solady

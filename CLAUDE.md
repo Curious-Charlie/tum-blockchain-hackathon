@@ -2,7 +2,7 @@
 
 Entry for the **TUM Blockchain & AI Hackathon 2026** (Munich). **Submission deadline: Sat 2026-10-31 15:00 CET on Devfolio — aim to submit by 14:30.** Solo participant; Claude is the only teammate.
 
-Full design: `docs/DESIGN.md` (read the section for the design you work on). Timeline and submission checklist: `docs/PLAN.md`. Official track rules: `docs/TRACKS.md`.
+Full design: `docs/DESIGN.md` (§4 D5 is the submission). Honest limitations: `docs/LIMITATIONS.md`. Timeline and submission checklist: `docs/PLAN.md`. Official track rules: `docs/TRACKS.md`.
 
 ## Working with the user
 
@@ -14,13 +14,12 @@ Full design: `docs/DESIGN.md` (read the section for the design you work on). Tim
 
 ## Settled decisions
 
-- **Primary track: Cardano** ("Agentic Commerce on Cardano", €6k). BSV is dropped. API3 is entered only if D1 wins.
-- Three designs are built in parallel on shared infrastructure; the user picks one at the **Fri 18:30 internal demo**:
-  - **D1 PayOnProof**: keeper agent executes conditional cross-border invoice payments, paid only on success.
-  - **D2 CheckedFacts**: research agent hires a fact-checker agent; paid only if the report passes the check.
-  - **D5 ReproBounty**: agent reproduces a paper's results, buys compute from another agent, gets verified, publishes a certificate on Cardano.
-- **D4 AgentGuard** (spend policies for paying agents) is the shared buyer-side infrastructure, not a separate entry.
-- Rejected, don't propose again: a listing-optimizer agent team (the user has built one and knows it is hard), the BSV track, a single-design plan.
+- **Primary track: Cardano** ("Agentic Commerce on Cardano", €6k). BSV and API3 are dropped.
+- **The submission is D5 ReproBounty** (chosen Fri 12:40; the 18:30 internal demo is cancelled). It is on `main`. D1 PayOnProof (`d1/payonproof`) and D2 CheckedFacts (`d2/checkedfacts`) stay on their branches and never go into `main`.
+- Judges stress three directions, and D5 covers all three: **Seller** (x402 paid endpoints), **Buyer** (an agent finds services, decides what they are worth and pays without overspending: AgentGuard), **Coworker** (Masumi: agents work together, settlement after delivery, escrow).
+- Work order: (1) safety net on `main`: three demo paths, cold-start README, clean history, limitations doc; (2) Masumi escrow for the Requester → Replicator bounty only (testnet by 20:00, else roadmap), x402 stays as the fallback behind a flag; (3) Buyer: two compute agents with different quotes and reputations, the Replicator chooses within its AgentGuard budget and explains why on the dashboard.
+- **D4 AgentGuard** (spend policies for paying agents) is the shared buyer-side infrastructure.
+- Rejected, don't propose again: a listing-optimizer agent team, the BSV track, a single-design plan.
 - Principle: **AI interprets, deterministic checks gate money.** An LLM never decides alone whether a payment settles.
 
 ## Repository layout
@@ -28,9 +27,8 @@ Full design: `docs/DESIGN.md` (read the section for the design you work on). Tim
 ```
 cardano/        npm workspaces (Cardano track, main work)
   packages/core/  @agentic/core: shared infrastructure (Phase 0, done)
-  apps/<design>/  payonproof (D1), checkedfacts (D2), reprobounty (D5): roles.ts, .env.example, README
+  apps/reprobounty/  D5 ReproBounty, the submission (roles.ts, .env.example, README with demo script)
   scripts/        smoke-x402.ts (end-to-end paid request), publish-test.ts (CIP-20 record)
-api3/           Foundry project from the API3 AirnodeHub starter (MIT), libs as submodules (only D1)
 docs/           DESIGN.md, PLAN.md, TRACKS.md
 reference/      upstream demos cloned for reading only (gitignored, never edit)
 ```
@@ -65,12 +63,11 @@ cd cardano && npm run publish-test                    # CIP-20 record on preprod
 cd cardano && npm test                                # AgentGuard policy tests
 cd cardano && npm run typecheck
 cd cardano && npm run demo -w apps/<app>              # one design end to end
-cd api3 && forge test && pnpm test
 ```
 
 ## Secrets and wallets
 
-- `cardano/.env`: `BUYER_MNEMONIC` (also the treasury), `SELLER_MNEMONIC`, `BLOCKFROST_PROJECT_ID`, `ANTHROPIC_API_KEY`. `api3/.env`: `PRIVATE_KEY` / `PAYER_PRIVATE_KEY` (Base Sepolia, address `0xA164c012f41909C3eD9a18b86F022a3F5E7f1f1c`), `RPC_URL`.
+- `cardano/.env`: `BUYER_MNEMONIC` (also the treasury), `SELLER_MNEMONIC`, `BLOCKFROST_PROJECT_ID`, `ANTHROPIC_API_KEY`. D1's Base Sepolia keys live in `api3/.env` on the `d1/payonproof` worktree only.
 - Each app keeps its role mnemonics in `cardano/apps/<app>/.env`; shared keys stay in `cardano/.env`.
 - `.env` files are gitignored and **not present in new worktrees**: copy the ones you need.
 - **Give every design and every role its own wallet.** Two processes spending from one Cardano wallet fight over the same UTxOs and their payments fail.
@@ -98,8 +95,8 @@ cd api3 && forge test && pnpm test
 ## Git
 
 - `main` is the integration branch. Each design gets its own branch and worktree: use the Agent tool with `isolation: "worktree"`, or create worktrees under `.worktrees/<name>` (gitignored).
-- In a new worktree: copy the needed `.env` files, run `npm install` in `cardano/`, and for `api3/` run `git submodule update --init --recursive`.
-- During Phase 0 only the orchestrator edits `cardano/packages/core`. Design branches keep to `cardano/apps/<design>/` and ask for core changes.
+- In a new worktree: copy the needed `.env` files and run `npm install` in `cardano/`.
+- Only the main session edits `cardano/packages/core`.
 - Commit small and often, and push to `origin` (a private GitHub repo).
 - **Ask the user first** before making the repo public (only at submission), force-pushing, deleting branches, or posting anything outside the repo.
 - End commit messages with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.

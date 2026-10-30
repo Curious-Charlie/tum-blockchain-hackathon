@@ -35,3 +35,6 @@ venv/
 .DS_Store
 .idea/
 .vscode/
+
+# Upstream starters and demos cloned for reference (not our code)
+reference/

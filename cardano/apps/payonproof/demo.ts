@@ -16,7 +16,7 @@ import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { Address, Client, preprod } from "@evolution-sdk/evolution";
 import { Seller, Wallet, emit, flushEvents, formatAmount, setApp, sleep, usageSummary, EXPLORER_TX } from "@agentic/core";
 import { connectEvm, fetchSignedRate, usd } from "./evm.ts";
-import { KEEPER_FEE, KEEPER_PORT, startKeeper } from "./keeper.ts";
+import { KEEPER_FEE, KEEPER_PORT, publishReceipt, startKeeper } from "./keeper.ts";
 import { ADDRESS_BOOK, LenaAgent } from "./lena.ts";
 
 const { values: args } = parseArgs({
@@ -27,6 +27,7 @@ const { values: args } = parseArgs({
     interval: { type: "string", default: "12" }, // seconds between polling rounds (Blockfrost budget: keep >= 10)
     evm: { type: "string" }, // base-sepolia | anvil
     attack: { type: "boolean", default: false }, // also show AgentGuard blocking a look-alike Keeper
+    "no-receipt": { type: "boolean", default: false }, // skip the Keeper's CIP-20 receipt
   },
 });
 
@@ -82,8 +83,14 @@ try {
     if (!open.size) continue;
     emit({ kind: "task.step", actor: lenaWallet.name, message: `Round ${round}/${rounds}: asking the Keeper to execute ${[...open.values()].map((o) => o.invoiceRef).join(", ")} (each attempt carries a signed ${fee} fee)` });
     for (const order of [...open.values()]) {
-      const { status, body } = await lena.attempt(order.orderId, order.task);
+      const { status, body, feeTx } = await lena.attempt(order.orderId, order.task);
       results.push({ invoice: order.invoiceRef, status, link: body.link as string | undefined });
+      if (status === "executed" && feeTx && !args["no-receipt"]) {
+        await publishReceipt(keeperWallet, evm, {
+          invoice: order.invoiceRef, orderId: order.orderId, payee: order.payee.name, euros: order.euros,
+          rate: String(body.rate), payout: String(body.payout), evmTx: String(body.evmTx), feeTx,
+        }).catch((error) => console.warn(`  ! receipt not published: ${error instanceof Error ? error.message : String(error)}`));
+      }
       if (status === "executed" || status === "not_open" || status === "blocked") open.delete(order.orderId);
     }
   }

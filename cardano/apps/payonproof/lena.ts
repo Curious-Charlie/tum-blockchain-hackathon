@@ -12,6 +12,7 @@
 import { AgentGuard, HAIKU, PaymentBlocked, ada, askJson, emit, limits, sleep, type Wallet } from "@agentic/core";
 import { keccak256, stringToHex, type Address } from "viem";
 import { privateKeyToAddress } from "viem/accounts";
+import { decodePaymentResponseHeader } from "@x402/fetch";
 import { showRate, toRate, usd, type Evm } from "./evm.ts";
 
 /** Lena's suppliers. The order's payee comes from here, never from the model. */
@@ -113,7 +114,7 @@ export class LenaAgent {
    * One paid attempt: "execute order N if its condition holds". The signed fee
    * settles only if the Keeper answers 200.
    */
-  async attempt(orderId: bigint, task: string, keeperUrl = this.keeper.url, retries = 1): Promise<{ status: string; body: Record<string, unknown> }> {
+  async attempt(orderId: bigint, task: string, keeperUrl = this.keeper.url, retries = 1): Promise<{ status: string; body: Record<string, unknown>; feeTx?: string }> {
     try {
       const response = await this.guard.fetch(`${keeperUrl}/orders/${orderId}/execute`, { method: "POST" }, { task, purpose: `an execution attempt on ${task}` });
       if (response.status === 402 && retries > 0) {
@@ -124,7 +125,9 @@ export class LenaAgent {
         return this.attempt(orderId, task, keeperUrl, retries - 1);
       }
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-      return { status: String(body.status ?? response.status), body };
+      const settlement = response.headers.get("PAYMENT-RESPONSE");
+      const feeTx = settlement ? decodePaymentResponseHeader(settlement).transaction || undefined : undefined;
+      return { status: String(body.status ?? response.status), body, feeTx };
     } catch (error) {
       if (error instanceof PaymentBlocked) return { status: "blocked", body: { reason: error.reason } };
       throw error;

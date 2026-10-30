@@ -85,7 +85,7 @@ export async function fetchSignedRate(): Promise<CheckedRate> {
   const { price, updatedAt } = JSON.parse(signed.data) as { price: number; updatedAt: number };
   const [whole, fraction = ""] = String(price).split(".");
   const rate = BigInt(whole) * 10n ** 18n + BigInt(fraction.padEnd(18, "0").slice(0, 18) || "0");
-  return { signed, rate, display: String(price), signedAt: Number(signed.timestamp), takenAt: Math.floor(updatedAt / 1000) };
+  return { signed, rate, display: String(Number(price.toFixed(5))), signedAt: Number(signed.timestamp), takenAt: Math.floor(updatedAt / 1000) };
 }
 
 /** A signed Nodary price for any feed, projected to {"price","updatedAt"} like the EUR/USD request. */

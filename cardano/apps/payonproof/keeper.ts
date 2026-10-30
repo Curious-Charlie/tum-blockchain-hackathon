@@ -8,7 +8,7 @@
  * settles the fee. No LLM here: the signed number and the contract decide.
  */
 import type { Request, Response } from "express";
-import { Seller, ada, emit, formatAmount, type Wallet } from "@agentic/core";
+import { Seller, ada, emit, formatAmount, publish, type Wallet } from "@agentic/core";
 import { STATUS, fetchSignedRate, invoiceRefOf, showRate, usd, type Evm } from "./evm.ts";
 
 export const KEEPER_FEE = ada(2);
@@ -61,4 +61,22 @@ export async function startKeeper(keeper: Wallet, evm: Evm, port = KEEPER_PORT) 
     },
   );
   return shop.listen(port);
+}
+
+/**
+ * After its fee settled, the Keeper publishes a receipt on Cardano (CIP-20):
+ * a public track record that links each paid fee to the escrow payment it
+ * bought. Costs the Keeper about 0.2 tADA from its earnings.
+ */
+export async function publishReceipt(keeper: Wallet, evm: Evm, receipt: { invoice: string; orderId: bigint; payee: string; euros: string; rate: string; payout: string; evmTx: string; feeTx: string }) {
+  return publish(keeper, [
+    `PayOnProof receipt ${receipt.invoice}, order ${receipt.orderId} on ${evm.name}`,
+    `Paid ${usd(BigInt(receipt.payout))} to ${receipt.payee}`,
+    `= ${receipt.euros} x EUR/USD ${receipt.rate} (API3 Nodary-signed)`,
+    `escrow ${evm.escrow}`,
+    `escrow tx (${evm.name}):`,
+    receipt.evmTx.replace(/^0x/, ""),
+    "x402 fee tx (Cardano preprod):",
+    receipt.feeTx,
+  ], { task: receipt.invoice, title: `a receipt for ${receipt.invoice}` });
 }

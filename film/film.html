@@ -138,34 +138,34 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
 
   <!-- FLOW AT A GLANCE -->
   <section class="scene" id="s-flow">
-    <div id="fl-h" class="abs h2" style="left:160px; top:130px">How PayOnProof pays an invoice</div>
+    <div id="fl-h" class="abs h2" style="left:160px; top:130px">How PayOnProof pays an invoice: one chain, one contract</div>
     <div id="flow" class="abs" style="left:0; top:0; width:1920px; height:1080px">
       <svg width="1920" height="1080" viewBox="0 0 1920 1080">
         <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f4bff"/></marker></defs>
         <g id="fl-arrows"></g>
       </svg>
     </div>
-    <div id="fn-team" class="node card" style="left:80px; top:500px"><div class="t">Lena's team</div><div class="s">posts a Task · Sokosumi</div></div>
-    <div id="fn-agent" class="node card" style="left:540px; top:500px"><div class="t">Lena's finance agent</div><div class="s">a Sokosumi Coworker</div></div>
+    <div id="fn-team" class="node card" style="left:80px; top:500px"><div class="t">Lena</div><div class="s">one sentence</div></div>
+    <div id="fn-agent" class="node card" style="left:540px; top:500px"><div class="t">Lena's finance agent</div><div class="s">Claude reads · code checks</div></div>
     <div id="fn-keeper" class="node card" style="left:1120px; top:500px"><div class="t">Keeper agent</div><div class="s">executes for a fee</div></div>
-    <div id="fn-invoice" class="node card vault" style="left:830px; top:250px"><div class="t">InvoiceEscrow</div><div class="s">Base Sepolia · API3 checks</div></div>
-    <div id="fn-masumi" class="node card vault ada" style="left:830px; top:760px"><div class="t">Masumi escrow</div><div class="s">Cardano preprod</div></div>
+    <div id="fn-invoice" class="node card vault" style="left:830px; top:250px"><div class="t">InvoiceEscrowV2</div><div class="s">Base Sepolia · one contract</div></div>
+    <div id="fn-masumi" class="node card" style="left:830px; top:760px"><div class="t">API3 AirnodeHub</div><div class="s">signed EUR/USD · Base Sepolia</div></div>
     <div id="fn-supplier" class="node card" style="left:1500px; top:250px"><div class="t">Supplier</div><div class="s">Fazenda Alta · Brazil</div></div>
     <div id="fl-cap" class="abs" style="left:1500px; top:520px; width:340px; font-size:30px; font-weight:750; line-height:1.25"></div>
   </section>
 
   <!-- 1–2: TASK, ORDER -->
   <section class="scene" id="s-order">
-    <div id="or-h1" class="abs head" style="left:160px; top:200px"><span class="n">1</span>A team posts the invoice as a Task on <span class="mark">Sokosumi</span></div>
+    <div id="or-h1" class="abs head" style="left:160px; top:200px"><span class="n">1</span>Lena tells her <span class="mark">finance agent</span> one sentence</div>
     <div id="or-sok" class="abs card" style="left:160px; top:320px; width:1600px; padding:26px 30px; display:flex; gap:36px; align-items:center">
-      <img src="assets/sokosumi-task.jpg" style="width:1060px; display:block; border-radius:10px; border:1px solid var(--line)">
+      <div style="width:1060px; font-size:44px; font-weight:750; line-height:1.3">“Pay Fazenda Alta's invoice INV-20, €400, when EUR/USD is below 1.13, by 20 November.”</div>
       <div style="display:flex; flex-direction:column; gap:14px">
         <span class="chip">→ PayOnProof finance agent</span>
-        <span class="chip">TUM-Hackathon Workspace</span>
+        <span class="chip">Base Sepolia</span>
         <span class="chip ok">READY</span>
       </div>
     </div>
-    <div id="or-sub1" class="abs body" style="left:160px; top:610px; width:1600px">One sentence, to its finance agent. The agent is a <b style="color:var(--ink)">Sokosumi Coworker</b>: it picks the Task up and does the whole job.</div>
+    <div id="or-sub1" class="abs body" style="left:160px; top:610px; width:1600px">One sentence, to her finance agent. <b style="color:var(--ink)">The agent does the whole job</b>; the contract decides every payment.</div>
     <div id="or-h2" class="abs head" style="left:160px; top:200px"><span class="n">2</span>Claude reads it. <span class="mark">Code checks every field.</span></div>
     <div id="or-card" class="abs" style="left:160px; top:300px; width:1600px">
       <div class="row" id="or-r0"><span class="k">Invoice</span><span class="mono">INV-20</span><span class="tick" id="or-c0">✓ CHECKED BY CODE</span></div>
@@ -186,26 +186,26 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
 
   <!-- 3–4: HIRE -->
   <section class="scene" id="s-hire">
-    <div id="hi-h1" class="abs head" style="left:160px; top:200px; width:1600px"><span class="n">3</span>Lena's agent hires a Keeper: <span class="mark">the cheapest one with a proven record</span></div>
-    <div id="hi-k0" class="abs card keeper" style="left:160px; top:400px"><div class="name">Atlas</div><div class="price mono">2 tUSDM</div><div class="rec">7 verified executions on chain</div><div class="verdict" id="hi-v0"></div></div>
-    <div id="hi-k1" class="abs card keeper" style="left:710px; top:400px"><div class="name">Swift</div><div class="price mono">1 tUSDM</div><div class="rec">8 verified executions on chain</div><div class="verdict" id="hi-v1"></div></div>
-    <div id="hi-k2" class="abs card keeper" style="left:1260px; top:400px"><div class="name">Prime</div><div class="price mono">4 tUSDM</div><div class="rec">no record yet</div><div class="verdict" id="hi-v2"></div></div>
-    <div id="hi-f" class="abs small" style="left:160px; top:770px; width:1600px">Price: each Keeper's <b style="color:var(--ink2)">x402 quote</b> on Cardano. Record: its receipts on Cardano, each checked against a payment on Base Sepolia, minus no-shows and disputed results. <b style="color:var(--ink2)">Code decides.</b></div>
-    <div id="hi-h2" class="abs head" style="left:160px; top:200px; width:1600px"><span class="n">4</span>Its fee goes into <span class="mark">Masumi escrow on Cardano</span>, not to the Keeper</div>
+    <div id="hi-h1" class="abs head" style="left:160px; top:200px; width:1600px"><span class="n">3</span>Lena's agent picks a Keeper by its <span class="mark">on-chain record</span></div>
+    <div id="hi-k0" class="abs card keeper" style="left:160px; top:400px"><div class="name">Atlas</div><div class="price mono">—</div><div class="rec">not bidding in this run</div><div class="verdict" id="hi-v0"></div></div>
+    <div id="hi-k1" class="abs card keeper" style="left:710px; top:400px"><div class="name">Swift</div><div class="price mono">0.50 dUSD</div><div class="rec">10 InvoicePaid on Base Sepolia</div><div class="verdict" id="hi-v1"></div></div>
+    <div id="hi-k2" class="abs card keeper" style="left:1260px; top:400px"><div class="name">Prime</div><div class="price mono">—</div><div class="rec">not bidding in this run</div><div class="verdict" id="hi-v2"></div></div>
+    <div id="hi-f" class="abs small" style="left:160px; top:770px; width:1600px">Record: the <b style="color:var(--ink2)">InvoicePaid</b> events where the Keeper executed, read from Base Sepolia. At least 3 needed. <b style="color:var(--ink2)">Code decides.</b></div>
+    <div id="hi-h2" class="abs head" style="left:160px; top:200px; width:1600px"><span class="n">4</span>Its fee is locked <span class="mark">in the same contract</span> as the invoice</div>
     <div id="hi-n0" class="abs card" style="left:160px; top:380px; width:380px; height:150px; display:flex; flex-direction:column; justify-content:center; align-items:center"><div style="font-size:34px; font-weight:800">Lena's agent</div><div class="label" style="margin-top:8px">buyer</div></div>
-    <div id="hi-n1" class="abs card" style="left:1380px; top:380px; width:380px; height:150px; border:2px solid var(--accent); display:flex; flex-direction:column; justify-content:center; align-items:center"><div style="font-size:34px; font-weight:800">Masumi escrow</div><div class="label accent" style="margin-top:8px">Cardano preprod</div></div>
+    <div id="hi-n1" class="abs card" style="left:1380px; top:380px; width:380px; height:150px; border:2px solid var(--accent); display:flex; flex-direction:column; justify-content:center; align-items:center"><div style="font-size:34px; font-weight:800">InvoiceEscrowV2</div><div class="label accent" style="margin-top:8px">Base Sepolia</div></div>
     <div id="hi-line" class="abs" style="left:540px; top:453px; width:840px; height:5px; background:linear-gradient(90deg,#c9c6bc,#1f4bff)"></div>
-    <div id="hi-tok" class="abs token" style="left:540px; top:385px">1<br><span style="font-size:20px">tUSDM</span></div>
+    <div id="hi-tok" class="abs token" style="left:540px; top:385px">0.50<br><span style="font-size:20px">dUSD</span></div>
     <div id="hi-c" class="abs" style="left:160px; top:610px; width:1600px">
-      <div class="h2">Released <span class="mark">only after delivery</span>. Refunded if not.</div>
-      <div class="body" style="margin-top:18px">Paid over x402. Swift can see the money is there; Lena can't take it back while Swift works.</div>
+      <div class="h2">Paid <span class="mark">in the same transaction</span> as the supplier.</div>
+      <div class="body" style="margin-top:18px">No execution, no fee. Swift has 10 minutes to execute alone; after that, anyone can.</div>
     </div>
     <div id="hi-p" class="abs proof" style="left:310px; top:300px; width:1300px">
-      <div class="shot" style="height:560px"><div class="iw"><img src="assets/cardanoscan-lock.jpg">
-        <div class="hl" style="left:11.8%; top:23.7%; width:38.4%; height:3.8%"></div>
-        <div class="hl" style="left:53.6%; top:61.4%; width:34%; height:12.2%"></div>
-      </div></div>
-      <div class="cap"><span>Cardano preprod · cardanoscan</span><b class="mono">1 tUSDM into Masumi escrow · tx d7037485…82fe4</b></div>
+      <div style="padding:40px 46px">
+        <div class="label accent">Base Sepolia · createOrder INV-41</div>
+        <div style="font-size:58px; font-weight:800; margin-top:18px; line-height:1.2">Invoice money + Swift's 0.50 dUSD fee, locked in <span class="mark">InvoiceEscrowV2</span></div>
+        <div class="mono" style="font-size:30px; margin-top:24px; color:var(--ink2)">tx 0x72c8807c…e44bd · contract 0xec12…1a12</div>
+      </div>
     </div>
   </section>
 
@@ -255,57 +255,59 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
     <div id="ta-w3" class="abs display" style="left:1400px; top:330px; font-size:150px">Time.</div>
     <div id="ta-last" class="abs" style="left:160px; top:560px; width:1600px">
       <div class="h2">The contract has the last word.</div>
-      <div class="body" style="margin-top:18px">Only the real, fresh response moved money: <span class="ok" style="font-weight:800">ACCEPTED</span>, 111.63 dUSD paid · <span class="mono">tx 0x27fe4dd7…0a634</span></div>
+      <div class="body" style="margin-top:18px">Only the real, fresh response moved money: <span class="ok" style="font-weight:800">ACCEPTED</span> and paid · <span class="mono">tx 0x1f244a7f…456609</span></div>
     </div>
   </section>
 
   <!-- 7–8: PROOF, RELEASE -->
   <section class="scene" id="s-proof">
-    <div id="pf-slam" class="abs display accent" style="left:0; right:0; top:390px; text-align:center; font-size:220px; font-weight:900">PAID ON PROOF</div>
-    <div id="pf-h1" class="abs head" style="left:160px; top:200px"><span class="n">7</span>The Keeper <span class="mark">proves the payment</span> on Cardano</div>
-    <div id="pf-f" class="abs mono" style="left:160px; top:300px; font-size:34px; color:var(--ink2)">result hash = sha256( execute tx · InvoicePaid event · fee lock )</div>
+    <div id="pf-slam" class="abs display accent" style="left:0; right:0; top:390px; text-align:center; font-size:200px; font-weight:900">ONE TRANSACTION</div>
+    <div id="pf-h1" class="abs head" style="left:160px; top:200px"><span class="n">7</span><span class="mark">One transaction</span> pays everyone</div>
+    <div id="pf-f" class="abs mono" style="left:160px; top:300px; font-size:34px; color:var(--ink2)">INV-41 · €250 at the signed EUR/USD 1.116325 · execute on InvoiceEscrowV2</div>
     <div id="pf-hash" class="abs mono accent" style="left:160px; top:358px; font-size:34px; font-weight:700"></div>
     <div id="pf-p" class="abs proof" style="left:160px; top:440px; width:760px">
-      <div class="shot" style="height:300px"><div class="iw"><img src="assets/cardanoscan-result.jpg">
-        <div class="hl" style="left:11.8%; top:23.7%; width:38.4%; height:3.8%"></div>
-        <div class="hl" style="left:27.8%; top:77.6%; width:7.4%; height:3.8%"></div>
-      </div></div>
-      <div class="cap"><span>Into the Masumi escrow</span><b class="mono">tx b200508e…aa35</b></div>
+      <div style="padding:30px 36px; display:flex; flex-direction:column; gap:18px">
+        <div style="font-size:40px; font-weight:800"><span class="mono">279.08 dUSD</span> → Café Verde</div>
+        <div style="font-size:40px; font-weight:800"><span class="mono">0.50 dUSD</span> → Keeper Swift</div>
+        <div style="font-size:40px; font-weight:800"><span class="mono">3.42 dUSD</span> → back to Lena</div>
+      </div>
     </div>
     <div id="pf-chk" class="abs card" style="left:1000px; top:440px; width:760px; padding:32px 38px">
-      <div class="label accent">Before the fee unlocks</div>
-      <div style="font-size:38px; font-weight:780; margin-top:12px; line-height:1.2">Lena's agent <span class="mark">rechecks the hash</span> against Base Sepolia.</div>
-      <div class="body" style="margin-top:16px; font-size:29px">A Keeper that claimed a payment it never made was disputed in the escrow and could not collect.</div>
-      <div class="small mono" style="margin-top:12px; font-size:23px">dispute · tx 4c465a94…7c47</div>
+      <div class="label accent">Why one chain</div>
+      <div style="font-size:38px; font-weight:780; margin-top:12px; line-height:1.2">The fee is paid <span class="mark">by the same check</span> that pays the supplier.</div>
+      <div class="body" style="margin-top:16px; font-size:29px">No result hash, no dispute window: if the signed rate is wrong, nobody is paid.</div>
+      <div class="small mono" style="margin-top:12px; font-size:23px">execute · tx 0x9b82dd90…4b5e104</div>
     </div>
-    <div id="pf-h2" class="abs head" style="left:160px; top:200px"><span class="n">8</span>After Lena's dispute window, <span class="mark">the fee is released</span></div>
+    <div id="pf-h2" class="abs head" style="left:160px; top:200px"><span class="n">8</span>Supplier, Keeper and Lena, <span class="mark">all at once</span></div>
     <div id="pf-rel" class="abs" style="left:160px; top:300px; width:1600px">
-      <div class="display" style="font-size:118px; white-space:nowrap"><span class="mono">1 tUSDM</span> → Keeper Swift</div>
-      <div class="body" style="margin-top:16px">Collected from the escrow after the unlock time · <span class="mono">tx b0b0a834…83c7</span></div>
+      <div class="display" style="font-size:118px; white-space:nowrap"><span class="mono">0.50 dUSD</span> → Keeper Swift</div>
+      <div class="body" style="margin-top:16px">In the same transaction as the supplier's 279.08 dUSD · <span class="mono">tx 0x9b82dd90…4b5e104</span></div>
     </div>
     <div id="pf-r0" class="abs card" style="left:160px; top:600px; width:770px; padding:30px 36px">
-      <div class="label bad">Limit never reached</div>
-      <div style="font-size:36px; font-weight:780; margin-top:10px; line-height:1.2">The Keeper authorizes a refund; Lena takes her fee back.</div>
-      <div class="small mono" style="margin-top:10px; font-size:23px">refund · tx 3a07af8a…fa9a</div>
+      <div class="label ok">Supplier</div>
+      <div style="font-size:36px; font-weight:780; margin-top:10px; line-height:1.2">€250 × 1.116325 = 279.08 dUSD to Café Verde.</div>
+      <div class="small mono" style="margin-top:10px; font-size:23px">signed by the Nodary Airnode · API3</div>
     </div>
     <div id="pf-r1" class="abs card" style="left:990px; top:600px; width:770px; padding:30px 36px">
-      <div class="label bad">Keeper vanishes</div>
-      <div style="font-size:36px; font-weight:780; margin-top:10px; line-height:1.2">Lena refunds after the deadline, and the no-show counts against it.</div>
-      <div class="small mono" style="margin-top:10px; font-size:23px">refund · tx b903d2c3…a2ed</div>
+      <div class="label accent">Lena</div>
+      <div style="font-size:36px; font-weight:780; margin-top:10px; line-height:1.2">3.42 dUSD back: she locked €250 at her 1.13 limit.</div>
+      <div class="small mono" style="margin-top:10px; font-size:23px">refund in the same transaction</div>
     </div>
   </section>
 
   <!-- SOKOSUMI -->
   <section class="scene" id="s-soko">
-    <div id="so-h" class="abs head" style="left:160px; top:200px">Back in Sokosumi: <span class="mark">the Task is done</span>, with every link</div>
+    <div id="so-h" class="abs head" style="left:160px; top:200px">Two ways it can fail. <span class="mark">Nobody loses money.</span></div>
     <div id="so-p" class="abs proof" style="left:160px; top:310px; width:1140px">
-      <div class="shot"><div class="iw"><img src="assets/sokosumi-thread.jpg"></div></div>
-      <div class="cap"><span>Sokosumi · task thread</span><b class="mono">Task 01a19013…0763</b></div>
+      <div style="padding:34px 40px; display:flex; flex-direction:column; gap:34px">
+        <div><div class="label bad">The Keeper vanishes</div><div style="font-size:42px; font-weight:800; margin-top:10px; line-height:1.2">After 10 minutes, anyone can execute and earn the fee.</div><div class="small mono" style="margin-top:8px">public fallback · forge test</div></div>
+        <div><div class="label bad">The limit is never reached</div><div style="font-size:42px; font-weight:800; margin-top:10px; line-height:1.2">INV-42 expired. Lena cancelled and got the deposit and the fee back.</div><div class="small mono" style="margin-top:8px">cancel · tx 0x262da66d…be634d9</div></div>
+      </div>
     </div>
     <div id="so-side" class="abs" style="left:1360px; top:330px; width:400px">
-      <div class="label accent">Follow-up</div>
-      <div style="font-size:38px; font-weight:780; margin-top:12px; line-height:1.2">Questions are answered from the job's facts.</div>
-      <div class="body" style="margin-top:18px; font-size:30px">A comment never moves money. A new payment is a new Task.</div>
+      <div class="label accent">No dispute window</div>
+      <div style="font-size:38px; font-weight:780; margin-top:12px; line-height:1.2">The fee waits in the contract, not with the Keeper.</div>
+      <div class="body" style="margin-top:18px; font-size:30px">Paid only by a successful execute. Returned by cancel.</div>
     </div>
   </section>
 
@@ -315,7 +317,7 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
     <div id="bm-c0" class="abs col" style="left:160px; top:310px"><div class="k">Who pays</div><div class="v">Small importers and their finance agents.</div><div class="d">Pay suppliers abroad when the rate is right, without a bank's limit order.</div></div>
     <div id="bm-c1" class="abs col" style="left:710px; top:310px"><div class="k">Who earns</div><div class="v">Keepers: a fee per executed invoice.</div><div class="d">Nothing for watching. Refunded if they don't deliver. Their record is public.</div></div>
     <div id="bm-c2" class="abs col" style="left:1260px; top:310px"><div class="k">What's next</div><div class="v">Any Airnode-signed data as the trigger.</div><div class="d">Delivery events, prices, flight delays. Same escrow, same proof.</div></div>
-    <div id="bm-why" class="abs body" style="left:160px; top:720px; width:1600px; font-size:32px"><b style="color:var(--ink)">Cardano:</b> x402 + Masumi escrow + a Sokosumi Coworker. <b style="color:var(--ink)">API3:</b> AirnodeHub-signed data, checked by the contract that holds the money.</div>
+    <div id="bm-why" class="abs body" style="left:160px; top:720px; width:1600px; font-size:32px"><b style="color:var(--ink)">API3:</b> AirnodeHub-signed data, checked by the contract that holds the money. <b style="color:var(--ink)">One chain:</b> invoice, Keeper fee and refund settle in one Base Sepolia transaction.</div>
   </section>
 
   <!-- OUTRO -->
@@ -324,7 +326,7 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
     <div id="ou-2" class="abs display accent" style="left:160px; top:500px; font-size:150px">Verify it.</div>
     <div id="ou-3" class="abs" style="left:160px; top:760px; width:1600px">
       <div style="font-size:36px; font-weight:850">PayOn<span class="accent">Proof</span></div>
-      <div class="small" style="margin-top:12px">Cardano preprod · x402 · Masumi escrow · Sokosumi &nbsp;×&nbsp; API3 AirnodeHub · Base Sepolia &nbsp;·&nbsp; every transaction in this film is real</div>
+      <div class="small" style="margin-top:12px">API3 AirnodeHub · Base Sepolia · x402 &nbsp;·&nbsp; every transaction in this film is real</div>
       <div class="mono" style="font-size:28px; margin-top:14px; color:var(--ink2)">github.com/Curious-Charlie/tum-blockchain-hackathon</div>
     </div>
   </section>
@@ -389,8 +391,8 @@ const hasKick = (bar, beat) => ((bar >= 4 && bar < 36) || (bar >= 38 && bar < 60
 const GLITCHES = [at(38), at(39), at(40), at(41)];
 
 // HUD
-const SCENES = [[0, "HOOK"], [4, "THE PROBLEM"], [10, "THE FLOW"], [14, "STEP BY STEP · REAL TRANSACTIONS"], [36, "API3 TAMPER TEST"], [44, "STEP BY STEP · REAL TRANSACTIONS"], [52, "SOKOSUMI"], [56, "BUSINESS MODEL"], [60, ""]];
-const CHAIN = [[0, ""], [4, "THE PROBLEM"], [10, "HOW IT WORKS"], [14, "SOKOSUMI · TUM-HACKATHON WORKSPACE"], [16, "OFF CHAIN · CLAUDE + CODE"], [18, "BASE SEPOLIA · INVOICE ESCROW"], [20, "CARDANO PREPROD · x402 QUOTES"], [24, "CARDANO PREPROD · MASUMI ESCROW"], [28, "API3 · NODARY AIRNODE"], [29.5, "BASE SEPOLIA · x402 · AIRNODEHUB"], [31, "BASE SEPOLIA · INVOICE ESCROW"], [36, "BASE SEPOLIA · TAMPER TEST"], [44, "CARDANO PREPROD · MASUMI ESCROW"], [52, "SOKOSUMI"], [56, "BUSINESS MODEL"], [60, ""]];
+const SCENES = [[0, "HOOK"], [4, "THE PROBLEM"], [10, "THE FLOW"], [14, "STEP BY STEP · REAL TRANSACTIONS"], [36, "API3 TAMPER TEST"], [44, "STEP BY STEP · REAL TRANSACTIONS"], [52, "WHEN IT FAILS"], [56, "BUSINESS MODEL"], [60, ""]];
+const CHAIN = [[0, ""], [4, "THE PROBLEM"], [10, "HOW IT WORKS"], [14, "LENA · ONE SENTENCE"], [16, "OFF CHAIN · CLAUDE + CODE"], [18, "BASE SEPOLIA · INVOICE ESCROW"], [20, "BASE SEPOLIA · KEEPER RECORDS"], [24, "BASE SEPOLIA · INVOICE ESCROW V2"], [28, "API3 · NODARY AIRNODE"], [29.5, "BASE SEPOLIA · x402 · AIRNODEHUB"], [31, "BASE SEPOLIA · INVOICE ESCROW"], [36, "BASE SEPOLIA · TAMPER TEST"], [44, "BASE SEPOLIA · ONE TRANSACTION"], [52, "BASE SEPOLIA · CANCEL"], [56, "BUSINESS MODEL"], [60, ""]];
 $("bars").innerHTML = Array.from({ length: BARS }, () => "<span></span>").join("");
 const barEls = [...$("bars").children];
 const pick = (list, x) => list.filter(([b]) => x >= b).at(-1)[1];
@@ -426,14 +428,14 @@ const PTS = Array.from({ length: 81 }, (_, i) => {
 const C = { team: [250, 560], agent: [710, 560], keeper: [1290, 560], invoice: [1000, 310], masumi: [1000, 820], supplier: [1670, 310] };
 const EDGE = (a, b, ax, ay, bx, by) => [C[a][0] + ax, C[a][1] + ay, C[b][0] + bx, C[b][1] + by];
 const FLOW = [
-  { e: EDGE("team", "agent", 170, 0, -170, 0), text: "A team posts the invoice as a Task on Sokosumi" },
-  { e: EDGE("agent", "invoice", 60, -60, -110, 60), text: "Lena's agent locks the invoice money" },
-  { e: EDGE("agent", "keeper", 170, 0, -170, 0), text: "It hires a Keeper, paid over x402" },
-  { e: EDGE("agent", "masumi", 60, 60, -110, -60), text: "The Keeper's fee goes into Masumi escrow" },
-  { e: EDGE("keeper", "invoice", -60, -60, 110, 60), text: "The Keeper brings an API3-signed rate" },
-  { e: EDGE("invoice", "supplier", 170, 0, -170, 0), text: "The contract checks it and pays the supplier" },
-  { e: EDGE("keeper", "masumi", -60, 60, 110, -60), text: "The Keeper proves the payment: a result hash" },
-  { e: [C.masumi[0] + 170, C.masumi[1] + 10, C.keeper[0] + 130, C.keeper[1] + 60], text: "After the dispute window, its fee is released", curve: true },
+  { e: EDGE("team", "agent", 170, 0, -170, 0), text: "Lena tells her finance agent in one sentence" },
+  { e: EDGE("agent", "invoice", 60, -60, -110, 60), text: "It locks the invoice money and the Keeper's fee in one contract" },
+  { e: EDGE("agent", "keeper", 170, 0, -170, 0), text: "It picks Keeper Swift by its on-chain InvoicePaid record" },
+  { e: EDGE("agent", "masumi", 60, 60, -110, -60), text: "The order pins the exact signed request: EUR/USD from Nodary" },
+  { e: EDGE("keeper", "masumi", -60, 60, 110, -60), text: "The Keeper gets the signed rate, plus a second one over x402" },
+  { e: [C.masumi[0] + 170, C.masumi[1] + 10, C.keeper[0] + 130, C.keeper[1] + 60], text: "Both rates agree: it executes", curve: true },
+  { e: EDGE("keeper", "invoice", -60, -60, 110, 60), text: "It submits the API3-signed rate to the contract" },
+  { e: EDGE("invoice", "supplier", 170, 0, -170, 0), text: "One transaction pays the supplier, the Keeper and Lena's change" },
 ];
 $("fl-arrows").innerHTML = FLOW.map((f, i) => {
   const [x1, y1, x2, y2] = f.e;
@@ -540,9 +542,9 @@ window.render = function render(t) {
     vis("hi-h1", t, at(20, 0), at(23, 3), "up");
     vis("hi-f", t, at(21, 2), at(23, 3), "up");
     const verdict = [
-      { at: at(22, 2), text: "✗ Swift is cheaper, equally proven", cls: "bad", dim: true },
-      { at: at(23, 0), text: "✓ CHOSEN · cheapest proven offer", cls: "ok", dim: false },
-      { at: at(22, 0), text: "✗ over her 3 tUSDM fee limit", cls: "bad", dim: true },
+      { at: at(22, 2), text: "– no bid", cls: "bad", dim: true },
+      { at: at(23, 0), text: "✓ CHOSEN · 10 executions ≥ 3", cls: "ok", dim: false },
+      { at: at(22, 0), text: "– no bid", cls: "bad", dim: true },
     ];
     for (let i = 0; i < 3; i++) {
       const k = $(`hi-k${i}`), v = verdict[i], decided = t >= v.at;
@@ -616,7 +618,7 @@ window.render = function render(t) {
     vis("pf-h1", t, at(45, 0), at(47, 3), "up");
     vis("pf-f", t, at(45, 1), at(47, 3), "up");
     vis("pf-hash", t, at(45, 2), at(47, 3), "up", 0.1);
-    type("pf-hash", "b86231fc70daf2db932c3f4056bea4bf60c7ab51ab07093f94e5892fd77ad4dd", t, at(45, 2), 52);
+    type("pf-hash", "tx 0x9b82dd907361478d5b67f6d28d19368540fffe7141e5bf6912e7664442b5e104", t, at(45, 2), 52);
     vis("pf-p", t, at(46, 0), at(47, 3), "tilt", 0.5);
     vis("pf-chk", t, at(46, 2), at(47, 3), "left");
     vis("pf-h2", t, at(48, 0), at(51, 3), "up");

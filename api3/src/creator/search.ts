@@ -4,7 +4,13 @@ import { createPayingFetch } from '../x402.ts';
 import { searchTweets, tweetPostedAt } from './twitter.ts';
 
 const pay = createPayingFetch(process.env.KEEPER_C_EVM_PRIVATE_KEY as Hex);
-for (const tweet of await searchTweets(process.argv[2], pay)) {
+for (const tweet of await searchTweets(process.argv[2] ?? '', pay)) {
   const posted = new Date(tweetPostedAt(tweet.id) * 1000).toISOString();
-  console.log(tweet.id, '@' + tweet.author?.userName, tweet.viewCount, posted, JSON.stringify(tweet.text.slice(0, 140)));
+  console.log(
+    tweet.id,
+    '@' + tweet.author?.userName,
+    tweet.viewCount,
+    posted,
+    JSON.stringify(tweet.text.slice(0, 140))
+  );
 }

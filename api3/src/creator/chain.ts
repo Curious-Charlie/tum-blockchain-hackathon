@@ -5,17 +5,43 @@ import { type Abi, type Address, createPublicClient, createWalletClient, fallbac
 import { privateKeyToAccount } from 'viem/accounts';
 import { baseSepolia } from 'viem/chains';
 
-const artifact = JSON.parse(readFileSync(new URL('../../out/CreatorDealEscrow.sol/CreatorDealEscrow.json', import.meta.url), 'utf8'));
+const artifact = JSON.parse(
+  readFileSync(new URL('../../out/CreatorDealEscrow.sol/CreatorDealEscrow.json', import.meta.url), 'utf8')
+);
 export const ESCROW_ABI = artifact.abi as Abi;
 export const ESCROW_BYTECODE = artifact.bytecode.object as Hex;
 
 // DemoUSD (dUSD, 6 decimals) from the PayOnProof deployment: anyone can mint, so the brand mints its own budget.
 export const DUSD: Address = '0xdf6ffd0bccb883cf14bf45c2ef54f4ee95b2cbcf';
 export const DUSD_ABI = [
-  { type: 'function', name: 'mint', stateMutability: 'nonpayable', inputs: [{ type: 'address' }, { type: 'uint256' }], outputs: [] },
-  { type: 'function', name: 'approve', stateMutability: 'nonpayable', inputs: [{ type: 'address' }, { type: 'uint256' }], outputs: [{ type: 'bool' }] },
-  { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ type: 'address' }], outputs: [{ type: 'uint256' }] },
-  { type: 'function', name: 'allowance', stateMutability: 'view', inputs: [{ type: 'address' }, { type: 'address' }], outputs: [{ type: 'uint256' }] },
+  {
+    type: 'function',
+    name: 'mint',
+    stateMutability: 'nonpayable',
+    inputs: [{ type: 'address' }, { type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'approve',
+    stateMutability: 'nonpayable',
+    inputs: [{ type: 'address' }, { type: 'uint256' }],
+    outputs: [{ type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'balanceOf',
+    stateMutability: 'view',
+    inputs: [{ type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'allowance',
+    stateMutability: 'view',
+    inputs: [{ type: 'address' }, { type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
 ] as const;
 
 // The public endpoint rate-limits (429), so fall back to a second public one.

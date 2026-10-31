@@ -1,9 +1,21 @@
 // The brand opens a deal: mints its dUSD budget, approves the escrow, and locks maxPayout + settlerFee.
 // Usage: brand.ts <creatorHandle> <code> <notBefore ISO> <holdSeconds> <minViews> <dUSD per 1000 views> <max dUSD> <fee dUSD> <days>
 import { parseEventLogs, parseUnits } from 'viem';
-import { brandKey, confirm, creatorAddress, DUSD, DUSD_ABI, ESCROW_ABI, publicClient, readDeployment, walletFor } from './chain.ts';
+import {
+  brandKey,
+  confirm,
+  creatorAddress,
+  DUSD,
+  DUSD_ABI,
+  ESCROW_ABI,
+  publicClient,
+  readDeployment,
+  walletFor,
+} from './chain.ts';
 
-const [handle, code, notBeforeIso, hold, minViews, perK, max, fee, days] = process.argv.slice(2);
+const [handle, code, notBeforeIso, hold, minViews, perK, max, fee, days] = process.argv.slice(2) as string[];
+if (!handle || !code || !notBeforeIso || !hold || !minViews || !perK || !max || !fee || !days)
+  throw new Error('Missing arguments');
 const { escrow } = readDeployment();
 const wallet = walletFor(brandKey());
 const brand = wallet.account.address;
@@ -11,10 +23,26 @@ const maxPayout = parseUnits(max, 6);
 const settlerFee = parseUnits(fee, 6);
 const deposit = maxPayout + settlerFee;
 
-if ((await publicClient.readContract({ address: DUSD, abi: DUSD_ABI, functionName: 'balanceOf', args: [brand] })) < deposit)
-  await confirm(await wallet.writeContract({ address: DUSD, abi: DUSD_ABI, functionName: 'mint', args: [brand, deposit] }), 'mint dUSD');
-if ((await publicClient.readContract({ address: DUSD, abi: DUSD_ABI, functionName: 'allowance', args: [brand, escrow] })) < deposit)
-  await confirm(await wallet.writeContract({ address: DUSD, abi: DUSD_ABI, functionName: 'approve', args: [escrow, 10n ** 12n] }), 'approve escrow');
+if (
+  (await publicClient.readContract({ address: DUSD, abi: DUSD_ABI, functionName: 'balanceOf', args: [brand] })) <
+  deposit
+)
+  await confirm(
+    await wallet.writeContract({ address: DUSD, abi: DUSD_ABI, functionName: 'mint', args: [brand, deposit] }),
+    'mint dUSD'
+  );
+if (
+  (await publicClient.readContract({
+    address: DUSD,
+    abi: DUSD_ABI,
+    functionName: 'allowance',
+    args: [brand, escrow],
+  })) < deposit
+)
+  await confirm(
+    await wallet.writeContract({ address: DUSD, abi: DUSD_ABI, functionName: 'approve', args: [escrow, 10n ** 12n] }),
+    'approve escrow'
+  );
 
 const terms = {
   token: DUSD,
@@ -34,4 +62,12 @@ const receipt = await confirm(
   'createDeal'
 );
 const [created] = parseEventLogs({ abi: ESCROW_ABI, logs: receipt.logs, eventName: 'DealCreated' });
-console.log('deal', (created.args as { dealId: bigint }).dealId, 'for @' + handle, 'code', code, 'payee', terms.creatorPayee);
+console.log(
+  'deal',
+  (created?.args as { dealId: bigint } | undefined)?.dealId,
+  'for @' + handle,
+  'code',
+  code,
+  'payee',
+  terms.creatorPayee
+);

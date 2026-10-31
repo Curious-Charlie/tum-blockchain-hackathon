@@ -3,7 +3,11 @@ import { confirm, ESCROW_ABI, ESCROW_BYTECODE, brandKey, walletFor, writeDeploym
 import { TWITTERAPI_AIRNODE_V2_ADDRESS } from './twitter.ts';
 
 const wallet = walletFor(brandKey());
-const hash = await wallet.deployContract({ abi: ESCROW_ABI, bytecode: ESCROW_BYTECODE, args: [TWITTERAPI_AIRNODE_V2_ADDRESS] });
+const hash = await wallet.deployContract({
+  abi: ESCROW_ABI,
+  bytecode: ESCROW_BYTECODE,
+  args: [TWITTERAPI_AIRNODE_V2_ADDRESS],
+});
 const receipt = await confirm(hash, 'deploy CreatorDealEscrow');
 writeDeployment({ escrow: receipt.contractAddress!, deployTx: hash });
 console.log(`escrow at https://sepolia.basescan.org/address/${receipt.contractAddress}`);

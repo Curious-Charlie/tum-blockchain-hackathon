@@ -33,7 +33,7 @@ What escrow costs:
 
 Lena's agent computes each Keeper's record from public chain data only: the Keeper's CIP-20 receipts on Cardano (transactions its address signed), each checked against the `InvoicePaid` event on Base Sepolia that the receipt names (right contract, right order, executed from the Keeper's EVM account, which the Keeper proves with a signature). There is no seed data. Limits:
 
-- Only deliveries count. Refunds and no-shows are visible on chain (escrow transactions) but are not yet counted against a Keeper.
+- Refunds count from the buyer's side: a fee Lena took back after the result deadline is a no-show against that Keeper (read from the spent escrow datum); a refund the Keeper authorized is not held against it. Only Lena's latest 100 transactions are read, so a Keeper's no-shows with other buyers are not seen.
 - A Keeper could build a record by executing its own invoices (wash trading). The trial rule (new Keepers get invoices up to €250 until they have 2 verified executions) slows that down; it does not stop it.
 - The receipt scan reads a Keeper's latest 100 Cardano transactions.
 
@@ -45,5 +45,5 @@ FX markets close on Friday evening, and Nodary's EUR/USD can stop updating after
 
 - **The signature proves who said it, not that it is true.** Lena still trusts Nodary for the EUR/USD value. Before executing, a Keeper buys a second signed rate (Frankfurter on AirnodeHub) and refuses to act if the two differ by more than 1 %, but that check runs in the Keeper, not in the contract: the contract accepts any valid Nodary response. Within the 5-minute window a Keeper could also pick the more favorable of several signed rates; a shorter window narrows that.
 - **Two chains, no bridge.** The fee (Cardano) and the payment (Base Sepolia) are linked by hashes and receipts, not by a cross-chain message.
-- **No Masumi registry or Sokosumi yet.** The Keepers are not registered in Masumi's public registry and have no on-chain agent identity; Lena's agent knows their URLs. Their reputation comes only from their receipts on chain. Listing the Keepers on Sokosumi is not done.
+- **No Masumi registry yet; Sokosumi Tasks are not paid through Sokosumi.** The Keepers are not registered in Masumi's public registry and have no on-chain agent identity; Lena's agent knows their URLs. Lena's finance agent is a Sokosumi Coworker, but paying for a Task on Sokosumi itself needs a Masumi Payment Service, which is not set up: the Keeper's fee is paid over x402 into Masumi escrow. The Coworker's worker runs on the operator's machine; while it is off, Tasks wait.
 - **Test money.** dUSD is a demo stablecoin; everything runs on Cardano preprod and Base Sepolia.

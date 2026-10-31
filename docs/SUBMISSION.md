@@ -40,7 +40,8 @@ PayOnProof makes each of those impossible or visible:
 - **Seller / Buyer / Coworker:** Keepers sell execution jobs over x402; Lena's agent compares prices and on-chain records in code and signs only the chosen offer; the fee is settled through Masumi escrow only after delivery, with refunds for no delivery.
 - **In the real world:** an SME's finance agent (or an accounting tool) posts invoices; independent Keepers compete on price and record; fees are per executed invoice, nothing for watching. Lena's dollars could be any stablecoin; the payment contract runs on any EVM chain where the supplier is paid.
 - **Business model:** the Keeper charges a fee per executed invoice (here 1–4 tUSDM); a platform can take a share of Keeper fees or charge for the finance agent.
-- **In the workshop's terms:** *Business operations*: agents that pay invoices and settle with suppliers. x402 + Masumi gives refunds and decision logging (the result hash); public registry and identity are not done yet (the Keepers are not registered with Masumi).
+- **In the workshop's terms:** *Business operations*: agents that pay invoices and settle with suppliers. x402 + Masumi gives refunds and decision logging (the result hash); public registry and identity are not done yet (the Keepers are not registered with Masumi). No-shows count against a Keeper, read from the escrow refunds on chain.
+- **On Sokosumi:** Lena's finance agent is a Coworker ("PayOnProof finance agent", `01a1900c-8cc4-75cf-8c54-30a0161eac48`) in the TUM-Hackathon Workspace. Task `01a19013-9dd6-746e-81c8-edda7b120763`: a team posted "Pay Fazenda Alta invoice INV-20, €400, as soon as EUR/USD is under 1.13"; the Coworker hired Keeper Swift, the invoice was paid on Base Sepolia, the Task completed with every transaction link, and a follow-up question was answered from the job's facts.
 - **Why Cardano:** payments with rules (the fee waits in Masumi's escrow until delivery), native stablecoins (tUSDM), deterministic transactions (Lena's agent checks the exact payment before it signs), a non-custodial facilitator that only verifies and relays.
 - **Paid task on preprod, end to end (Sat 31 Oct, 03:01–03:07 CET):** fee lock in Masumi escrow [`75e46582…`](https://preprod.cardanoscan.io/transaction/75e465822791e14cb240c446cb3a7666268ecac18dc3135520db73f39d097eb5), execution on Base Sepolia [`0x1758f8f7…`](https://sepolia.basescan.org/tx/0x1758f8f7bc1be272ba4e913afd3035c3eb3904f8dfb20248694d718cf8f4b06e), result hash [`5e979434…`](https://preprod.cardanoscan.io/transaction/5e979434207d9e9bf134739c94e0afeb4bbbae6f81a19903cd74f314db5acc5e), receipt [`e02045b8…`](https://preprod.cardanoscan.io/transaction/e02045b8777435086b22fdd615b8379688d94d01dbe073d591b1c814a4bf304f), collect [`1e45c3d4…`](https://preprod.cardanoscan.io/transaction/1e45c3d4147332336b12d658e0f413b92417963b126513e98fb583093fc2b940), refund for the invoice whose limit was never reached [`3a07af8a…`](https://preprod.cardanoscan.io/transaction/3a07af8a94e7fbe731cddb05fc5d808143033f28c429161b92be67366538fa9a). More runs: [README](../README.md#for-cardano-judges) and [app README](../cardano/apps/payonproof/README.md#evidence).
 
@@ -85,7 +86,7 @@ PayOnProof makes each of those impossible or visible:
 
 ## What's next
 
-- Count refunds and no-shows in a Keeper's record, and let Lena dispute a false result hash through Masumi.
+- Let Lena dispute a false result hash through Masumi; register the Keepers in Masumi's registry; paid Sokosumi Tasks through a Masumi Payment Service.
 - Move the second-source check (now done by the Keeper) into the contract: require two Airnodes to agree before paying.
 - Real stablecoins on mainnet, more currency pairs, and conditions beyond FX (delivery events, flight delays).
 

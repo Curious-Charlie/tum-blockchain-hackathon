@@ -201,45 +201,68 @@ export async function startKeeper(
     // Stop early enough to put the result hash in before the escrow's deadline.
     const until = Math.min(Date.now() + watch.watchMinutes * 60_000, job.submitResultTime - 4 * 60_000);
     let reason = `EUR/USD did not drop below the limit before ${clock(until)}`;
-    for (let cycle = 1; ; cycle++) {
-      const order = await evm.getOrder(watch.orderId);
-      const invoice = invoiceRefOf(order);
-      if (STATUS[order.status] !== "Open") {
-        reason = `${invoice} is ${STATUS[order.status]}`;
-        break;
+    const failed = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+    // The payment is made; only the result hash is missing. Proven work is never refunded.
+    const deliver = async (executed: Executed & { crossCheck?: SecondRate }) => {
+      const proof = await proofFromChain(evm, executed.evmTx as `0x${string}`, job.lockTx!);
+      if (!proof) throw new Error(`no InvoicePaid event in ${executed.evmTx}`);
+      const hash = proofHash(proof);
+      step(`Result hash ${hash.slice(0, 16)}… = sha256 of the execution proof (execute tx, InvoicePaid event, fee lock). Putting it into the Masumi escrow…`, { data: { proof } });
+      const tx = await submitResult(keeper, lock, hash);
+      Object.assign(job, { status: "result_submitted", resultHash: hash, result: proof, summary: `${executed.invoice}: paid ${usd(BigInt(executed.payout))} to ${executed.payee} at EUR/USD ${executed.rate}` });
+      record(job, "submit_result", tx);
+      emit({ kind: "task.done", actor: keeper.name, task, tx, message: `Result hash is in the escrow. ${keeper.name} can collect the ${escrowPrice} from ${clock(job.unlockTime!)}, after Lena's dispute window` });
+      if (options.receipts !== false) {
+        const receipt = await publishReceipt(keeper, evm, executed, { lockTx: job.lockTx!, resultHash: hash, resultTx: tx });
+        job.receiptTx = receipt.tx;
+        saveJob(job);
       }
-      const limit = showRate(order.maxRate);
-      const checked = await fetchSignedRate().catch((error) => {
-        step(`Cycle ${cycle}: no signed rate from Nodary (${error instanceof Error ? error.message : String(error)})`);
-        return undefined;
-      });
-      const second = checked && checked.rate < order.maxRate ? await secondOpinion(cycle, checked.display, task) : undefined;
-      if (checked && checked.rate < order.maxRate && second !== "disagree") {
-        step(`Cycle ${cycle}: Nodary-signed EUR/USD ${checked.display} < ${limit}: executing ${invoice} on ${evm.name}`, { data: { rate: checked.display, limit, signedAt: checked.signedAt } });
-        try {
-          const executed = { ...(await executeOrder(watch.orderId, order, checked, invoice)), crossCheck: second };
-          const proof = await proofFromChain(evm, executed.evmTx as `0x${string}`, job.lockTx!);
-          if (!proof) throw new Error(`no InvoicePaid event in ${executed.evmTx}`);
-          const hash = proofHash(proof);
-          step(`Result hash ${hash.slice(0, 16)}… = sha256 of the execution proof (execute tx, InvoicePaid event, fee lock). Putting it into the Masumi escrow…`, { data: { proof } });
-          const tx = await submitResult(keeper, lock, hash);
-          Object.assign(job, { status: "result_submitted", resultHash: hash, result: proof, summary: `${invoice}: paid ${usd(BigInt(executed.payout))} to ${executed.payee} at EUR/USD ${executed.rate}` });
-          record(job, "submit_result", tx);
-          emit({ kind: "task.done", actor: keeper.name, task, tx, message: `Result hash is in the escrow. ${keeper.name} can collect the ${escrowPrice} from ${clock(job.unlockTime)}, after Lena's dispute window` });
-          if (options.receipts !== false) {
-            const receipt = await publishReceipt(keeper, evm, executed, { lockTx: job.lockTx!, resultHash: hash, resultTx: tx });
-            job.receiptTx = receipt.tx;
-            saveJob(job);
+    };
+
+    let executed: (Executed & { crossCheck?: SecondRate }) | undefined;
+    for (let cycle = 1; ; cycle++) {
+      if (!executed) {
+        const order = await evm.getOrder(watch.orderId);
+        const invoice = invoiceRefOf(order);
+        if (STATUS[order.status] !== "Open") {
+          reason = `${invoice} is ${STATUS[order.status]}`;
+          break;
+        }
+        const limit = showRate(order.maxRate);
+        const checked = await fetchSignedRate().catch((error) => {
+          step(`Cycle ${cycle}: no signed rate from Nodary (${failed(error)})`);
+          return undefined;
+        });
+        const second = checked && checked.rate < order.maxRate ? await secondOpinion(cycle, checked.display, task) : undefined;
+        if (checked && checked.rate < order.maxRate && second !== "disagree") {
+          step(`Cycle ${cycle}: Nodary-signed EUR/USD ${checked.display} < ${limit}: executing ${invoice} on ${evm.name}`, { data: { rate: checked.display, limit, signedAt: checked.signedAt } });
+          try {
+            executed = { ...(await executeOrder(watch.orderId, order, checked, invoice)), crossCheck: second };
+          } catch (error) {
+            step(`Cycle ${cycle}: execution failed (${failed(error)}); still watching`);
           }
+        } else if (checked && checked.rate >= order.maxRate) {
+          const age = Math.max(0, Math.round(Date.now() / 1000) - checked.signedAt);
+          step(`Cycle ${cycle}: Nodary-signed EUR/USD ${checked.display} (signed ${age}s ago) is not below ${limit}; next check in ${interval / 1000}s, watching until ${clock(until)}`);
+        }
+      }
+      if (executed) {
+        try {
+          await deliver(executed);
           return;
         } catch (error) {
-          step(`Cycle ${cycle}: execution failed (${error instanceof Error ? error.message : String(error)}); still watching`);
+          step(`Cycle ${cycle}: ${executed.invoice} is paid, but its result hash is not in the escrow yet (${failed(error)}); retrying in ${interval / 1000}s`);
         }
-      } else if (checked && checked.rate >= order.maxRate) {
-        const age = Math.max(0, Math.round(Date.now() / 1000) - checked.signedAt);
-        step(`Cycle ${cycle}: Nodary-signed EUR/USD ${checked.display} (signed ${age}s ago) is not below ${limit}; next check in ${interval / 1000}s, watching until ${clock(until)}`);
-      }
-      if (Date.now() + interval > until) break;
+        // Keep trying until shortly before the result deadline.
+        if (Date.now() + interval > job.submitResultTime - 60_000) {
+          job.status = "working";
+          job.error = `paid ${executed.evmTx}, but the result hash did not reach the escrow before the deadline`;
+          saveJob(job);
+          step(`${keeper.name} could not put its result hash in before the deadline: Lena can take her ${escrowPrice} back from ${clock(job.submitResultTime)}`);
+          return;
+        }
+      } else if (Date.now() + interval > until) break;
       await sleep(interval);
     }
 

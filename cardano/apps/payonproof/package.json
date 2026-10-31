@@ -12,7 +12,8 @@
     "escrow": "tsx escrow.ts",
     "check": "tsx check.ts",
     "autopilot": "tsx autopilot.ts",
-    "rate": "tsx rate.ts"
+    "rate": "tsx rate.ts",
+    "coworker": "tsx coworker.ts"
   },
   "dependencies": {
     "@agentic/core": "*",

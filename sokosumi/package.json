@@ -1,0 +1,9 @@
+{
+  "name": "payonproof-sokosumi",
+  "private": true,
+  "description": "Pinned Sokosumi CLI for the PayOnProof Coworker (needs Node 24)",
+  "engines": { "node": "24.x" },
+  "dependencies": {
+    "@masumi_network/sokosumi": "1.0.4"
+  }
+}

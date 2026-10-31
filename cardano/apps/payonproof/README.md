@@ -77,6 +77,8 @@ Demo options: `--watch 2` (minutes a Keeper watches before it gives the fee back
 
 Per-attempt mode, kept as an option: `npm run demo -w apps/payonproof -- --x402` hires Keeper Atlas per attempt with a signed 2 tADA fee; a check whose condition is not met answers 409 and the fee is never submitted.
 
+**On Sokosumi:** `npm run coworker -w apps/payonproof` runs Lena's finance agent as the Sokosumi Coworker "PayOnProof finance agent". A team posts one sentence as a Task in the TUM-Hackathon Workspace; the worker places the order, hires a Keeper, follows the job, completes the Task with every transaction link and answers follow-up comments from the job's facts. Setup: [sokosumi/README.md](../../../sokosumi/README.md).
+
 **Autopilot** (several invoices and cycles, no human in the loop): `npm run autopilot -w apps/payonproof -- --rounds 3 --every 4 --watch 3`. Every round two new invoices arrive; Lena's agent picks a Keeper for each and locks its fee; the Keepers loop on their own (signed rate → compare → execute when the limit holds). Each execution adds a receipt that the next round's choice reads, so a new Keeper that delivers small invoices earns the record it needs for larger ones.
 
 **EVM network.** The escrow is deployed on **Base Sepolia** (addresses in `deployments.json`); the demo, autopilot and tamper test use it by default. `--evm anvil` (or `EVM_NETWORK=anvil`) starts a local anvil chain on port 4118, deploys the same contracts and runs against them. Cardano is always real preprod. To deploy afresh: `npm run deploy -w apps/payonproof -- --dry-run`, then without `--dry-run`.

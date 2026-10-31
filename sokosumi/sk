@@ -1,0 +1,4 @@
+#!/bin/sh
+# Sokosumi CLI 1.0.4 pinned in this folder; it needs Node 24 (NODE24 overrides the Homebrew path).
+here="$(cd "$(dirname "$0")" && pwd)"
+exec "${NODE24:-/opt/homebrew/opt/node@24/bin/node}" "$here/node_modules/@masumi_network/sokosumi/dist/bin/sokosumi.js" "$@"

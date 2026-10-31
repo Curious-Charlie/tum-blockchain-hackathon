@@ -14,11 +14,12 @@
  *   quoted price, and for a lock Masumi's escrow contract.
  */
 import { ESCROW, HAIKU, PaymentRefused, TUSDM, askJson, emit, formatAmount, payOffer, sleep, usdm, type Amount, type Wallet } from "@agentic/core";
-import { escrowOutputOf, paymentKeyHash, record, withdrawRefund, type EscrowJob } from "@agentic/core/escrow";
+import { escrowOutputOf, paymentKeyHash, record, requestRefund, withdrawRefund, type EscrowJob } from "@agentic/core/escrow";
 import { choose, getQuote, settlementTx, type Provider, type Quote } from "@agentic/core/market";
 import { keccak256, stringToHex, type Address, type Hex } from "viem";
 import { privateKeyToAddress } from "viem/accounts";
-import { ESCROW_NODE, showRate, toRate, usd, type Evm } from "./evm.ts";
+import { ESCROW_NODE, STATUS, showRate, toRate, usd, type Evm } from "./evm.ts";
+import { proofFromChain, proofHash, type ExecutionProof } from "./proof.ts";
 import type { WatchRequest } from "./keeper.ts";
 import { keeperRecord, proven, recordText, refundsBySeller, verifyBinding, type KeeperRecord } from "./records.ts";
 
@@ -61,6 +62,7 @@ export const MAX_KEEPER_FEE = usdm(3);
 export interface Hired {
   jobId: string;
   keeper: Quote;
+  orderId: bigint;
   lockTx?: string;
 }
 
@@ -154,7 +156,7 @@ export class LenaAgent {
     await Promise.all(this.keepers.map(async (k) => {
       const profile = await fetch(`${k.url}/profile`).then((r) => r.json() as Promise<{ cardano: string; evm: Address; binding: Hex }>).catch(() => undefined);
       const bound = Boolean(profile && profile.cardano === k.address && (await verifyBinding(k.address, profile.evm, profile.binding)));
-      const refund = refunds.get(paymentKeyHash(k.address)) ?? { noShows: 0, refundsAuthorized: 0 };
+      const refund = refunds.get(paymentKeyHash(k.address)) ?? { noShows: 0, refundsAuthorized: 0, disputes: 0 };
       records.set(k.role, { ...(await keeperRecord({ address: k.address, evmAddress: bound ? profile!.evm : undefined }, this.evm)), ...refund, bound });
     }));
     const trial = `€${Number(TRIAL_MAX_EUR_CENTS) / 100}`;
@@ -168,8 +170,8 @@ export class LenaAgent {
         if (!r.bound) return "its profile does not prove which EVM account it executes from";
         if (r.falseReceipts) return `${r.falseReceipts} of its receipts name executions that ${this.evm.name} does not show`;
         if (proven(r) < MIN_VERIFIED && order.amountEurCents > TRIAL_MAX_EUR_CENTS) {
-          return r.noShows
-            ? `its no-shows outweigh its record: invoices up to ${trial} until it has ${MIN_VERIFIED} more verified executions than no-shows`
+          return r.noShows || r.disputes
+            ? `its no-shows and disputed results outweigh its record: invoices up to ${trial} until it has ${MIN_VERIFIED} more verified executions than no-shows and disputes`
             : `new Keepers get invoices up to ${trial} until they have ${MIN_VERIFIED} verified executions`;
         }
         return undefined;
@@ -195,7 +197,7 @@ export class LenaAgent {
         return undefined;
       }
       const { jobId } = (await response.json()) as { jobId: string };
-      return { jobId, keeper, lockTx: settlementTx(response.headers.get("PAYMENT-RESPONSE")) };
+      return { jobId, keeper, orderId, lockTx: settlementTx(response.headers.get("PAYMENT-RESPONSE")) };
     } catch (error) {
       if (error instanceof PaymentRefused) {
         this.step(`No lock was made: ${error.message}`, task);
@@ -215,6 +217,36 @@ export class LenaAgent {
       await sleep(5_000);
     }
     return job;
+  }
+
+  /**
+   * Checks a Keeper's result hash against the chains before its fee unlocks, the
+   * way `npm run check` does: the order must be paid on the EVM chain, and the
+   * execution proof rebuilt from that chain (this order, this fee lock) must hash
+   * to what the Keeper put into the escrow. Returns why not, or undefined if it holds.
+   */
+  async verifyResult(job: EscrowJob, orderId: bigint): Promise<string | undefined> {
+    const utxo = await escrowOutputOf(this.wallet, job.escrowTx!);
+    if (!utxo) return `no escrow output in ${job.escrowTx}`;
+    const claimed = utxo.datum.resultHash;
+    const order = await this.evm.getOrder(orderId);
+    if (STATUS[order.status] !== "Paid") return `order ${orderId} is ${STATUS[order.status]} on ${this.evm.name}: nothing was paid`;
+    const named = (job.result as Partial<ExecutionProof> | undefined)?.executeTx;
+    const proof = named ? await proofFromChain(this.evm, named as `0x${string}`, job.lockTx!) : undefined;
+    if (!proof || BigInt(proof.invoicePaid.orderId) !== orderId) return `the Keeper names no payment of order ${orderId} on ${this.evm.name}`;
+    if (proofHash(proof) !== claimed) return `its result hash ${claimed.slice(0, 16)}… does not match the payment on ${this.evm.name}`;
+    return undefined;
+  }
+
+  /** Disputes a result in the Masumi escrow before it unlocks: the Keeper can no longer collect; Masumi's admins settle it. */
+  async dispute(job: EscrowJob, why: string): Promise<string> {
+    const utxo = await escrowOutputOf(this.wallet, job.escrowTx!);
+    if (!utxo) throw new Error(`no escrow output in ${job.escrowTx}`);
+    const tx = await requestRefund(this.wallet, utxo);
+    job.status = "disputed";
+    record(job, "dispute", tx);
+    emit({ kind: "task.step", actor: this.wallet.name, task: job.task, tx, message: `Disputed the Keeper's result in the Masumi escrow: ${why}. It can no longer collect; Masumi's admins settle the dispute` });
+    return tx;
   }
 
   /** Takes the fee back from the escrow: at once after the Keeper authorized it, otherwise after the result deadline. */

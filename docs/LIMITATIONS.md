@@ -21,7 +21,7 @@ What escrow costs:
 
 - **Waiting.** With the shortest deadlines Masumi's rules allow, the Keeper can collect 32 minutes after the quote, and a vanished Keeper's fee comes back after 17 minutes. The watch window is at most about 13 minutes; longer windows need longer deadlines, which push collection further out.
 - **Someone has to send the late transactions.** Collecting and timeout refunds are transactions of their own (`npm run escrow -w apps/payonproof -- finish --wait`); nothing happens by itself.
-- **The escrow does not check the result.** Masumi's contract stores the Keeper's result hash; it cannot see Base Sepolia. The hash commits to the `execute` transaction and its `InvoicePaid` event, so anyone can check it (`npm run check -w apps/payonproof -- <receipt tx>`), but a false hash is caught by a person or agent during the dispute window, not by the contract. Lena's dispute path (`SetRefundRequested`, then Masumi's admins) is not wired up.
+- **The escrow does not check the result.** Masumi's contract stores the Keeper's result hash; it cannot see Base Sepolia. The hash commits to the `execute` transaction and its `InvoicePaid` event, so anyone can check it (`npm run check -w apps/payonproof -- <receipt tx>`), but a false hash is caught by an agent during the dispute window, not by the contract. Lena's agent does that check before the fee unlocks and, on a mismatch, disputes the result in the escrow (`SetRefundRequested`): the Keeper can no longer collect. Settling the dispute is up to Masumi's admins, which PayOnProof cannot trigger.
 
 ## 3. Who enforces which split
 

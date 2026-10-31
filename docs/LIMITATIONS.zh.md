@@ -21,7 +21,7 @@ escrow 自己的代价：
 
 - **要等。** 按 Masumi 规则允许的最短截止时间，Keeper 在报价后 32 分钟才能领钱；Keeper 失联时，服务费 17 分钟后才能退回。盯盘时间最长约 13 分钟；要盯更久，截止时间就得更长，领钱也随之更晚。
 - **后面的交易要有人发。** 领钱和超时退款都是单独的交易（`npm run escrow -w apps/payonproof -- finish --wait`），不会自动发生。
-- **escrow 不检查结果。** Masumi 的合约只存 Keeper 写进去的结果哈希，它看不到 Base Sepolia。这个哈希绑定了 `execute` 交易和其中的 `InvoicePaid` 事件，任何人都能核对（`npm run check -w apps/payonproof -- <收据交易>`）；但假哈希要靠人或 agent 在争议期内发现，合约本身发现不了。Lena 发起争议的路径（`SetRefundRequested`，再由 Masumi 管理员裁决）没有接。
+- **escrow 不检查结果。** Masumi 的合约只存 Keeper 写进去的结果哈希，它看不到 Base Sepolia。这个哈希绑定了 `execute` 交易和其中的 `InvoicePaid` 事件，任何人都能核对（`npm run check -w apps/payonproof -- <收据交易>`）；但假哈希要靠 agent 在争议期内发现，合约本身发现不了。Lena 的 agent 在费用解锁前做这项核对，对不上就在托管里发起争议（`SetRefundRequested`），Keeper 就无法再领走费用。争议的裁决由 Masumi 管理员负责，PayOnProof 触发不了。
 
 ## 3. 哪一笔分账由谁执行
 

@@ -27,7 +27,7 @@ import { authorizeRefund, confirmLock, record, saveJob, loadJob, submitResult, t
 import { MAX_DEVIATION, buySecondRate, type SecondRate } from "./crosscheck.ts";
 import { ESCROW_NODE, STATUS, fetchSignedRate, invoiceRefOf, keeperKey, showRate, usd, type Evm, type Order } from "./evm.ts";
 import { ADDRESS_BOOK } from "./lena.ts";
-import { proofFromChain, proofHash } from "./proof.ts";
+import { proofFromChain, proofHash, sha256 } from "./proof.ts";
 import { bindingMessage } from "./records.ts";
 
 export const KEEPER_FEE = ada(2);
@@ -69,7 +69,7 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-dig
 export async function startKeeper(
   keeper: Wallet,
   evm: Evm,
-  options: { port?: number; receipts?: boolean; escrowFee?: Amount; intervalSec?: number; vanish?: boolean; crossCheck?: boolean } = {},
+  options: { port?: number; receipts?: boolean; escrowFee?: Amount; intervalSec?: number; vanish?: boolean; lie?: boolean; crossCheck?: boolean } = {},
 ) {
   const fee = formatAmount(KEEPER_FEE.asset, KEEPER_FEE.amount);
   const escrowFee = options.escrowFee ?? ada(2);
@@ -193,6 +193,17 @@ export async function startKeeper(
       job.status = "vanished";
       saveJob(job);
       emit({ kind: "task.step", actor: keeper.name, task, message: `⚠ DEMO --vanish: ${keeper.name} takes the job and disappears. Nothing reaches the escrow, so Lena can take her ${escrowPrice} back from ${clock(job.submitResultTime)}` });
+      return;
+    }
+
+    if (options.lie) {
+      // DEMO: claims the job is done without paying anything; Lena checks the chain before the fee unlocks.
+      const hash = sha256(`nothing was paid for ${task}`);
+      step(`⚠ DEMO --lie: ${keeper.name} pays nothing and puts a made-up result hash into the escrow`);
+      const tx = await submitResult(keeper, lock, hash);
+      Object.assign(job, { status: "result_submitted", resultHash: hash, summary: `${task}: claims it was paid` });
+      record(job, "submit_result", tx);
+      emit({ kind: "task.done", actor: keeper.name, task, tx, message: `${keeper.name} claims the job is done: a result hash is in the escrow, collectable from ${clock(job.unlockTime)}` });
       return;
     }
 

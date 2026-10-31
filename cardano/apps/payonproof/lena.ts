@@ -14,13 +14,13 @@
  *   quoted price, and for a lock Masumi's escrow contract.
  */
 import { ESCROW, HAIKU, PaymentRefused, TUSDM, askJson, emit, formatAmount, payOffer, sleep, usdm, type Amount, type Wallet } from "@agentic/core";
-import { escrowOutputOf, record, withdrawRefund, type EscrowJob } from "@agentic/core/escrow";
+import { escrowOutputOf, paymentKeyHash, record, withdrawRefund, type EscrowJob } from "@agentic/core/escrow";
 import { choose, getQuote, settlementTx, type Provider, type Quote } from "@agentic/core/market";
 import { keccak256, stringToHex, type Address, type Hex } from "viem";
 import { privateKeyToAddress } from "viem/accounts";
 import { ESCROW_NODE, showRate, toRate, usd, type Evm } from "./evm.ts";
 import type { WatchRequest } from "./keeper.ts";
-import { keeperRecord, recordText, verifyBinding, type KeeperRecord } from "./records.ts";
+import { keeperRecord, proven, recordText, refundsBySeller, verifyBinding, type KeeperRecord } from "./records.ts";
 
 /** Lena's suppliers. The order's payee comes from here, never from the model. */
 const supplier = (slug: string) => privateKeyToAddress(keccak256(stringToHex(`payonproof:supplier:${slug}`)));
@@ -150,10 +150,12 @@ export class LenaAgent {
     this.step(`Asking ${this.keepers.length} Keepers for a price to watch ${order.invoiceRef}, and reading their records on Cardano and ${this.evm.name}…`, task);
     const quotes = await Promise.all(this.keepers.map((k) => getQuote(k, `/orders/${order.orderId}/watch`, body).catch(() => undefined)));
     const records = new Map<string, KeeperRecord & { bound: boolean }>();
+    const refunds = await refundsBySeller(this.wallet.address);
     await Promise.all(this.keepers.map(async (k) => {
       const profile = await fetch(`${k.url}/profile`).then((r) => r.json() as Promise<{ cardano: string; evm: Address; binding: Hex }>).catch(() => undefined);
       const bound = Boolean(profile && profile.cardano === k.address && (await verifyBinding(k.address, profile.evm, profile.binding)));
-      records.set(k.role, { ...(await keeperRecord({ address: k.address, evmAddress: bound ? profile!.evm : undefined }, this.evm)), bound });
+      const refund = refunds.get(paymentKeyHash(k.address)) ?? { noShows: 0, refundsAuthorized: 0 };
+      records.set(k.role, { ...(await keeperRecord({ address: k.address, evmAddress: bound ? profile!.evm : undefined }, this.evm)), ...refund, bound });
     }));
     const trial = `€${Number(TRIAL_MAX_EUR_CENTS) / 100}`;
     const { chosen, assessments } = choose(quotes, {
@@ -165,10 +167,14 @@ export class LenaAgent {
         if (!q.escrow) return "its quote does not lock the fee in escrow";
         if (!r.bound) return "its profile does not prove which EVM account it executes from";
         if (r.falseReceipts) return `${r.falseReceipts} of its receipts name executions that ${this.evm.name} does not show`;
-        if (r.verified < MIN_VERIFIED && order.amountEurCents > TRIAL_MAX_EUR_CENTS) return `new Keepers get invoices up to ${trial} until they have ${MIN_VERIFIED} verified executions`;
+        if (proven(r) < MIN_VERIFIED && order.amountEurCents > TRIAL_MAX_EUR_CENTS) {
+          return r.noShows
+            ? `its no-shows outweigh its record: invoices up to ${trial} until it has ${MIN_VERIFIED} more verified executions than no-shows`
+            : `new Keepers get invoices up to ${trial} until they have ${MIN_VERIFIED} verified executions`;
+        }
         return undefined;
       },
-      rank: (a, b) => records.get(b.role)!.verified - records.get(a.role)!.verified,
+      rank: (a, b) => proven(records.get(b.role)!) - proven(records.get(a.role)!),
     });
     for (const a of assessments) this.step(`${a.chosen ? "✓" : "✗"} ${a.name}: ${a.price}, ${a.record} → ${a.chosen ? "CHOSEN" : "not chosen"}: ${a.why}`, task);
     if (!chosen) {

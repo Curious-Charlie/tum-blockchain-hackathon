@@ -11,11 +11,20 @@
  * that does not check out is a false receipt. Receipts of runs on a local test
  * chain cannot be checked and count for nothing.
  *
+ * Refunds count too (`refundsBySeller`): when the buyer takes a fee back from
+ * Masumi escrow, the spent escrow datum names the Keeper and its state. Still
+ * FundsLocked means a no-show (the Keeper took the job and never delivered before
+ * the deadline); RefundAuthorized means the Keeper gave the fee back because the
+ * condition never held, which is not held against it.
+ *
  * Chain data never changes once confirmed, so every lookup is cached on disk.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { Data } from "@evolution-sdk/evolution";
+import { parseMasumiLockDatum } from "@x402/cardano";
 import { ROOT, blockfrost } from "@agentic/core";
+import { ESCROW_ADDRESS, STATE, paymentKeyHash } from "@agentic/core/escrow";
 import { isAddressEqual, verifyMessage, type Address, type Hex } from "viem";
 import type { Evm } from "./evm.ts";
 
@@ -24,6 +33,9 @@ export interface KeeperRecord {
   verified: number;
   falseReceipts: number;
   unverifiable: number;
+  /** Fees the buyer took back after the deadline (the Keeper never delivered), and fees the Keeper gave back. */
+  noShows?: number;
+  refundsAuthorized?: number;
   /** Receipt transaction → what was found. */
   details: { receiptTx: string; invoice: string; network: string; executeTx?: string; result: "verified" | "false" | "unverifiable"; why?: string }[];
 }
@@ -104,5 +116,40 @@ export async function keeperRecord(keeper: { address: string; evmAddress?: Addre
   return record;
 }
 
+export interface RefundRecord {
+  noShows: number;
+  refundsAuthorized: number;
+}
+
+/** Refunds `buyerAddress` took from Masumi escrow (its latest 100 transactions), by the seller's payment key hash. */
+export async function refundsBySeller(buyerAddress: string): Promise<Map<string, RefundRecord>> {
+  const txs = (await blockfrost<{ tx_hash: string }[]>(`/addresses/${buyerAddress}/transactions?order=desc&count=100`)) ?? [];
+  const bySeller = new Map<string, RefundRecord>();
+  for (const { tx_hash: tx } of txs) {
+    const utxos = await cached(`cardano-utxos-${tx}`, async () => (await blockfrost<{ inputs: EscrowInput[] }>(`/txs/${tx}/utxos`)) ?? { inputs: [] });
+    for (const input of (utxos.inputs as EscrowInput[]).filter((i) => i.address === ESCROW_ADDRESS && i.inline_datum && !i.collateral)) {
+      const view = parseMasumiLockDatum(Data.fromCBORHex(input.inline_datum!));
+      if (!view || view.buyer.payment.hash !== paymentKeyHash(buyerAddress)) continue;
+      if (view.state !== STATE.FundsLocked && view.state !== STATE.RefundAuthorized) continue;
+      const r = bySeller.get(view.seller.payment.hash) ?? { noShows: 0, refundsAuthorized: 0 };
+      if (view.state === STATE.FundsLocked) r.noShows++;
+      else r.refundsAuthorized++;
+      bySeller.set(view.seller.payment.hash, r);
+    }
+  }
+  return bySeller;
+}
+
+interface EscrowInput {
+  address: string;
+  inline_datum?: string | null;
+  collateral?: boolean;
+}
+
+/** Verified executions minus no-shows: what the trial rule and the ranking use. */
+export const proven = (r: KeeperRecord) => r.verified - (r.noShows ?? 0);
+
 export const recordText = (r: KeeperRecord) =>
-  `${r.verified} verified execution${r.verified === 1 ? "" : "s"} on chain (${r.receipts} receipt${r.receipts === 1 ? "" : "s"} on Cardano${r.falseReceipts ? `, ${r.falseReceipts} false` : ""}${r.unverifiable ? `, ${r.unverifiable} from a test chain` : ""})`;
+  `${r.verified} verified execution${r.verified === 1 ? "" : "s"} on chain (${r.receipts} receipt${r.receipts === 1 ? "" : "s"} on Cardano${r.falseReceipts ? `, ${r.falseReceipts} false` : ""}${r.unverifiable ? `, ${r.unverifiable} from a test chain` : ""})` +
+  (r.noShows ? `, ${r.noShows} no-show${r.noShows === 1 ? "" : "s"} (fee refunded after the deadline)` : "") +
+  (r.refundsAuthorized ? `, ${r.refundsAuthorized} fee${r.refundsAuthorized === 1 ? "" : "s"} given back` : "");

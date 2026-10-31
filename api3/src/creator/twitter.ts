@@ -39,10 +39,14 @@ export interface FoundTweet {
 }
 
 // Discovery only: the settlement agent finds the post with searchTweets, but nothing from this answer goes on chain.
-export const searchTweets = async (query: string, fetchFunction: typeof fetch): Promise<FoundTweet[]> => {
+export const searchTweets = async (
+  query: string,
+  fetchFunction: typeof fetch,
+  queryType: 'Latest' | 'Top' = 'Latest'
+): Promise<FoundTweet[]> => {
   const signed = await fetchSignedResponse(
     TWITTERAPI_AIRNODE_V2_URL,
-    { operation: 'searchTweets', parameters: { query, queryType: 'Latest' } },
+    { operation: 'searchTweets', parameters: { query, queryType } },
     fetchFunction
   );
   return (JSON.parse(signed.data) as { tweets?: FoundTweet[] }).tweets ?? [];

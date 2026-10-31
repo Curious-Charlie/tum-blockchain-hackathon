@@ -16,6 +16,7 @@
     "creator:fetch-tweet": "node --env-file-if-exists=.env --env-file-if-exists=../cardano/apps/payonproof/.env src/creator/fetch-tweet.ts",
     "creator:search": "node --env-file-if-exists=.env --env-file-if-exists=../cardano/apps/payonproof/.env src/creator/search.ts",
     "creator:tamper": "node --env-file-if-exists=.env --env-file-if-exists=../cardano/apps/payonproof/.env src/creator/tamper.ts",
+    "creator:web:build": "node src/creator/build-web.ts",
     "fetch-response": "node --env-file-if-exists=.env src/fetch-response.ts",
     "prettier:check": "prettier --check .",
     "prettier:fix": "prettier --write .",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.19.1",
+    "esbuild": "0.25.12",
     "prettier": "^3.9.9",
     "typescript": "~6.0.3"
   }

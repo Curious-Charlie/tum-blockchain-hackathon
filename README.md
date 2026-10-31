@@ -9,9 +9,9 @@ The repository also keeps the earlier two-chain version (the Keeper's fee in Mas
 # PayOnProof: agents that pay invoices on signed FX rates, and get paid only on proof
 
 > Submission for the [TUM Blockchain & AI Hackathon 2026](https://hackathon.tum-blockchain.com/) (Munich, 30–31 October 2026).
-> **Tracks:** Cardano (Agentic Commerce on Cardano) · API3 (Any API in your contract)
+> **Track:** API3 (Any API in your contract)
 
-**Demo video (2:08):** https://youtu.be/kxRuQhW0j1E
+**Demo video (2:08, API3 single-chain version):** https://youtu.be/-_khGZR_Z8g · earlier two-chain cut: https://youtu.be/kxRuQhW0j1E
 
 Lena runs a small coffee roastery in Munich. Her suppliers in Colombia and Brazil invoice her in euros; she holds US dollar stablecoins and wants to pay **when EUR/USD drops below her limit**, without watching the market. She tells her finance agent in one sentence. The agent locks the invoice money in an escrow contract and hires a **Keeper agent** that watches the rate and executes the payment.
 

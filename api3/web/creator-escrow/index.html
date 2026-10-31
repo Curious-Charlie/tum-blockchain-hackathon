@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CreatorDealEscrow · pay-per-post on signed X data</title>
+    <meta
+      name="description"
+      content="A brand's budget for a sponsored X post, released only on TwitterAPI.io data signed through API3 AirnodeHub. Live from Base Sepolia."
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="kicker">Prototype · Base Sepolia testnet · API3 AirnodeHub</p>
+        <h1>Pay-per-post, settled on a signed tweet</h1>
+        <p class="lede">
+          A brand locks a budget for a sponsored post on X. The contract pays the creator only when TwitterAPI.io's
+          answer, signed through API3 AirnodeHub, shows that the post is live, was written by the agreed creator,
+          carries the deal code, was posted after the deal opened, has stayed up for the hold period and has enough
+          views. The payout follows the views, up to a cap. The agent that submits the proof earns a fee in the same
+          transaction, and the rest goes back to the brand.
+        </p>
+        <p class="lede">
+          Brands fear deleted posts and faked screenshots; creators fear brands that pay late.
+          <strong>A signature replaces the screenshot.</strong> AI can find the post, but the contract decides: no LLM
+          is on the money path.
+        </p>
+        <dl class="facts" id="facts">
+          <div>
+            <dt>Escrow</dt>
+            <dd id="fact-escrow">…</dd>
+          </div>
+          <div>
+            <dt>Data signer (TwitterAPI.io Airnode)</dt>
+            <dd id="fact-airnode">…</dd>
+          </div>
+          <div>
+            <dt>Token</dt>
+            <dd id="fact-token">…</dd>
+          </div>
+        </dl>
+      </header>
+
+      <section>
+        <h2>How <code>settle</code> decides</h2>
+        <ol class="rules">
+          <li>
+            <b>Signer and request.</b> The contract rebuilds the AirnodeHub request hash from the tweet id and recovers
+            the signer. Only TwitterAPI.io's Airnode passes, and only for this exact tweet. Otherwise it reverts with
+            <code>NotSignedByAirnode</code>.
+          </li>
+          <li>
+            <b>Fresh.</b> The response was signed at most 2 minutes before the block, so the post was live just now.
+            <code>ResponseTooOld</code>
+          </li>
+          <li>
+            <b>Posted after the deal opened.</b> Read from the tweet's Snowflake id, with no date parsing.
+            <code>PostedTooEarly</code>
+          </li>
+          <li><b>Hold period over.</b> Post time + hold ≤ signing time. <code>HoldNotOver</code></li>
+          <li>
+            <b>Right post, right creator, code present.</b> These are checked on the signed bytes.
+            <code>WrongTweet</code> · <code>WrongAuthor</code> · <code>CodeMissing</code>
+          </li>
+          <li><b>Enough views.</b> The payout is min(cap, views × price per 1000). <code>NotEnoughViews</code></li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Deals on chain</h2>
+        <p class="note">
+          Read live from the contract. For each settlement, this page decodes the transaction, rebuilds the request
+          hash, recovers the signer and re-runs the contract's checks in your browser.
+        </p>
+        <div id="deals"><p class="loading">Reading Base Sepolia…</p></div>
+      </section>
+
+      <section>
+        <h2>Rejected on chain</h2>
+        <p class="note">
+          Each of these <code>settle</code> calls was sent on purpose and reverted on chain. The first four are API3
+          tamper cases; the last two use genuine signed data that breaks the deal's rules. The browser re-check runs the
+          same steps as the contract and should stop at the same error.
+        </p>
+        <div id="rejected"><p class="loading">Reading Base Sepolia…</p></div>
+      </section>
+
+      <section>
+        <h2>The settlement agent's trail</h2>
+        <p class="note">
+          The agent finds the post with <code>searchTweets</code> (discovery only, never checked on chain), buys the
+          signed <code>tweetsByIds</code> answer over x402 (0.01 aUSD each, Base Sepolia), checks it locally, then calls
+          <code>settle</code> and collects its fee.
+        </p>
+        <ul class="trail" id="trail"></ul>
+      </section>
+
+      <section>
+        <h2>Honest gaps</h2>
+        <ul class="gaps">
+          <li>
+            <b>Views are X's own number.</b> Bot views count. The signature proves who said it, not that people saw the
+            post.
+          </li>
+          <li><b>TwitterAPI.io is a third-party source</b>, not X itself. The contract trusts its Airnode key.</li>
+          <li>
+            <b>The hold period is checked once, at settlement.</b> Nothing proves that the post stayed visible the whole
+            time.
+          </li>
+          <li>
+            <b>Whoever settles first fixes the view count.</b> A brand could settle early to pay for fewer views. A
+            settlement window would fix this.
+          </li>
+          <li>
+            <b>The deal binds the handle</b>, not X's numeric user id, so a renamed or taken-over handle breaks it.
+          </li>
+          <li><b>X only.</b> AirnodeHub has no TikTok or Instagram source today.</li>
+          <li>
+            <b>Demo data.</b> The live deal uses an existing public @Api3DAO tweet, not a post sponsored for this deal.
+            The payee is a demo address, and the amounts are DemoUSD on a testnet.
+          </li>
+        </ul>
+      </section>
+
+      <footer>
+        Everything on this page is read live from Base Sepolia (public RPC and Blockscout). The page holds no keys and
+        cannot move money. Source: branch <code>api3/creator-escrow</code>, files
+        <code>api3/contracts/creator/</code> and <code>api3/src/creator/</code>. Built for the TUM Blockchain &amp; AI
+        Hackathon 2026.
+      </footer>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

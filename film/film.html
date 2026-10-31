@@ -398,7 +398,7 @@ const barEls = [...$("bars").children];
 const pick = (list, x) => list.filter(([b]) => x >= b).at(-1)[1];
 
 // Step tracker: which step is current, by bar.
-const STEPS = ["Task", "Order locked", "Keeper hired", "Fee in escrow", "Rate checked", "Supplier paid", "Proof on chain", "Fee released"];
+const STEPS = ["One sentence", "Order locked", "Keeper chosen", "Fee locked", "Rate checked", "Supplier paid", "One transaction", "Everyone paid"];
 $("stepper").innerHTML = STEPS.map((s, i) => `<div class="st" id="st${i}"><i>${i + 1}</i>${s}</div>`).join("");
 const STEP_AT = [[0, -1], [14, 0], [16, 1], [20, 2], [24, 3], [28, 4], [31, 5], [44, 6], [48, 7], [52, 8]];
 

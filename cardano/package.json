@@ -11,7 +11,6 @@
     "smoke": "tsx scripts/smoke-x402.ts",
     "publish-test": "tsx scripts/publish-test.ts",
     "dashboard": "tsx packages/core/cli/dashboard.ts",
-    "freeze": "tsx packages/core/cli/freeze.ts",
     "test": "tsx --test packages/core/test/*.test.ts",
     "typecheck": "tsc -p tsconfig.json"
   },

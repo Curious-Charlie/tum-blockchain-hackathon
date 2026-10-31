@@ -1,14 +1,13 @@
 /**
- * Demo dashboard: event timeline, money-flow graph, cardanoscan links and the
- * AgentGuard kill switch. Events arrive by POST /events (other processes) or
- * directly when the dashboard runs inside the same process.
+ * Demo dashboard: event timeline, money-flow graph and cardanoscan links.
+ * Events arrive by POST /events (other processes) or directly when the
+ * dashboard runs inside the same process.
  *
  *   npm run dashboard        # http://127.0.0.1:4000
  */
 import { readFileSync } from "node:fs";
 import express, { type Response } from "express";
 import { markLocalDashboard, onEvent, type AgentEvent } from "../events.ts";
-import { freezeAll, frozenReason, unfreezeAll } from "../guard.ts";
 
 const PAGE = new URL("./index.html", import.meta.url);
 
@@ -38,7 +37,6 @@ export async function startDashboard(port = Number(process.env.DASHBOARD_PORT ??
     res.set({ "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
     res.flushHeaders();
     for (const event of history) res.write(`event: agent-event\ndata: ${JSON.stringify(event)}\n\n`);
-    res.write(`event: freeze\ndata: ${JSON.stringify({ frozen: frozenReason() ?? null })}\n\n`);
     clients.add(res);
     req.on("close", () => clients.delete(res));
   });
@@ -50,16 +48,6 @@ export async function startDashboard(port = Number(process.env.DASHBOARD_PORT ??
     history.length = 0;
     broadcast("reset", {});
     res.sendStatus(204);
-  });
-  app.post("/freeze", (_req, res) => {
-    freezeAll("frozen from the dashboard");
-    broadcast("freeze", { frozen: frozenReason() });
-    res.json({ frozen: frozenReason() });
-  });
-  app.post("/unfreeze", (_req, res) => {
-    unfreezeAll();
-    broadcast("freeze", { frozen: null });
-    res.json({ frozen: null });
   });
   setInterval(() => broadcast("ping", {}), 20_000).unref();
 

@@ -78,7 +78,7 @@ export interface AgentRun {
 
 /**
  * Tool-use loop: calls tools until Claude ends its turn. Tool errors go back to
- * Claude as `is_error` results (e.g. an AgentGuard refusal), so it can react.
+ * Claude as `is_error` results (e.g. a refused payment), so it can react.
  */
 export async function runAgent(options: {
   model: Model;

@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import type { CardanoProviderConfig } from "@x402/cardano";
 
-/** The cardano/ directory: shared .env, audit logs and caches live here. */
+/** The cardano/ directory: shared .env and caches live here. */
 export const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
 dotenv.config({ path: path.join(process.cwd(), ".env"), quiet: true });

@@ -1,12 +1,12 @@
 /**
  * An agent buying a service from several sellers: ask each for a price, judge
- * the quotes in code, pay only the chosen one (through AgentGuard).
+ * the quotes in code, pay only the chosen one (`payOffer` signs nothing else).
  *
  * - The price is each seller's x402 402 answer to the real request, so the
  *   quote is exactly what it would charge; for an escrow route the quote also
  *   names the seller in the Masumi terms.
  * - `choose` is deterministic: the quote must pay the agent we asked (or lock
- *   into Masumi's escrow for that agent), in the expected asset, within the cap;
+ *   into Masumi's escrow for that agent), in the expected asset, within the limit;
  *   the app's own check (e.g. a track record) decides the rest; cheapest wins.
  *
  *   const quotes = await Promise.all(sellers.map((s) => getQuote(s, "/work", body)));
@@ -72,7 +72,7 @@ export function choose(
   quotes: (Quote | undefined)[],
   rules: {
     asset: string;
-    /** Most the buyer may pay (AgentGuard's per-payment cap, or what the task budget has left). */
+    /** Most the buyer pays for this service. */
     maxAmount: bigint;
     /** The app's own reasons to refuse a seller (undefined = acceptable). */
     check?: (quote: Quote) => string | undefined;
@@ -87,7 +87,7 @@ export function choose(
     if (q.payee !== q.address) return "its quote pays a different address than the agent we asked";
     if (q.escrow && q.payTo !== masumiEscrowAddress(NETWORK)) return "its escrow address is not Masumi's";
     if (q.asset !== rules.asset) return `it charges in another asset (${q.asset.slice(0, 10)}…)`;
-    if (q.amount > rules.maxAmount) return `over the spending cap of ${formatAmount(rules.asset, rules.maxAmount)}`;
+    if (q.amount > rules.maxAmount) return `over the fee limit of ${formatAmount(rules.asset, rules.maxAmount)}`;
     return rules.check?.(q);
   };
   const eligible = offered

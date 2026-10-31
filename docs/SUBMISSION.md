@@ -1,12 +1,16 @@
 # Devfolio submission draft
 
-Draft texts for the Devfolio form. Nothing here is submitted automatically.
+Texts for the Devfolio form, one section per field. Nothing here is submitted automatically.
 
 - **Project name:** PayOnProof
 - **Tagline:** Agents that pay invoices on API3-signed FX rates, and get paid only on proof.
 - **Tracks:** Cardano (Agentic Commerce on Cardano), API3 (Any API in your contract)
 - **Repository:** https://github.com/Curious-Charlie/tum-blockchain-hackathon (public at submission)
-- **Demo video:** TBD (must include the API3 tamper test)
+- **Demo video:** TBD: YouTube, unlisted (120 s; includes the API3 tamper test and a paid Masumi escrow job)
+- **Technologies:** Cardano, Masumi, x402, Blockfrost, evolution-sdk, CIP-20, API3 AirnodeHub, Nodary, Base Sepolia, Solidity, Foundry, viem, TypeScript, Node.js, Claude
+- **Pictures** (frames of the demo video, in this order): cover (title card), who it is for, the buyer agent choosing a Keeper, the second signed rate bought over x402 and the execution, the tamper test, AgentGuard blocking a look-alike Keeper, business model.
+
+Before submitting: the repository is public, the video link is in this file and in the README, both tracks are selected.
 
 ## The problem it solves
 

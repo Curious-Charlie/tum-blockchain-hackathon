@@ -293,3 +293,106 @@ footer {
     grid-column: 2;
   }
 }
+
+.small {
+  font-size: 13px;
+}
+
+.team-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 8px;
+}
+.team-form input[type='password'] {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--card);
+}
+.team-form .dry {
+  color: var(--muted);
+  font-size: 14px;
+}
+.team-form button {
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.team-form button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.team-log {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.team-log:empty {
+  display: none;
+}
+.ev {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 10px;
+  padding: 8px 12px;
+  margin: 0 0 6px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.ev .who {
+  font-weight: 700;
+  font-size: 13px;
+}
+.ev .what {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.a-system {
+  border-left-color: var(--skip);
+}
+.a-scout {
+  border-left-color: #b26a00;
+}
+.a-scout .who {
+  color: #b26a00;
+}
+.a-brand {
+  border-left-color: var(--accent);
+}
+.a-brand .who {
+  color: var(--accent);
+}
+.a-settler {
+  border-left-color: var(--ok);
+}
+.a-settler .who {
+  color: var(--ok);
+}
+.k-think .what {
+  font-style: italic;
+  color: #4a4740;
+}
+.k-think .what::before {
+  content: 'Claude: ';
+  font-style: normal;
+  font-weight: 600;
+}
+.k-error {
+  border-left-color: var(--bad);
+  background: var(--bad-bg);
+}
+.k-done {
+  background: var(--ok-bg);
+}

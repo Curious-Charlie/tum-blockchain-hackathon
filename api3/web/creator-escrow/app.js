@@ -222,6 +222,8 @@ async function loadCall(hash) {
 }
 
 const dealCache = new Map();
+// Settle transactions from this page's own team runs, in case Blockscout has not indexed them yet.
+const freshSettles = new Set();
 const getDeal = async (id) => {
   if (!dealCache.has(id))
     dealCache.set(id, client.readContract({ address: ESCROW, abi: ESCROW_ABI, functionName: 'getDeal', args: [id] }));
@@ -245,15 +247,16 @@ async function settleTxs() {
 
 async function renderDeals() {
   const el = document.getElementById('deals');
+  dealCache.clear();
   const count = await client.readContract({ address: ESCROW, abi: ESCROW_ABI, functionName: 'dealCount' });
-  const settles = await settleTxs();
+  const settles = [...new Set([...(await settleTxs()), ...freshSettles])];
   const settledBy = new Map();
   for (const hash of settles) {
     const loaded = await loadCall(hash);
     settledBy.set(loaded.call.dealId, { hash, ...loaded });
   }
   const cards = [];
-  for (let id = 1n; id <= count; id++) {
+  for (let id = count; id >= 1n; id--) {
     const deal = await getDeal(id);
     const t = deal.terms;
     const status = STATUS[deal.status] ?? String(deal.status);
@@ -351,3 +354,83 @@ const fail = (id) => (e) => {
 };
 renderDeals().catch(fail('deals'));
 renderRejected().catch(fail('rejected'));
+
+// ---------- the agent team (server side: /api/run streams NDJSON) ----------
+
+const AGENTS = {
+  system: { name: 'System', cls: 'a-system' },
+  scout: { name: 'Scout', cls: 'a-scout' },
+  brand: { name: 'Brand', cls: 'a-brand' },
+  settler: { name: 'Settler', cls: 'a-settler' },
+};
+
+function logEvent(ev) {
+  const log = document.getElementById('team-log');
+  const agent = AGENTS[ev.agent] ?? AGENTS.system;
+  const li = document.createElement('li');
+  li.className = `ev ${agent.cls} k-${ev.kind ?? 'say'}`;
+  const tx = ev.tx ? ` ${txLink(ev.tx)}` : '';
+  li.innerHTML = `<span class="who">${esc(agent.name)}</span><span class="what">${esc(ev.text ?? '')}${tx}</span>`;
+  log.appendChild(li);
+  li.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+async function runTeam(event) {
+  event.preventDefault();
+  const button = document.getElementById('team-run');
+  const passcode = document.getElementById('team-pass').value.trim();
+  const dryRun = document.getElementById('team-dry').checked;
+  const log = document.getElementById('team-log');
+  if (!passcode) return logEvent({ agent: 'system', kind: 'error', text: 'Enter the demo passcode first.' });
+  localStorage.setItem('creator-escrow-passcode', passcode);
+  log.innerHTML = '';
+  button.disabled = true;
+  button.textContent = 'Running…';
+  logEvent({ agent: 'system', kind: 'say', text: dryRun ? 'Starting a dry run: nothing will be sent on chain.' : 'Starting a campaign cycle on Base Sepolia.' });
+  try {
+    const res = await fetch('/api/run', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ passcode, dryRun }),
+    });
+    if (!res.ok || !res.body) {
+      const text = await res.text().catch(() => '');
+      throw new Error(res.status === 401 ? 'Wrong passcode.' : `Server answered ${res.status} ${text.slice(0, 200)}`);
+    }
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buffer = '';
+    let done = null;
+    for (;;) {
+      const { value, done: end } = await reader.read();
+      if (value) buffer += value;
+      const lines = buffer.split('\n');
+      buffer = end ? '' : lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let ev;
+        try {
+          ev = JSON.parse(line);
+        } catch {
+          continue;
+        }
+        logEvent(ev);
+        if (ev.kind === 'done') done = ev.data ?? {};
+      }
+      if (end) break;
+    }
+    if (done && !done.dryRun && done.settleTx) {
+      freshSettles.add(done.settleTx);
+      logEvent({ agent: 'system', kind: 'say', text: 'Reloading the deals from chain…' });
+      await renderDeals();
+      document.getElementById('deals').scrollIntoView({ behavior: 'smooth' });
+    }
+  } catch (e) {
+    logEvent({ agent: 'system', kind: 'error', text: e.message ?? String(e) });
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Run the agent team';
+  }
+}
+
+document.getElementById('team-pass').value = localStorage.getItem('creator-escrow-passcode') ?? '';
+document.getElementById('team-form').addEventListener('submit', runTeam);

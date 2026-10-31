@@ -43,6 +43,28 @@
         </dl>
       </header>
 
+      <section id="team">
+        <h2>Watch the agent team run a campaign</h2>
+        <p class="note">
+          Three agents, each with its own wallet. The <b>Scout</b> buys an X search over x402 and uses Claude to pick the
+          post that best promotes the campaign. The <b>Brand</b> uses Claude to turn a one-line brief into deal terms,
+          which code then clamps to hard limits, and opens the deal on chain. The <b>Settler</b> buys the signed tweet
+          over x402 and calls <code>settle</code>. Claude only interprets: whether money moves is decided by the
+          contract's checks on signed data.
+        </p>
+        <form id="team-form" class="team-form">
+          <input id="team-pass" type="password" placeholder="Demo passcode" autocomplete="current-password" />
+          <label class="dry"><input id="team-dry" type="checkbox" /> Dry run (sends no transactions)</label>
+          <button id="team-run" type="submit">Run the agent team</button>
+        </form>
+        <p class="note small">
+          The passcode only protects the scarce testnet ETH in the agents' wallets. Each run opens a deal for an
+          existing public post that mentions @tbc_munich (a bounty for a post that already exists) and pays a demo
+          address.
+        </p>
+        <ol id="team-log" class="team-log"></ol>
+      </section>
+
       <section>
         <h2>How <code>settle</code> decides</h2>
         <ol class="rules">
@@ -118,8 +140,9 @@
           </li>
           <li><b>X only.</b> AirnodeHub has no TikTok or Instagram source today.</li>
           <li>
-            <b>Demo data.</b> The live deal uses an existing public @Api3DAO tweet, not a post sponsored for this deal.
-            The payee is a demo address, and the amounts are DemoUSD on a testnet.
+            <b>Demo data.</b> Deal 1 uses an existing public @Api3DAO tweet, and the agent team opens deals for existing
+            public posts that mention @tbc_munich. None of them is a post sponsored for its deal; each deal is opened
+            after the post exists. The payee is a demo address, and the amounts are DemoUSD on a testnet.
           </li>
         </ul>
       </section>

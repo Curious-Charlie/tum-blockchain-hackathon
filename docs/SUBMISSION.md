@@ -6,7 +6,7 @@ Texts for the Devfolio form, one section per field. Nothing here is submitted au
 - **Tagline:** Agents that pay invoices on API3-signed FX rates, and get paid only on proof.
 - **Tracks:** Cardano (Agentic Commerce on Cardano), API3 (Any API in your contract)
 - **Repository:** https://github.com/Curious-Charlie/tum-blockchain-hackathon (public at submission)
-- **Demo video:** https://youtu.be/v7hk3LD6cW8 (YouTube, unlisted, 2:08; a designed film with a techno soundtrack synthesized in code; every transaction shown is real: a paid Masumi escrow job and the API3 tamper test)
+- **Demo video:** https://youtu.be/kxRuQhW0j1E (YouTube, unlisted, 2:08; a designed film with a techno soundtrack synthesized in code; every transaction shown is real: a paid Masumi escrow job and the API3 tamper test)
 - **Technologies:** Cardano, Masumi, x402, Blockfrost, evolution-sdk, CIP-20, API3 AirnodeHub, Nodary, Base Sepolia, Solidity, Foundry, viem, TypeScript, Node.js, Claude
 - **Pictures** (stills of the film, in this order): cover, who it is for, the buyer agent choosing a Keeper, the fee going into Masumi escrow, the signed rate checked on chain and the supplier paid, the API3 tamper test, business model, "Verify it."
 

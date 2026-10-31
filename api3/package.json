@@ -10,6 +10,12 @@
     "node": ">=22.18"
   },
   "scripts": {
+    "creator:agent": "node --env-file-if-exists=.env --env-file-if-exists=../cardano/apps/payonproof/.env src/creator/agent.ts",
+    "creator:brand": "node --env-file-if-exists=.env --env-file-if-exists=../cardano/apps/payonproof/.env src/creator/brand.ts",
+    "creator:deploy": "node --env-file-if-exists=.env --env-file-if-exists=../cardano/apps/payonproof/.env src/creator/deploy.ts",
+    "creator:fetch-tweet": "node --env-file-if-exists=.env --env-file-if-exists=../cardano/apps/payonproof/.env src/creator/fetch-tweet.ts",
+    "creator:search": "node --env-file-if-exists=.env --env-file-if-exists=../cardano/apps/payonproof/.env src/creator/search.ts",
+    "creator:tamper": "node --env-file-if-exists=.env --env-file-if-exists=../cardano/apps/payonproof/.env src/creator/tamper.ts",
     "fetch-response": "node --env-file-if-exists=.env src/fetch-response.ts",
     "prettier:check": "prettier --check .",
     "prettier:fix": "prettier --write .",

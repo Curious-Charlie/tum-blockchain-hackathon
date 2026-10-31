@@ -104,14 +104,17 @@ const settleDeal = async (dealId: bigint, deal: Deal) => {
 for (let round = 1; round <= rounds; round++) {
   const count = await read<bigint>('dealCount', []);
   const now = BigInt(Math.floor(Date.now() / 1000));
+  let open = 0;
   for (let dealId = 1n; dealId <= count; dealId++) {
     const deal = await read<Deal>('getDeal', [dealId]);
     if (deal.status !== 1 || deal.terms.deadline < now) continue;
+    open++;
     try {
       await settleDeal(dealId, deal);
     } catch (error) {
       console.log(`deal ${dealId}: ${(error as Error).message.split('\n')[0]}`);
     }
   }
+  console.log(`round ${round}: ${open} open deal(s) of ${count}`);
   if (round < rounds) await new Promise((resolve) => setTimeout(resolve, every * 1000));
 }

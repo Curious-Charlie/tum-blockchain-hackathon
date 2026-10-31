@@ -1,0 +1,13 @@
+{
+  "name": "payonproof-film",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "music": "node synth.mjs",
+    "stills": "node render.mjs --stills",
+    "render": "node synth.mjs && node render.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}

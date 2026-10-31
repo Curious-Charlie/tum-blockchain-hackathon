@@ -45,3 +45,7 @@ reference/
 # Runtime data of the Cardano apps
 .audit/
 .cache/
+
+# Demo film: rendered output and tooling
+film/out/
+film/node_modules/

@@ -25,37 +25,53 @@ Lena's finance agent ── order + deposit ────────────
 
 ## For Cardano judges
 
+PayOnProof is the workshop's *Beyond the payment · Business operations* case: **agents that pay invoices and settle with suppliers**. The Keepers are Coworkers that get paid: each sells one job, "watch this order and pay it when the rate is right", and is paid only after it did.
+
 | | |
 |---|---|
-| **Customer and task** | Small importers and exporters paying cross-border invoices: "pay when the rate is right" as a paid agent job. The Keeper earns a fee per executed invoice and nothing for watching. |
-| **Seller** (x402) | Three Keepers sell "watch this order and execute it" over x402 on Cardano preprod (Atlas 2 tUSDM, Swift 1 tUSDM, Prime 4 tUSDM), paid into Masumi escrow; or per attempt in tADA, charged only on success (`--x402`). |
-| **Buyer** | Lena's agent compares quotes and on-chain records in code and signs only the chosen Keeper's offer: its address, its quoted price, Masumi's escrow contract. |
+| **Customer and task** | Small importers paying suppliers abroad, and their finance agents: "pay when the rate is right" as a paid agent job. A Keeper earns a fee per executed invoice and nothing for watching. |
+| **Seller** (x402) | Three Keepers sell the job over x402 on Cardano preprod at different prices (Atlas 2 tUSDM, Swift 1 tUSDM, Prime 4 tUSDM), paid into Masumi escrow; or per attempt in tADA, charged only on success (`--x402`). |
+| **Buyer** | Lena's agent asks each Keeper for its quote, reads its record from both chains, chooses in code (fee limit 3 tUSDM, no false receipts, new Keepers start with invoices up to €250, cheapest wins) and signs only that offer: the chosen Keeper, its quoted price, Masumi's escrow contract. |
 | **Coworker** (Masumi) | The fee is locked before the work and released after delivery (SubmitResult → Withdraw), or refunded (AuthorizeRefund → WithdrawRefund, or after the deadline). |
 | **Cardano tools** | x402 on preprod (`@x402/cardano`, `@x402/express`, `@x402/fetch`) with an in-process facilitator; Masumi escrow (`vested_pay` V2) via x402 `assetTransferMethod: "masumi"` plus SubmitResult, Withdraw, AuthorizeRefund and WithdrawRefund built with evolution-sdk; tUSDM and tADA; CIP-20 metadata (label 674) for the Keepers' receipts; Blockfrost. |
 
-**Paid tasks on preprod** (all transactions: [app README, Evidence](cardano/apps/payonproof/README.md#evidence)):
+**x402 + Masumi, item by item** (the workshop's table): address payments ✓ (per-attempt mode); refunds ✓ (authorized at once, or after the deadline when the Keeper vanishes); decision logging ✓ (the Keeper's result hash commits to the payment on Base Sepolia, `npm run check` recomputes it); public registry and identity ✗, not yet: the Keepers are not registered with Masumi, and Lena's agent knows their URLs. Their reputation comes from their receipts on chain.
+
+**Why Cardano**, in the workshop's four properties: *payments with rules*, since the fee waits in Masumi's escrow until the Keeper delivers; *native stablecoins*, since tUSDM moves like ADA with no token contract in the path; *deterministic transactions*, since Lena's agent checks the exact payment before it signs (seller, amount, escrow); *non-custodial facilitator*, since it only verifies and relays the signed transaction.
+
+**A paid task on preprod, end to end** (Sat 31 Oct, 03:01–03:07 CET; older runs: [app README, Evidence](cardano/apps/payonproof/README.md#evidence)):
 
 | What | Transaction |
 |---|---|
-| Lena locks Keeper Atlas's 2 tUSDM fee in Masumi escrow (INV-18) | [`adcbd6fc…`](https://preprod.cardanoscan.io/transaction/adcbd6fc3d078d233e1ff462ac90695dd3a394a5c065f77fb8bf22cfd2cad652) |
-| Atlas executes INV-18 on Base Sepolia, 446.70 dUSD to the supplier | [`0xe66ff958…`](https://sepolia.basescan.org/tx/0xe66ff9582763a1a74b0bdb8865ce6a319e28ad92e194faeb7c2c7e75be08d38c) |
-| Atlas puts the result hash into the escrow | [`8d18c05e…`](https://preprod.cardanoscan.io/transaction/8d18c05eca703f424efb687c90a6df182fb1ba6a040b87afbfe72eb6900ec0e2) |
-| Atlas's receipt (CIP-20; `npm run check` verifies it on both chains) | [`5e5a0eff…`](https://preprod.cardanoscan.io/transaction/5e5a0eff49ab64355fa06eb79e6b0000c82a7a3279de44143a592eb87229bba3) |
-| INV-17's limit was never reached: Atlas authorizes the refund, Lena withdraws | [`3778343d…`](https://preprod.cardanoscan.io/transaction/3778343d6685fe19662d82a94c59454ee8f6c6b0d10dcc308e9f1bee10937bf0), [`2e0105a5…`](https://preprod.cardanoscan.io/transaction/2e0105a5d83aac9b3ac7509ecdbf933191f7d1e3d1b3e22277862999bfd654b1) |
-| 32 minutes after the quote, Atlas collects its fee (Withdraw) | [`27572169…`](https://preprod.cardanoscan.io/transaction/275721698939e368cc9bc4ab9be8e295ea351d553c541e17a1fc0d8cbafedb39) |
-| `--vanish`: the Keeper takes the lock [`41f3659c…`](https://preprod.cardanoscan.io/transaction/41f3659cdedab12ff2ecddc28df97920fb8068808c4fe1f80bd4cf4cf2c4b008) and disappears; Lena refunds after the deadline | [`b903d2c3…`](https://preprod.cardanoscan.io/transaction/b903d2c30068d2ae1d897e7ab2e3ab5e05241030d0077ef42d81631713bba2ed) |
-| Per-attempt x402 fee, settled only after the invoice was paid | [`22639574…`](https://preprod.cardanoscan.io/transaction/226395746c8076b5e5fd3279cfd6287d525ef2440582459bd8e9283e83e69c7f) |
+| Lena's agent chooses Keeper Swift (1 tUSDM, 7 verified executions) and locks its fee in Masumi escrow (INV-18) | [`75e46582…`](https://preprod.cardanoscan.io/transaction/75e465822791e14cb240c446cb3a7666268ecac18dc3135520db73f39d097eb5) |
+| Swift buys a second signed EUR/USD over x402 (0.01 aUSD), then executes INV-18 on Base Sepolia: 446.53 dUSD to the supplier | [`0x044561b5…`](https://sepolia.basescan.org/tx/0x044561b504a2021f144fb6006c980882751a997dd29da0c8bacffdf6fd8ed422), [`0x1758f8f7…`](https://sepolia.basescan.org/tx/0x1758f8f7bc1be272ba4e913afd3035c3eb3904f8dfb20248694d718cf8f4b06e) |
+| Swift puts the result hash into the escrow | [`5e979434…`](https://preprod.cardanoscan.io/transaction/5e979434207d9e9bf134739c94e0afeb4bbbae6f81a19903cd74f314db5acc5e) |
+| Swift's receipt (CIP-20; `npm run check` verifies it on both chains) | [`e02045b8…`](https://preprod.cardanoscan.io/transaction/e02045b8777435086b22fdd615b8379688d94d01dbe073d591b1c814a4bf304f) |
+| INV-17's limit was never reached: Swift authorizes the refund, Lena withdraws her fee | [`e422fbe5…`](https://preprod.cardanoscan.io/transaction/e422fbe5ecfacb8b877be98dbb3cacecfe8dfa7c4708ed88fb89e720a0fb8d86), [`3a07af8a…`](https://preprod.cardanoscan.io/transaction/3a07af8a94e7fbe731cddb05fc5d808143033f28c429161b92be67366538fa9a) |
+| After Lena's dispute window, Swift collects its fee (Withdraw) | [`1e45c3d4…`](https://preprod.cardanoscan.io/transaction/1e45c3d4147332336b12d658e0f413b92417963b126513e98fb583093fc2b940) |
+| `--vanish` (earlier run): the Keeper takes the lock [`41f3659c…`](https://preprod.cardanoscan.io/transaction/41f3659cdedab12ff2ecddc28df97920fb8068808c4fe1f80bd4cf4cf2c4b008) and disappears; Lena refunds after the deadline | [`b903d2c3…`](https://preprod.cardanoscan.io/transaction/b903d2c30068d2ae1d897e7ab2e3ab5e05241030d0077ef42d81631713bba2ed) |
+| Per-attempt x402 fee (earlier run), settled only after the invoice was paid | [`22639574…`](https://preprod.cardanoscan.io/transaction/226395746c8076b5e5fd3279cfd6287d525ef2440582459bd8e9283e83e69c7f) |
 
 ## For API3 judges
+
+The workshop's question was *which data did your agent act on?* Here a Keeper may only move Lena's money with an EUR/USD rate it chose from AirnodeHub, signed by Nodary, and checked by the contract that holds the money: signer, request, time, then the limit. The contract has the last word.
+
+| Judging | Where to look |
+|---|---|
+| Real use case (40) | Cross-border invoices for small importers: pay when the rate is right, with the money in an escrow that can only pay that supplier. |
+| Signed data matters (30) | The signed rate decides whether the invoice is paid and how much the supplier gets (`€ × rate`). A forged rate underpays the supplier or pays at a rate Lena refused ([what forgery would do](docs/SUBMISSION.md#api3-questions)). |
+| Execution (20) | `InvoiceEscrow` verifies with `AirnodeV2Attestation.verify`, projected `{price, updatedAt}` fields, 12 InvoiceEscrow tests, tamper test on the deployed contract (below). |
+| Novelty (10) | Two chains, one job: the payment on Base Sepolia is what releases the Keeper's fee on Cardano, through a result hash anyone can recheck. |
+| Autonomous agent (+10) | Keepers loop on their own over several invoices and rounds (`autopilot`), and buy a second signed rate over x402 before they move money. |
 
 - **Network:** Base Sepolia (chain id 84532).
 - **Contract:** InvoiceEscrow [`0x63e2b722725eda487a9d76962ef4633dcc5e571a`](https://sepolia.basescan.org/address/0x63e2b722725eda487a9d76962ef4633dcc5e571a) ([source](api3/contracts/payonproof/InvoiceEscrow.sol)); demo stablecoin DemoUSD [`0xdf6ffd0bccb883cf14bf45c2ef54f4ee95b2cbcf`](https://sepolia.basescan.org/address/0xdf6ffd0bccb883cf14bf45c2ef54f4ee95b2cbcf).
 - **What it checks before paying:** signer = Nodary Airnode v2 `0xE70f1e8b22a21e4Bb5188918a3033341b281E4c0`; request hash = the EUR/USD request (`0x5ccc3aa9…d3d0`); response signed ≤ 5 minutes ago; rate taken ≤ 3 days ago (FX closes on weekends); rate below the order's limit; order open and before its deadline; each order pays once.
 - **What the signed value drives:** whether the invoice is paid and how much the supplier receives (`€ amount × signed rate`); the rest of the deposit goes back to the payer.
-- **Tamper test** (in the video, and runnable by anyone with Base Sepolia gas): `npm run tamper -w apps/payonproof` opens an order, then shows four responses rejected by the contract (one value edited, too old, another request, another signer) and one valid, fresh response executing it. Last run: valid response executed [`0xc023058f…`](https://sepolia.basescan.org/tx/0xc023058f9b1ba13da7325bc9c6a1ae3013ce756f124639eb4d2827a295e164fb).
+- **Tamper test** (in the video, and runnable by anyone with Base Sepolia gas): `npm run tamper -w apps/payonproof` opens an order, then shows four responses rejected by the contract (one value edited, too old, another request, another signer) and one valid, fresh response executing it. Last run (Sat 31 Oct, 03:10 CET): the four were rejected with `NotSignedByAirnode`, `ResponseTooOld`, `NotSignedByAirnode` (BTC/USD request) and `NotSignedByAirnode` (another key); the valid response executed [`0x27fe4dd7…`](https://sepolia.basescan.org/tx/0x27fe4dd7dd2eace19294931b8f5b0792ecf70d06a6eb80cd64da13f57e50a634).
 - **Submit your own response:** in `api3/`, `pnpm --silent fetch-response EUR/USD > response.json` (or write one by hand: `{ "timestamp", "data", "signature" }`), then in `cardano/`, `npm run tamper -w apps/payonproof -- --file ../api3/response.json`. The script dry-runs it against the deployed contract (no gas) and prints ACCEPTED or the contract's error.
 - **Autonomous, multi-cycle:** `npm run autopilot -w apps/payonproof` runs several invoices over several rounds; each Keeper loops on its own (signed rate → compare → execute when the limit holds), leaving one `InvoicePaid` event per execution. Last run: 6 invoices over 3 rounds, 5 executed ([table](cardano/apps/payonproof/README.md#evidence)).
-- **Pays for data over x402 when it matters:** before it moves money, a Keeper buys a second signed EUR/USD from Frankfurter on AirnodeHub (`getRate`, 0.01 aUSD on Base Sepolia, x402 `exact`), checks its signer and request hash, and executes only if both sources agree within 1 % (e.g. aUSD payment [`0xf4e9adf9…`](https://sepolia.basescan.org/tx/0xf4e9adf9482e3ea98385e5704ff3fe365e92e5d63e7bf8a5c715c104a0114b06), then execute [`0x33d78b68…`](https://sepolia.basescan.org/tx/0x33d78b680c8e4013de0ce4cd3f2e4cd32f12795fb50b1516f13133a2ed5d67c7)).
+- **Pays for data over x402 when it matters:** before it moves money, a Keeper buys a second signed EUR/USD from Frankfurter on AirnodeHub (`getRate`, 0.01 aUSD on Base Sepolia, x402 `exact`), checks its signer and request hash, and executes only if both sources agree within 1 % (e.g. aUSD payment [`0x044561b5…`](https://sepolia.basescan.org/tx/0x044561b504a2021f144fb6006c980882751a997dd29da0c8bacffdf6fd8ed422), 0.09 % apart, then execute [`0x1758f8f7…`](https://sepolia.basescan.org/tx/0x1758f8f7bc1be272ba4e913afd3035c3eb3904f8dfb20248694d718cf8f4b06e)).
 - Contract tests: `cd api3 && forge test` (InvoiceEscrow tests include the four tamper cases on a real Nodary response).
 
 Who relies on the data, what a forged value would do, and the data we wanted but did not find: [docs/SUBMISSION.md](docs/SUBMISSION.md#api3-questions).

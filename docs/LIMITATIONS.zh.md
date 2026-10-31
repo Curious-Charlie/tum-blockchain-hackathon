@@ -46,3 +46,4 @@ Lena 的 agent 只用公开的链上数据算每个 Keeper 的记录：Keeper �
 - **签名只能证明是谁说的，不能证明说的是真的。** Lena 仍然要信任 Nodary 给的 EUR/USD。Keeper 执行前会再买一个签名汇率（AirnodeHub 上的 Frankfurter），两者相差超过 1% 就不执行；但这道核对在 Keeper 里，不在合约里，合约接受任何有效的 Nodary 响应。另外，在 5 分钟的窗口内，Keeper 可以从几个签名汇率里挑对自己有利的；窗口越短，可挑的余地越小。
 - **两条链之间没有桥。** 服务费（Cardano）和付款（Base Sepolia）靠哈希和收据关联，不靠跨链消息。
 - **测试币。** dUSD 是演示用的稳定币；全部运行在 Cardano preprod 和 Base Sepolia 上。
+- **还没有接入 Masumi 注册表和 Sokosumi。** Keeper 没有在 Masumi 的公开注册表里登记，也没有链上身份；Lena 的 agent 是直接知道它们的网址。它们的信誉只来自链上收据。Keeper 也还没有上架 Sokosumi。

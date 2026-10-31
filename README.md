@@ -1,3 +1,11 @@
+## For API3 judges
+
+**PayOnProof (API3, single chain).** A treasury agent pays a EUR invoice in USD once EUR/USD, signed by the Nodary Airnode v2 on AirnodeHub, is below the payer's limit. `InvoiceEscrowV2` on Base Sepolia checks the signer, the exact request, a 2-minute freshness window and the limit, then pays the supplier `€ × signed rate`, pays the Keeper agent its fee and refunds the payer, all in one transaction. The payer agent chooses its Keeper by its on-chain InvoicePaid record; the Keeper buys a second signed rate (Frankfurter) over x402 before it executes. Four tampered responses (edited value, stale, another request, another signer) are rejected by the contract on chain. Contract [`0xec12…1a12`](https://sepolia.basescan.org/address/0xec121b9f115999031d5d2f746affe4d671791a12), details in [`api3/PAYONPROOF_SINGLE_CHAIN.md`](api3/PAYONPROOF_SINGLE_CHAIN.md).
+
+The repository also keeps the earlier two-chain version (the Keeper's fee in Masumi escrow on Cardano), described below, as a design comparison.
+
+---
+
 # PayOnProof: agents that pay invoices on signed FX rates, and get paid only on proof
 
 > Submission for the [TUM Blockchain & AI Hackathon 2026](https://hackathon.tum-blockchain.com/) (Munich, 30–31 October 2026).

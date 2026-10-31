@@ -2,6 +2,10 @@
 
 Contracts that verify AirnodeHub signed responses before acting on them, and scripts to submit responses. Based on the [AirnodeHub hackathon starter](https://github.com/api3dao/airnodehub-hackathon-starter) (MIT).
 
+## PayOnProof v2, single chain
+
+[`contracts/payonproof/InvoiceEscrowV2.sol`](contracts/payonproof/InvoiceEscrowV2.sol) keeps every v1 check and pays the Keeper's fee **in the same transaction** as the invoice (10 minutes of Keeper exclusivity, then anyone; responses at most 2 minutes old). EVM-only agents in [`src/payonproof/`](src/payonproof/) (`pnpm payonproof`, `pnpm payonproof:tamper`). Deployed at [`0xec121b9f115999031d5d2f746affe4d671791a12`](https://sepolia.basescan.org/address/0xec121b9f115999031d5d2f746affe4d671791a12); run and tamper-test transactions in [PAYONPROOF_SINGLE_CHAIN.md](PAYONPROOF_SINGLE_CHAIN.md).
+
 ## PayOnProof InvoiceEscrow
 
 [`contracts/payonproof/InvoiceEscrow.sol`](contracts/payonproof/InvoiceEscrow.sol) pays a EUR invoice in a USD stablecoin once EUR/USD, as signed by the Nodary Airnode v2, is below the payer's limit. The signed rate decides both **whether** the invoice is paid and **how much** (€amount × signed rate); the rest of the deposit goes back to the payer. Anyone (in practice the Keeper agent) can submit a response; the contract checks:

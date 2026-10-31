@@ -27,7 +27,7 @@ What escrow costs:
 
 - **The invoice payment: a contract.** `InvoiceEscrow` pays the supplier fixed in the order exactly `€ amount × signed rate` and returns the rest of the deposit to Lena, in one transaction. Neither the Keeper nor an AI can change the payee or the amount.
 - **The Keeper's fee: a contract, with the result hash written by the Keeper.** The Masumi escrow decides when the fee can move (collect after unlock, refund on authorization or after the deadline). Whether the Keeper really executed is attested by the Keeper's own result hash, checkable by anyone but not by the escrow (see 2).
-- **Nothing is split by an agent on its own.** No agent moves money outside these two contracts and AgentGuard's caps.
+- **Nothing is split by an agent on its own.** No agent moves money outside these two contracts; Lena's agent signs only the Keeper offer it chose, at the quoted price.
 
 ## 4. Where a Keeper's track record comes from
 

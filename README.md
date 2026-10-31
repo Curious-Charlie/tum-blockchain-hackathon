@@ -9,13 +9,13 @@ Lena runs a small coffee roastery in Munich. Her suppliers in Colombia and Brazi
 
 - **The rate is signed data, checked by the contract.** The Keeper submits an EUR/USD rate **signed by the Nodary Airnode (API3 AirnodeHub)**. `InvoiceEscrow` on Base Sepolia checks the signer, that it answers exactly the EUR/USD request, that it is fresh, and that it is below Lena's limit, then pays the supplier `€ amount × signed rate` and refunds the rest. The Keeper can trigger the payment, never redirect it.
 - **The Keeper is paid on proof.** Lena's agent locks the Keeper's fee in **Masumi escrow on Cardano** before the work. After executing, the Keeper puts a result hash into the escrow that binds the fee to the `execute` transaction and its `InvoicePaid` event, and collects after Lena's dispute window. No execution → refund.
-- **The buyer agent chooses whom to pay.** Three Keepers offer the job at different prices. Lena's agent reads each Keeper's record from the chains (receipts on Cardano, verified against Base Sepolia) and picks the cheapest acceptable one within its **AgentGuard** budget, explaining why on a live dashboard.
+- **The buyer agent chooses whom to pay.** Three Keepers offer the job at different prices. Lena's agent reads each Keeper's record from the chains (receipts on Cardano, verified against Base Sepolia) and picks the cheapest acceptable one within her fee limit, explaining why on a live dashboard. It then signs only that offer: the chosen Keeper, its quoted price, Masumi's escrow.
 - **AI interprets, deterministic checks gate money.** Claude turns Lena's sentence into an order; code checks every field and takes the supplier's address from her address book. Contracts and code decide every payment.
 
 ```
 Lena's finance agent ── order + deposit ─────────────────────────────▶ InvoiceEscrow            [Base Sepolia]
    │ asks 3 Keepers for a price, checks their records on chain
-   │ AgentGuard: allowlisted payees, per-payment / per-invoice / daily caps
+   │ chooses one in code; signs only that Keeper's quoted fee
    └── Keeper fee, x402 → Masumi escrow lock ─────────────────────────▶ Masumi escrow             [Cardano preprod]
                                 Keeper: Nodary-signed EUR/USD each cycle
                                 rate < limit ─▶ InvoiceEscrow.execute(order, signed response) ─▶ supplier paid
@@ -29,7 +29,7 @@ Lena's finance agent ── order + deposit ────────────
 |---|---|
 | **Customer and task** | Small importers and exporters paying cross-border invoices: "pay when the rate is right" as a paid agent job. The Keeper earns a fee per executed invoice and nothing for watching. |
 | **Seller** (x402) | Three Keepers sell "watch this order and execute it" over x402 on Cardano preprod (Atlas 2 tUSDM, Swift 1 tUSDM, Prime 4 tUSDM), paid into Masumi escrow; or per attempt in tADA, charged only on success (`--x402`). |
-| **Buyer** | Lena's agent compares quotes and on-chain records in code and pays only the chosen Keeper, through AgentGuard (payee allowlist, caps, audit log, kill switch). |
+| **Buyer** | Lena's agent compares quotes and on-chain records in code and signs only the chosen Keeper's offer: its address, its quoted price, Masumi's escrow contract. |
 | **Coworker** (Masumi) | The fee is locked before the work and released after delivery (SubmitResult → Withdraw), or refunded (AuthorizeRefund → WithdrawRefund, or after the deadline). |
 | **Cardano tools** | x402 on preprod (`@x402/cardano`, `@x402/express`, `@x402/fetch`) with an in-process facilitator; Masumi escrow (`vested_pay` V2) via x402 `assetTransferMethod: "masumi"` plus SubmitResult, Withdraw, AuthorizeRefund and WithdrawRefund built with evolution-sdk; tUSDM and tADA; CIP-20 metadata (label 674) for the Keepers' receipts; Blockfrost. |
 
@@ -96,7 +96,7 @@ The per-attempt x402 fee sits signed but unsubmitted in the Keeper's hands for u
 | Path | What it is |
 |---|---|
 | [`cardano/apps/payonproof/`](cardano/apps/payonproof/) | PayOnProof: Lena's finance agent, three Keepers, demo, autopilot, escrow and check commands |
-| [`cardano/packages/core/`](cardano/packages/core/) | Shared infrastructure: role wallets, x402 seller kit, Masumi escrow, AgentGuard, market (quotes and choice), CIP-20 publishing, Claude helpers, live dashboard |
+| [`cardano/packages/core/`](cardano/packages/core/) | Shared infrastructure: role wallets, x402 seller kit, Masumi escrow, paying only an accepted offer, market (quotes and choice), CIP-20 publishing, Claude helpers, live dashboard |
 | [`api3/`](api3/) | Foundry project (from the AirnodeHub hackathon starter, MIT): `InvoiceEscrow`, `DemoUSD`, tests, response scripts |
 | [`docs/`](docs/) | Limitations, submission text, design notes and track rules |
 

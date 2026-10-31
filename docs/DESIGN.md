@@ -67,6 +67,8 @@ cardano/
 
 ### 3.2 D4 AgentGuard（所有买方 agent 都用它付钱）
 
+> 周六 10-31 已删除：用户认为它对 PayOnProof 是鸡肋。只保留付款前的报价核对（`core/pay.ts` 的 `payOffer`）：收款方是选中的 Keeper、金额不超过报价、托管地址是 Masumi 的。下文为原设计。
+
 把钱包交给一个 AI 很危险，所以 agent 的每一笔付款都要先过 AgentGuard:
 - **预算**: 每个任务和每天各有上限
 - **单笔上限**: 一次最多付多少

@@ -10,16 +10,16 @@ Three trust problems, three answers:
 |---|---|---|
 | Will the Keeper fake the rate or steal the money? | The invoice money sits in an escrow contract on Base Sepolia. It pays only the supplier fixed in the order, only on an EUR/USD rate **signed by the Nodary Airnode (API3)**, fresh, for exactly this request, and below Lena's limit. The Keeper can trigger the payment, never redirect it. | `api3/contracts/payonproof/InvoiceEscrow.sol` (EVM) |
 | Will the Keeper get paid for work it did not do? | Lena's agent locks the Keeper's fee in **Masumi escrow on Cardano** before the Keeper starts. The Keeper collects only after it puts a **result hash** into the escrow that binds the fee to the `execute` transaction and its `InvoicePaid` event; if the condition never holds it authorizes a refund, and if it vanishes Lena takes the fee back after the deadline. | `keeper.ts`, `proof.ts`, `@agentic/core/escrow` |
-| Which Keeper should she trust with the job? | Her agent asks every Keeper for a price and checks its **track record on chain**: receipts on Cardano, each verified against Base Sepolia. Code picks the cheapest acceptable Keeper within **AgentGuard**'s caps and explains every choice. | `lena.ts`, `records.ts`, `@agentic/core/market` |
+| Which Keeper should she trust with the job? | Her agent asks every Keeper for a price and checks its **track record on chain**: receipts on Cardano, each verified against Base Sepolia. Code picks the cheapest acceptable Keeper within Lena's fee limit and explains every choice; her agent then signs only that Keeper's quoted fee. | `lena.ts`, `records.ts`, `@agentic/core/market` |
 
-**AI interprets, deterministic checks gate money.** Claude (Haiku) turns Lena's sentence into a structured order; plain code validates every field and takes the supplier's address from Lena's own address book. Whether money moves is decided by the contracts (signed rate vs. limit; Masumi's escrow rules) and by code (AgentGuard, the Keeper choice).
+**AI interprets, deterministic checks gate money.** Claude (Haiku) turns Lena's sentence into a structured order; plain code validates every field and takes the supplier's address from Lena's own address book. Whether money moves is decided by the contracts (signed rate vs. limit; Masumi's escrow rules) and by code (the Keeper choice, and signing only the chosen offer).
 
 ### Seller, Buyer, Coworker
 
 | | In PayOnProof |
 |---|---|
 | **Seller** (x402) | Three Keepers sell the same job over x402 on Cardano preprod at different prices (Atlas 2 tUSDM, Swift 1 tUSDM, Prime 4 tUSDM): "watch this order and execute it", paid into Masumi escrow; or per attempt in tADA, charged only on success (`--x402`). |
-| **Buyer** | Lena's finance agent asks each Keeper for its x402 quote, checks its proof of which EVM account it executes from and its on-chain record, and decides in code: within AgentGuard's caps, no false receipts, at least 2 verified executions for invoices above €250 (new Keepers start with small ones), cheapest wins. Every reason goes to the dashboard. |
+| **Buyer** | Lena's finance agent asks each Keeper for its x402 quote, checks its proof of which EVM account it executes from and its on-chain record, and decides in code: within Lena's 3 tUSDM fee limit, no false receipts, at least 2 verified executions for invoices above €250 (new Keepers start with small ones), cheapest wins. Every reason goes to the dashboard. |
 | **Coworker** (Masumi) | The fee is locked before the work and released after delivery. Two agents on two chains: the Keeper's execution on Base Sepolia is what releases its pay on Cardano, through the result hash. |
 
 ## How one job works (escrow mode, the default)
@@ -29,7 +29,7 @@ Lena's finance agent                                     Keeper (chosen by code)
  "Pay INV-18, €400, when EUR/USD < 1.13"
  Claude → order; code checks it ──────────────────────────────────────────────────▶ InvoiceEscrow.createOrder   [Base Sepolia]
  asks 3 Keepers for a price, reads their records ──▶ quotes (x402 402)
- AgentGuard: payee = a Keeper, ≤ 3 tUSDM per invoice
+ signs only the chosen offer: that Keeper, ≤ 3 tUSDM
  locks the fee ─────────── x402, assetTransferMethod "masumi" ─────────────────────▶ Masumi escrow lock          [Cardano preprod]
                                                          checks the lock against the terms it signed
                                                          every cycle: Nodary-signed EUR/USD (API3)
@@ -48,13 +48,13 @@ The contract repeats every check the Keeper makes off chain: signer (`0xE70f…E
 
 | Role | Agent | Wallets |
 |---|---|---|
-| `LENA` | Lena's finance agent | Cardano (locks Keeper fees through AgentGuard); EVM treasury = `api3/.env` `PRIVATE_KEY` (locks invoices in the InvoiceEscrow) |
+| `LENA` | Lena's finance agent | Cardano (locks Keeper fees in Masumi escrow); EVM treasury = `api3/.env` `PRIVATE_KEY` (locks invoices in the InvoiceEscrow) |
 | `KEEPER` | Keeper Atlas, 2 tUSDM per job | Cardano (earns fees, pays escrow and receipt transactions); EVM `KEEPER_EVM_PRIVATE_KEY` (gas for `execute`) |
 | `KEEPER_B` | Keeper Swift, 1 tUSDM per job | same, `KEEPER_B_EVM_PRIVATE_KEY` |
 | `KEEPER_C` | Keeper Prime, 4 tUSDM per job | same, `KEEPER_C_EVM_PRIVATE_KEY` |
 | — | Café Verde, Fazenda Alta | suppliers' EVM addresses in Lena's address book (`lena.ts`) |
 
-Ports: Keepers 4110, 4112, 4113; look-alike Keeper (`--attack`) 4111; local anvil fallback 4118.
+Ports: Keepers 4110, 4112, 4113; local anvil fallback 4118.
 
 ## Setup and run
 
@@ -75,7 +75,7 @@ npm run tamper -w apps/payonproof                    # API3 tamper test: 1 valid
 
 Demo options: `--watch 2` (minutes a Keeper watches before it gives the fee back), `--interval 12` (seconds between checks), `--vanish` (the Keepers take the lock and disappear: refund after the deadline), `--limit-a 1.11 --limit-b 1.13` (defaults: just below and just above the live rate, so both paths show), `--evm base-sepolia|anvil`.
 
-Per-attempt mode, kept as an option: `npm run demo -w apps/payonproof -- --x402` hires Keeper Atlas per attempt with a signed 2 tADA fee; a check whose condition is not met answers 409 and the fee is never submitted. Add `--attack` to show AgentGuard refusing a look-alike Keeper from a phishing message.
+Per-attempt mode, kept as an option: `npm run demo -w apps/payonproof -- --x402` hires Keeper Atlas per attempt with a signed 2 tADA fee; a check whose condition is not met answers 409 and the fee is never submitted.
 
 **Autopilot** (several invoices and cycles, no human in the loop): `npm run autopilot -w apps/payonproof -- --rounds 3 --every 4 --watch 3`. Every round two new invoices arrive; Lena's agent picks a Keeper for each and locks its fee; the Keepers loop on their own (signed rate → compare → execute when the limit holds). Each execution adds a receipt that the next round's choice reads, so a new Keeper that delivers small invoices earns the record it needs for larger ones.
 
@@ -88,7 +88,7 @@ Before: dashboard open at http://127.0.0.1:4000 (press Clear first), a terminal 
 | Time | Say | Show / do |
 |---|---|---|
 | 0:00 | "Lena runs a coffee roastery in Munich. She owes her supplier €400 and wants to pay when EUR/USD is below 1.13, without watching charts. Her finance agent writes the order and locks the money in an escrow contract that can only ever pay that supplier." | Timeline: "Claude read it as INV-18 …"; blue arrow Lena → Invoice escrow (basescan link). |
-| 0:12 | "Now it hires a Keeper. Three offer the job. Prime is over Lena's budget. Swift was brand new this afternoon, so it only got small invoices; its receipts on Cardano now match real payments on Base Sepolia, so it's the cheapest proven Keeper. Code picks Swift." | The three ✓/✗ lines with their reasons. |
+| 0:12 | "Now it hires a Keeper. Three offer the job. Prime is over Lena's fee limit. Swift was brand new this afternoon, so it only got small invoices; its receipts on Cardano now match real payments on Base Sepolia, so it's the cheapest proven Keeper. Code picks Swift." | The three ✓/✗ lines with their reasons. |
 | 0:25 | "Lena's agent locks Swift's fee in Masumi escrow on Cardano. Swift can see the money is there, Lena can't take it back while Swift works." | 🔒 edge Lena → Masumi escrow; cardanoscan link of the lock. |
 | 0:35 | "Swift checks the API3-signed rate: below 1.13. Before moving money it buys a second signed rate from another AirnodeHub source for one cent over x402: they agree. It hands Nodary's signed rate to the contract, which checks signer, freshness and limit itself and pays the supplier." | "second source agrees"; Invoice escrow → Fazenda Alta; "INV-18 paid …" (basescan). |
 | 0:45 | "Then Swift puts a hash into the escrow that binds its fee to that exact payment, and publishes a receipt. 32 minutes later, after Lena's dispute window, it collects." | "Result hash … into the Masumi escrow"; open the earlier collect transaction. |

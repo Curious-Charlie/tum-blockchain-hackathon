@@ -33,7 +33,7 @@ escrow 自己的代价：
 
 Lena 的 agent 只用公开的链上数据算每个 Keeper 的记录：Keeper 在 Cardano 上的 CIP-20 收据（由它自己的地址签名的交易），每张收据都去 Base Sepolia 核对它所写的 `InvoicePaid` 事件（合约对、订单对、执行者是这个 Keeper 的 EVM 账户，Keeper 用签名证明这个账户是它的）。没有任何预设数据。局限：
 
-- 只计成功交付。退款和失联在链上看得到（escrow 交易），但还没有记进 Keeper 的记录。
+- 退款从买方一侧计入：结果截止后 Lena 才取回的费用，记作该 Keeper 一次失约（从被花掉的托管 datum 里读出）；Keeper 自己授权的退款不扣分。只读取 Lena 最近 100 笔交易，所以 Keeper 在其他买家那里的失约看不到。
 - Keeper 可以执行自己下的发票来刷记录。试用规则（新 Keeper 在有 2 次已核验执行之前，只能接 €250 以下的发票）能拖慢这种做法，但挡不住。
 - 收据只扫描 Keeper 最近 100 笔 Cardano 交易。
 
@@ -46,4 +46,4 @@ Lena 的 agent 只用公开的链上数据算每个 Keeper 的记录：Keeper �
 - **签名只能证明是谁说的，不能证明说的是真的。** Lena 仍然要信任 Nodary 给的 EUR/USD。Keeper 执行前会再买一个签名汇率（AirnodeHub 上的 Frankfurter），两者相差超过 1% 就不执行；但这道核对在 Keeper 里，不在合约里，合约接受任何有效的 Nodary 响应。另外，在 5 分钟的窗口内，Keeper 可以从几个签名汇率里挑对自己有利的；窗口越短，可挑的余地越小。
 - **两条链之间没有桥。** 服务费（Cardano）和付款（Base Sepolia）靠哈希和收据关联，不靠跨链消息。
 - **测试币。** dUSD 是演示用的稳定币；全部运行在 Cardano preprod 和 Base Sepolia 上。
-- **还没有接入 Masumi 注册表和 Sokosumi。** Keeper 没有在 Masumi 的公开注册表里登记，也没有链上身份；Lena 的 agent 是直接知道它们的网址。它们的信誉只来自链上收据。Keeper 也还没有上架 Sokosumi。
+- **还没有接入 Masumi 注册表；Sokosumi 上的任务不经 Sokosumi 付费。** Keeper 没有在 Masumi 的公开注册表里登记，也没有链上身份；Lena 的 agent 是直接知道它们的网址。Lena 的财务 agent 已经是 Sokosumi Coworker，但在 Sokosumi 上为任务付费需要一套 Masumi Payment Service，还没搭；Keeper 的服务费照旧通过 x402 锁进 Masumi 托管。Coworker 的 worker 运行在操作者自己的电脑上，关机时任务会排队等待。

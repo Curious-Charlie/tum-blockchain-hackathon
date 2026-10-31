@@ -24,13 +24,14 @@ PayOnProof makes each of those impossible or visible:
 
 ## How it works
 
-1. Lena writes one sentence: "Pay Fazenda Alta invoice INV-18, €400, when EUR/USD is under 1.13". Claude (Haiku) turns it into an order; code validates every field and takes the supplier's address from her address book, never from the model.
+1. Lena's team posts one sentence as a Task to its finance agent, a Sokosumi Coworker: "Pay Fazenda Alta invoice INV-20, €400, as soon as EUR/USD is under 1.13". Claude (Haiku) turns it into an order; code validates every field and takes the supplier's address from her address book, never from the model.
 2. Her agent locks the dollars in `InvoiceEscrow` on Base Sepolia.
 3. It asks three Keepers for a price (their x402 quotes on Cardano preprod), checks each Keeper's proof of which EVM account it executes from and its record (CIP-20 receipts on Cardano, each verified against an `InvoicePaid` event on Base Sepolia), and picks the cheapest acceptable one within her fee limit (3 tUSDM). New Keepers start with invoices up to €250. Every reason is shown on the dashboard.
 4. It locks the Keeper's fee in Masumi escrow (x402 with `assetTransferMethod: "masumi"`). The Keeper checks the lock against the terms it signed.
 5. The Keeper loops: fetch a Nodary-signed EUR/USD rate, compare it with the limit, and when it holds call `InvoiceEscrow.execute` with the signed response. The contract verifies signer, request hash, response age (≤ 5 min), rate age (≤ 3 days) and the limit, then pays the supplier `€ × rate` and refunds the rest.
-6. The Keeper puts `sha256(execution proof)` into the escrow (SubmitResult), publishes a CIP-20 receipt and collects after Lena's dispute window. If the limit never holds in its watch window it authorizes a refund; if it vanishes, Lena withdraws after the deadline.
-7. Anyone can check a receipt against both chains: `npm run check -w apps/payonproof -- <receipt tx>`.
+6. The Keeper puts `sha256(execution proof)` into the escrow (SubmitResult), publishes a CIP-20 receipt and collects after Lena's dispute window. Before that, Lena's agent rebuilds the proof from Base Sepolia and disputes the result in the escrow if it does not match. If the limit never holds in its watch window the Keeper authorizes a refund; if it vanishes, Lena withdraws after the deadline.
+7. The Task on Sokosumi is completed with every step and transaction link; follow-up questions in the thread are answered from the job's facts.
+8. Anyone can check a receipt against both chains: `npm run check -w apps/payonproof -- <receipt tx>`.
 
 **Principle: AI interprets, deterministic checks gate money.** The LLM never decides whether money moves.
 

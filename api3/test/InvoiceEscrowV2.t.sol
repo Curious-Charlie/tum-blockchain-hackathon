@@ -198,9 +198,8 @@ contract InvoiceEscrowV2Test is AirnodeV2Test {
 
     function createOrder(uint256 maxRate) private returns (uint256) {
         vm.prank(lena);
-        return escrow.createOrder(
-            "INV-17", cafeVerde, IERC20(address(usd)), INVOICE_CENTS, maxRate, deadline, keeper, FEE
-        );
+        return
+            escrow.createOrder("INV-17", cafeVerde, IERC20(address(usd)), INVOICE_CENTS, maxRate, deadline, keeper, FEE);
     }
 
     function submit(uint256 id, SignedResponse memory response) private returns (uint256) {

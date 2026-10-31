@@ -1,0 +1,534 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+:root {
+  --bg: #0b0b0d; --ink: #edebe6; --muted: #8b8a93; --dim: #3a3a42; --line: #1d1d22;
+  --lime: #c8ff2e; --red: #ff3b30; --ada: #6f95ff; --evm: #b3b8ff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); color: var(--ink);
+  font-family: system-ui, -apple-system, "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; }
+#stage { position: absolute; inset: 0; overflow: hidden; transform-origin: 50% 50%; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.abs { position: absolute; visibility: hidden; }
+.scene { position: absolute; inset: 0; display: none; }
+.label { font-size: 20px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
+.label.lime { color: var(--lime); }
+.display { font-weight: 800; letter-spacing: -.035em; line-height: .98; }
+.h1 { font-size: 104px; font-weight: 800; letter-spacing: -.03em; line-height: 1.02; }
+.h2 { font-size: 72px; font-weight: 750; letter-spacing: -.025em; line-height: 1.05; }
+.body { font-size: 36px; line-height: 1.35; color: #c9c7c1; font-weight: 450; }
+.small { font-size: 26px; line-height: 1.35; color: var(--muted); }
+.lime { color: var(--lime); } .red { color: var(--red); } .ada { color: var(--ada); } .evm { color: var(--evm); } .muted { color: var(--muted); }
+.caret::after { content: ""; display: inline-block; width: .5em; height: .9em; margin-left: .08em; vertical-align: -.08em; background: var(--lime); }
+
+#grid { position: absolute; inset: 0;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 120px 120px; background-position: 0 0; opacity: .55; }
+#glow { position: absolute; width: 1400px; height: 1400px; border-radius: 50%; left: 260px; top: -160px;
+  background: radial-gradient(circle, rgba(200,255,46,.10), rgba(200,255,46,0) 60%); }
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; mix-blend-mode: overlay; }
+#redflash { position: absolute; inset: 0; background: var(--red); opacity: 0; mix-blend-mode: screen; }
+#grain { position: absolute; left: -320px; top: -320px; width: 2560px; height: 1720px; background: url(assets/noise.png); opacity: .07; mix-blend-mode: overlay; pointer-events: none; }
+#vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.55) 100%); pointer-events: none; }
+#fade { position: absolute; inset: 0; background: #000; opacity: 0; }
+
+/* HUD */
+#hud { position: absolute; inset: 0; pointer-events: none; }
+#hud .wm { position: absolute; left: 80px; top: 56px; font-size: 20px; font-weight: 800; letter-spacing: .32em; }
+#hud .wm b { color: var(--lime); }
+#chain { position: absolute; right: 80px; top: 54px; font-size: 18px; font-weight: 600; letter-spacing: .2em; color: var(--muted); display: flex; align-items: center; gap: 14px; }
+#chain i { width: 10px; height: 10px; border-radius: 50%; background: var(--lime); display: inline-block; }
+#sceneLabel { position: absolute; left: 80px; bottom: 50px; font-size: 18px; letter-spacing: .24em; color: var(--muted); font-weight: 600; }
+#bpm { position: absolute; right: 80px; bottom: 50px; font-size: 18px; letter-spacing: .24em; color: var(--dim); font-weight: 600; }
+#bars { position: absolute; left: 80px; right: 80px; bottom: 96px; height: 3px; display: flex; gap: 4px; }
+#bars span { flex: 1; background: #202026; }
+#bars span.on { background: var(--ink); } #bars span.now { background: var(--lime); }
+
+/* components */
+.card { background: #121216; border: 1px solid #26262e; border-radius: 20px; }
+.chip { display: inline-block; padding: 10px 22px; border: 1px solid #2c2c34; border-radius: 999px; font-size: 26px; }
+.row { display: grid; grid-template-columns: 260px 1fr 360px; align-items: center; height: 74px; border-bottom: 1px solid #23232a; font-size: 34px; }
+.row .k { font-size: 18px; letter-spacing: .2em; color: var(--muted); font-weight: 600; }
+.row .ok { color: var(--lime); font-size: 22px; letter-spacing: .12em; font-weight: 700; text-align: right; }
+.keeper { width: 500px; height: 330px; padding: 40px 44px; }
+.keeper .name { font-size: 56px; font-weight: 800; letter-spacing: -.02em; }
+.keeper .price { font-size: 64px; margin-top: 18px; }
+.keeper .rec { font-size: 26px; color: #c9c7c1; margin-top: 18px; }
+.keeper .verdict { position: absolute; left: 44px; right: 44px; bottom: 34px; font-size: 24px; font-weight: 700; letter-spacing: .04em; }
+.proof { width: 1300px; padding: 18px; background: #0f0f12; border: 1px solid #2a2a33; border-radius: 18px; box-shadow: 0 40px 120px rgba(0,0,0,.6); }
+.proof .shot { position: relative; overflow: hidden; border-radius: 10px; }
+.proof .iw { position: relative; }
+.proof img { display: block; width: 100%; }
+.proof .hl { position: absolute; border: 4px solid var(--lime); border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0,0,0,.0); }
+.proof .cap { margin-top: 16px; display: flex; justify-content: space-between; font-size: 22px; letter-spacing: .14em; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+.proof .cap b { color: var(--ink); font-weight: 600; letter-spacing: .02em; text-transform: none; }
+.json { font-size: 30px; line-height: 1.55; white-space: pre; }
+.json .key { color: var(--muted); }
+.json .val { color: var(--ink); }
+.json .bad { color: var(--red); text-decoration: none; background: rgba(255,59,48,.14); }
+.stamp { font-size: 150px; font-weight: 900; letter-spacing: -.03em; color: var(--red); transform: rotate(-6deg); text-shadow: 0 0 40px rgba(11,11,13,.9), 0 0 2px #0b0b0d; }
+.node { width: 340px; height: 200px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+.node .t { font-size: 34px; font-weight: 750; }
+.node .s { font-size: 18px; letter-spacing: .18em; color: var(--muted); margin-top: 10px; font-weight: 600; }
+.token { width: 150px; height: 150px; border-radius: 50%; background: var(--lime); color: #0b0b0d; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 30px; text-align: center; line-height: 1; box-shadow: 0 0 80px rgba(200,255,46,.45); }
+.check { display: grid; grid-template-columns: 300px 1fr 80px; align-items: center; height: 86px; border-bottom: 1px solid #23232a; font-size: 38px; }
+.check .k { font-size: 20px; letter-spacing: .22em; color: var(--muted); font-weight: 650; }
+.check .v { font-weight: 600; }
+.check .m { color: var(--lime); font-size: 44px; text-align: right; font-weight: 800; }
+.col { width: 500px; }
+.col .k { font-size: 20px; letter-spacing: .22em; color: var(--lime); font-weight: 700; }
+.col .v { font-size: 40px; font-weight: 700; margin-top: 18px; line-height: 1.18; letter-spacing: -.01em; }
+.col .d { font-size: 26px; color: var(--muted); margin-top: 16px; line-height: 1.35; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="grid"></div>
+  <div id="glow"></div>
+
+  <!-- 01 HOOK -->
+  <section class="scene" id="s-hook">
+    <div id="hk1" class="abs h1" style="left:160px; top:300px; font-size:104px; white-space:nowrap"></div>
+    <div id="hk2" class="abs h2 muted" style="left:160px; top:520px">Which rate did it use?</div>
+    <div id="hk3" class="abs h2 muted" style="left:160px; top:610px">Who actually gets the money?</div>
+    <div id="hk4" class="abs h2 muted" style="left:160px; top:700px">Does it get paid for nothing?</div>
+  </section>
+
+  <!-- 02 PROBLEM -->
+  <section class="scene" id="s-problem">
+    <div id="pr-title" class="abs" style="left:0; right:0; top:330px; text-align:center">
+      <div class="display" style="font-size:236px; font-weight:900">PayOnProof</div>
+      <div class="body" style="margin-top:34px; font-size:40px">Agents pay on <span class="lime">signed data</span>, and get paid only on <span class="lime">proof</span>.</div>
+    </div>
+    <div id="pr-l1" class="abs label lime" style="left:160px; top:200px">Who it's for</div>
+    <div id="pr-l2" class="abs h1" style="left:160px; top:250px; font-size:84px; white-space:nowrap">Lena roasts coffee in Munich.</div>
+    <div id="pr-l3" class="abs body" style="left:160px; top:380px; width:1050px">Her suppliers in Colombia and Brazil invoice her in <b style="color:var(--ink)">euros</b>. She holds <b style="color:var(--ink)">US-dollar stablecoins</b>.</div>
+    <div id="pr-s1" class="abs card" style="left:1300px; top:230px; width:460px; padding:30px 36px">
+      <div class="label">Supplier · Colombia</div><div style="font-size:42px; font-weight:750; margin-top:12px">Café Verde</div><div class="mono" style="font-size:34px; margin-top:8px">INV-17 · €1,000</div>
+    </div>
+    <div id="pr-s2" class="abs card" style="left:1300px; top:430px; width:460px; padding:30px 36px">
+      <div class="label">Supplier · Brazil</div><div style="font-size:42px; font-weight:750; margin-top:12px">Fazenda Alta</div><div class="mono" style="font-size:34px; margin-top:8px">INV-18 · €400</div>
+    </div>
+    <div id="pr-chart" class="abs" style="left:160px; top:600px; width:1600px; height:300px">
+      <svg width="1600" height="300" viewBox="0 0 1600 300">
+        <line id="pr-limit" x1="0" x2="1600" y1="150" y2="150" stroke="#c8ff2e" stroke-width="2" stroke-dasharray="10 10"/>
+        <path id="pr-path" d="" fill="none" stroke="#edebe6" stroke-width="4" stroke-linejoin="round"/>
+        <circle id="pr-dot" r="10" fill="#c8ff2e"/>
+      </svg>
+      <div class="label lime" style="position:absolute; right:0; top:108px">Pay when EUR/USD &lt; 1.13</div>
+      <div class="label" style="position:absolute; left:0; top:-36px">EUR/USD · illustrative</div>
+    </div>
+    <div id="pr-l4" class="abs body" style="left:160px; top:930px; width:1600px; font-size:32px">She wants to pay when the rate is right: no chart-watching, no agent holding a wallet it could empty.</div>
+  </section>
+
+  <!-- 03 ORDER -->
+  <section class="scene" id="s-order">
+    <div id="or-lab" class="abs label" style="left:160px; top:190px">Lena, to her finance agent</div>
+    <div id="or-bubble" class="abs card" style="left:160px; top:240px; width:1600px; padding:34px 44px; border-radius:28px 28px 28px 6px">
+      <div id="or-text" style="font-size:46px; font-weight:550; line-height:1.3"></div>
+    </div>
+    <div id="or-lab2" class="abs label lime" style="left:160px; top:470px">Claude reads it · code checks every field</div>
+    <div id="or-card" class="abs" style="left:160px; top:520px; width:1600px">
+      <div class="row" id="or-r0"><span class="k">Invoice</span><span class="mono">INV-18</span><span class="ok" id="or-c0">✓ checked by code</span></div>
+      <div class="row" id="or-r1"><span class="k">Amount</span><span class="mono">€400.00</span><span class="ok" id="or-c1">✓ checked by code</span></div>
+      <div class="row" id="or-r2"><span class="k">Payee</span><span>Fazenda Alta (Brazil) <span class="small">· address from her address book, never from the model</span></span><span class="ok" id="or-c2">✓ checked by code</span></div>
+      <div class="row" id="or-r3"><span class="k">Limit</span><span class="mono">EUR/USD &lt; 1.13</span><span class="ok" id="or-c3">✓ checked by code</span></div>
+      <div class="row" id="or-r4"><span class="k">Deadline</span><span class="mono">2026-11-20</span><span class="ok" id="or-c4">✓ checked by code</span></div>
+    </div>
+    <div id="or-m1" class="abs display" style="left:160px; top:260px; font-size:150px">AI interprets.</div>
+    <div id="or-m2" class="abs display" style="left:160px; top:430px; font-size:150px">Code checks.</div>
+    <div id="or-m3" class="abs display lime" style="left:160px; top:600px; font-size:150px">Contracts move money.</div>
+    <div id="or-lock" class="abs" style="left:160px; top:240px; width:1600px">
+      <div class="label evm">Base Sepolia · InvoiceEscrow 0x63e2…571a</div>
+      <div class="display mono" style="font-size:190px; margin-top:30px; font-weight:700; letter-spacing:-.04em">452.00 <span class="muted" style="font-size:90px">dUSD</span></div>
+      <div class="h2" style="margin-top:30px">locked, payable only to Fazenda Alta.</div>
+      <div class="body" style="margin-top:22px">€400 at the 1.13 limit. A Keeper can trigger the payment. It can never redirect it.</div>
+      <div class="small mono" style="margin-top:30px">createOrder · tx 0x0a9754ec8b11…c970b3f7</div>
+    </div>
+  </section>
+
+  <!-- 04 HIRE -->
+  <section class="scene" id="s-hire">
+    <div id="hi-h" class="abs h1" style="left:160px; top:170px">She hires a Keeper.</div>
+    <div id="hi-s" class="abs body" style="left:160px; top:300px">An agent that watches the rate and executes the payment, for a fee.</div>
+    <div id="hi-k0" class="abs card keeper" style="left:160px; top:420px"><div class="name">Atlas</div><div class="price mono">2 tUSDM</div><div class="rec">7 verified executions on chain</div><div class="verdict" id="hi-v0"></div></div>
+    <div id="hi-k1" class="abs card keeper" style="left:710px; top:420px"><div class="name">Swift</div><div class="price mono">1 tUSDM</div><div class="rec">7 verified executions on chain</div><div class="verdict" id="hi-v1"></div></div>
+    <div id="hi-k2" class="abs card keeper" style="left:1260px; top:420px"><div class="name">Prime</div><div class="price mono">4 tUSDM</div><div class="rec">0 verified executions on chain</div><div class="verdict" id="hi-v2"></div></div>
+    <div id="hi-f" class="abs small" style="left:160px; top:800px; width:1600px">Price: each Keeper's x402 quote on Cardano. Record: its receipts on Cardano, each checked against a payment on Base. Nothing seeded. Code decides.</div>
+
+    <div id="hi-n0" class="abs card node" style="left:160px; top:330px"><div class="t">Lena's agent</div><div class="s">BUYER</div></div>
+    <div id="hi-n1" class="abs card node" style="left:1420px; top:330px; border-color:#3a4a7a"><div class="t">Masumi escrow</div><div class="s ada">CARDANO PREPROD</div></div>
+    <div id="hi-line" class="abs" style="left:500px; top:428px; width:920px; height:4px; background:linear-gradient(90deg,#2a2a33,#6f95ff)"></div>
+    <div id="hi-tok" class="abs token" style="left:500px; top:355px">1<br><span style="font-size:20px">tUSDM</span></div>
+    <div id="hi-c" class="abs" style="left:160px; top:620px; width:1600px">
+      <div class="h2">Swift's fee waits in Masumi escrow.</div>
+      <div class="body" style="margin-top:20px">Paid over x402. Swift can see the money is locked. If nothing is delivered, Lena gets it back.</div>
+    </div>
+    <div id="hi-p" class="abs proof" style="left:310px; top:150px">
+      <div class="shot" style="height:600px"><div class="iw"><img src="assets/cardanoscan-lock.jpg">
+        <div class="hl" style="left:11.9%; top:25.2%; width:38.5%; height:4.6%"></div>
+        <div class="hl" style="left:53.6%; top:65.6%; width:34.1%; height:13.1%"></div>
+      </div></div>
+      <div class="cap"><span>Cardano preprod · cardanoscan</span><b class="mono">1 tUSDM into Masumi escrow · tx 75e46582…97eb5</b></div>
+    </div>
+  </section>
+
+  <!-- 05 EXECUTE -->
+  <section class="scene" id="s-exec">
+    <div id="ex-lab" class="abs label" style="left:160px; top:190px">Swift watches · Nodary EUR/USD, signed via API3 AirnodeHub</div>
+    <div id="ex-tick" class="abs" style="left:160px; top:250px">
+      <div class="mono" style="font-size:260px; font-weight:700; letter-spacing:-.05em; line-height:1">1.11633</div>
+    </div>
+    <div id="ex-sig" class="abs small mono" style="left:170px; top:540px; width:1500px">signed by 0xE70f…E4c0 · request 0x5ccc…d3d0 · <span id="ex-age">0 s</span> ago · <span id="ex-cyc">cycle 1</span></div>
+    <div id="ex-ok" class="abs h2 lime" style="left:1300px; top:340px">&lt; 1.13 ✓</div>
+    <div id="ex-2nd" class="abs card" style="left:160px; top:640px; width:1600px; padding:30px 40px; display:flex; justify-content:space-between; align-items:center">
+      <div><div class="label evm">Second opinion · bought over x402 · 0.01 aUSD</div><div style="font-size:40px; font-weight:700; margin-top:12px">Frankfurter on AirnodeHub: <span class="mono">1.1173</span></div></div>
+      <div class="lime" style="font-size:40px; font-weight:800">0.09 % apart ✓</div>
+    </div>
+    <div id="ex-chk" class="abs" style="left:160px; top:220px; width:1600px">
+      <div class="label evm" style="margin-bottom:16px">InvoiceEscrow checks, on chain</div>
+      <div class="check" id="ex-c0"><span class="k">Signer</span><span class="v">Nodary Airnode 0xE70f…E4c0</span><span class="m">✓</span></div>
+      <div class="check" id="ex-c1"><span class="k">Request</span><span class="v">EUR/USD, request hash 0x5ccc…d3d0</span><span class="m">✓</span></div>
+      <div class="check" id="ex-c2"><span class="k">Time</span><span class="v">signed less than 5 minutes ago</span><span class="m">✓</span></div>
+      <div class="check" id="ex-c3"><span class="k">Limit</span><span class="v mono">1.11633 &lt; 1.13</span><span class="m">✓</span></div>
+    </div>
+    <div id="ex-paid" class="abs" style="left:160px; top:720px; width:1600px">
+      <div class="display" style="font-size:96px"><span class="lime">PAID</span> <span class="mono">446.53</span> dUSD → Fazenda Alta</div>
+      <div class="body" style="margin-top:14px">€400 × 1.11633. The 5.47 dUSD left over goes back to Lena.</div>
+    </div>
+    <div id="ex-p" class="abs proof" style="left:310px; top:150px">
+      <div class="shot" style="height:548px"><div class="iw"><img src="assets/basescan-execute.jpg">
+        <div class="hl" style="left:30.6%; top:51%; width:5.3%; height:4.2%"></div>
+        <div class="hl" style="left:30.4%; top:87.1%; width:44.4%; height:3.9%"></div>
+      </div></div>
+      <div class="cap"><span>Base Sepolia · basescan</span><b class="mono">InvoicePaid · tx 0x1758f8f7…4b06e</b></div>
+    </div>
+  </section>
+
+  <!-- 06 TAMPER -->
+  <section class="scene" id="s-tamper">
+    <div id="ta-lab" class="abs label lime" style="left:160px; top:190px">API3 tamper test · on the deployed contract</div>
+    <div id="ta-h1" class="abs h2" style="left:160px; top:240px">That was a real, fresh, signed rate.</div>
+    <div id="ta-h2" class="abs h2 red" style="left:160px; top:330px">Now forge one.</div>
+    <div id="ta-json" class="abs json mono card" style="left:160px; top:450px; width:1600px; padding:30px 40px"></div>
+    <div id="ta-cap" class="abs h2" style="left:160px; top:270px"></div>
+    <div id="ta-stamp" class="abs" style="left:1010px; top:520px; width:900px">
+      <div class="stamp">REJECTED</div>
+      <div id="ta-err" class="mono red" style="display:inline-block; font-size:34px; margin-top:14px; padding:10px 18px; background:rgba(11,11,13,.92); border:1px solid #5a2630; border-radius:10px; transform:rotate(-6deg)"></div>
+    </div>
+    <div id="ta-count" class="abs mono" style="right:80px; top:190px; font-size:28px; color:var(--red); letter-spacing:.1em"></div>
+    <div id="ta-w1" class="abs display" style="left:160px; top:300px; font-size:150px">Signer.</div>
+    <div id="ta-w2" class="abs display" style="left:760px; top:300px; font-size:150px">Request.</div>
+    <div id="ta-w3" class="abs display" style="left:1420px; top:300px; font-size:150px">Time.</div>
+    <div id="ta-last" class="abs" style="left:160px; top:520px; width:1600px">
+      <div class="h2">The contract has the last word.</div>
+      <div class="body" style="margin-top:20px">Only the real, fresh response moved money: <span class="lime">ACCEPTED</span>, 111.63 dUSD paid · <span class="mono">tx 0x27fe4dd7…0a634</span></div>
+    </div>
+  </section>
+
+  <!-- 07 PROOF -->
+  <section class="scene" id="s-proof">
+    <div id="pf-slam" class="abs display lime" style="left:0; right:0; top:380px; text-align:center; font-size:230px; font-weight:900">PAID ON PROOF</div>
+    <div id="pf-h" class="abs h2" style="left:160px; top:200px; white-space:nowrap">Swift's fee is released only against proof.</div>
+    <div id="pf-f" class="abs mono" style="left:160px; top:340px; font-size:36px; color:#c9c7c1">result hash = sha256( execute tx · InvoicePaid event · fee lock )</div>
+    <div id="pf-hash" class="abs mono lime" style="left:160px; top:410px; font-size:36px"></div>
+    <div id="pf-into" class="abs body" style="left:160px; top:480px">→ written into the Masumi escrow on Cardano. Anyone can recheck it against both chains.</div>
+    <div id="pf-p" class="abs proof" style="left:160px; top:570px; width:760px">
+      <div class="shot" style="height:300px"><div class="iw"><img src="assets/cardanoscan-result.jpg">
+        <div class="hl" style="left:11.9%; top:25.2%; width:38.5%; height:4.6%"></div>
+        <div class="hl" style="left:27.6%; top:82.6%; width:7.8%; height:4.4%"></div>
+      </div></div>
+      <div class="cap"><span>Result hash on chain</span><b class="mono">tx 5e979434…cc5e</b></div>
+    </div>
+    <div id="pf-r" class="abs" style="left:1000px; top:570px; width:760px">
+      <div class="label ada">After Lena's dispute window</div>
+      <div style="font-size:40px; font-weight:700; margin-top:12px; line-height:1.2">Swift collects its 1 tUSDM.</div>
+      <div class="label red" style="margin-top:44px">Limit never reached (INV-17)</div>
+      <div style="font-size:40px; font-weight:700; margin-top:12px; line-height:1.2">Swift authorizes a refund. Lena takes her fee back.</div>
+      <div class="small mono" style="margin-top:16px">refund · tx 3a07af8a…fa9a</div>
+    </div>
+    <div id="pf-bm" class="abs label lime" style="left:160px; top:200px">Business model</div>
+    <div id="pf-c0" class="abs col" style="left:160px; top:270px"><div class="k">Who pays</div><div class="v">Small importers and their finance agents.</div><div class="d">Pay suppliers abroad when the rate is right, without a bank's limit order.</div></div>
+    <div id="pf-c1" class="abs col" style="left:710px; top:270px"><div class="k">Who earns</div><div class="v">Keepers, a fee per executed invoice.</div><div class="d">Nothing for watching. Refunded if they don't deliver. Their record is public.</div></div>
+    <div id="pf-c2" class="abs col" style="left:1260px; top:270px"><div class="k">What's next</div><div class="v">Any Airnode-signed data as the trigger.</div><div class="d">Delivery events, prices, flight delays. Same escrow, same proof.</div></div>
+    <div id="pf-who" class="abs body" style="left:160px; top:760px; width:1600px">Cardano: x402 + Masumi escrow for the Keeper's fee. API3: AirnodeHub-signed data, checked by the contract that holds the invoice.</div>
+  </section>
+
+  <!-- 08 OUTRO -->
+  <section class="scene" id="s-outro">
+    <div id="ou-1" class="abs display" style="left:160px; top:330px; font-size:150px">Don't trust your agent.</div>
+    <div id="ou-2" class="abs display lime" style="left:160px; top:500px; font-size:150px">Verify it.</div>
+    <div id="ou-3" class="abs" style="left:160px; top:760px; width:1600px">
+      <div style="font-size:34px; font-weight:800; letter-spacing:.3em">PAYONPROOF</div>
+      <div class="small" style="margin-top:14px">Cardano preprod · x402 · Masumi escrow &nbsp;×&nbsp; API3 AirnodeHub · Base Sepolia &nbsp;·&nbsp; every transaction in this film is real</div>
+      <div class="mono" style="font-size:28px; margin-top:16px; color:#c9c7c1">github.com/Curious-Charlie/tum-blockchain-hackathon</div>
+    </div>
+  </section>
+
+  <div id="hud">
+    <div class="wm">PAYONPROOF<b>.</b></div>
+    <div id="chain"><i></i><span id="chainText"></span></div>
+    <div id="bars"></div>
+    <div id="sceneLabel"></div>
+    <div id="bpm">128 BPM · REAL TESTNET TRANSACTIONS</div>
+  </div>
+  <div id="flash"></div>
+  <div id="redflash"></div>
+  <div id="grain"></div>
+  <div id="vignette"></div>
+  <div id="fade"></div>
+</div>
+
+<script>
+const BEAT = 60 / 128, BAR = 4 * BEAT, BARS = 56;
+const at = (bar, beat = 0) => bar * BAR + beat * BEAT;
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const prog = (t, a, d) => clamp((t - a) / d);
+const eo = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const $ = (id) => document.getElementById(id);
+const hash = (n) => { const x = Math.sin(n * 12.9898) * 43758.5453; return x - Math.floor(x); };
+
+/** Shows `el` from a to b (seconds) with an entrance; returns its visibility 0..1. */
+function vis(el, t, a, b, kind = "up", din = 0.45, dout = 0.3) {
+  if (typeof el === "string") el = $(el);
+  if (t < a || t > b + dout) { el.style.visibility = "hidden"; el.style.opacity = 0; return 0; }
+  el.style.visibility = "visible";
+  const i = eo(prog(t, a, din)), o = eio(prog(t, b, dout));
+  el.style.opacity = i * (1 - o);
+  const base = el.dataset.base || "";
+  let tr = "";
+  if (kind === "up") tr = `translateY(${(1 - i) * 46 - o * 24}px)`;
+  else if (kind === "left") tr = `translateX(${(1 - i) * 160}px)`;
+  else if (kind === "right") tr = `translateX(${-(1 - i) * 160}px)`;
+  else if (kind === "scale") tr = `scale(${0.92 + 0.08 * i})`;
+  else if (kind === "slam") tr = `scale(${1 + (1 - eo(prog(t, a, 0.22))) * 0.5})`;
+  else if (kind === "tilt") tr = `perspective(1600px) rotateX(${(1 - i) * 18}deg) translateY(${(1 - i) * 80}px)`;
+  if (kind === "clip") { el.style.clipPath = `inset(-20px ${(1 - i) * 100}% -20px 0)`; tr = ""; }
+  if (kind === "slam") el.style.opacity = (t < a + 0.02 ? 0 : 1) * (1 - o);
+  el.style.transform = `${tr} ${base}`;
+  return i * (1 - o);
+}
+function type(el, text, t, t0, cps = 34) {
+  if (typeof el === "string") el = $(el);
+  const n = clamp(Math.floor((t - t0) * cps), 0, text.length);
+  el.textContent = text.slice(0, n);
+  el.classList.toggle("caret", n < text.length || Math.floor((t - t0) * 2.2) % 2 === 0);
+}
+function sceneOn(id, t, fromBar, toBar) {
+  const on = t >= at(fromBar) - 0.05 && t < at(toBar) + 0.4;
+  $(id).style.display = on ? "block" : "none";
+  return on;
+}
+const hasKick = (bar, beat) => ((bar >= 4 && bar < 36) || (bar >= 38 && bar < 52)) && !(bar === 43 && beat >= 2) && !(bar === 19 && beat === 3);
+const GLITCHES = [at(38), at(39), at(40), at(41)];
+
+// HUD
+const SCENES = [[0, "01 · HOOK"], [4, "02 · THE PROBLEM"], [12, "03 · ONE SENTENCE, ONE ORDER"], [20, "04 · BUYER CHOOSES A KEEPER"], [28, "05 · SIGNED DATA, CHECKED ON CHAIN"], [36, "06 · TAMPER TEST"], [44, "07 · PAID ON PROOF"], [52, "08"]];
+const CHAIN = [[0, ""], [4, "THE PROBLEM"], [12, "OFF CHAIN · CLAUDE + CODE"], [18, "BASE SEPOLIA · INVOICE ESCROW"], [20, "CARDANO PREPROD · x402 QUOTES"], [24, "CARDANO PREPROD · MASUMI ESCROW"], [28, "API3 · NODARY AIRNODE"], [30, "BASE SEPOLIA · x402 · AIRNODEHUB"], [31, "BASE SEPOLIA · INVOICE ESCROW"], [44, "CARDANO PREPROD · MASUMI ESCROW"], [49, "BUSINESS MODEL"], [52, ""]];
+$("bars").innerHTML = Array.from({ length: BARS }, () => "<span></span>").join("");
+const barEls = [...$("bars").children];
+const pick = (list, bar) => list.filter(([b]) => bar >= b).at(-1)[1];
+
+// JSON of the real Nodary response (fetched for this film), and the four forgeries.
+const RESP = { airnode: "0xE70f1e8b22a21e4Bb5188918a3033341b281E4c0", requestHash: "0x5ccc3aa98c84e0929a84c28f3fe16c2a89b2e58965b487b5580af40be401d3d0", timestamp: "1793412967", data: '{"price":1.116325,"updatedAt":1793394164506}', signature: "0xadb868bd6bf31cd1fdb391093bb7e77f…5bf80b43ae7d34bb7d5b1b" };
+const FORGE = [
+  { cap: "1 · A real response, one value edited.", err: "NotSignedByAirnode(0x3851…8f00)", set: { data: '{"price":1.016325,"updatedAt":1793394164506}' }, bad: ["data"] },
+  { cap: "2 · A real response, but too old.", err: "ResponseTooOld(1793355665)", set: { timestamp: "1793355665" }, bad: ["timestamp"] },
+  { cap: "3 · A real, fresh response, for another request (BTC/USD).", err: "NotSignedByAirnode(0x2150…2f72)", set: { requestHash: "0x78094ba4768ebdadb2012f2de22e779ce0992ecc290ebab208233addaaef106a", timestamp: "1793413049", data: '{"price":77401.04,"updatedAt":1793413049167}', signature: "0x1a3350d58578427d763f88d56c2560b5…bea207af4b72891b7a9e75ff1c" }, bad: ["requestHash", "data", "signature"] },
+  { cap: "4 · Signed by another key.", err: "NotSignedByAirnode(0xb837…C12c)", set: { signature: "0x8c41f0a2d9e7731b5e0c9f44a1d6b8e2…from key 0xb8378a66…C12c" }, bad: ["signature"] },
+];
+function jsonHtml(over = {}, bad = []) {
+  const r = { ...RESP, ...over };
+  const pad = (k) => `"${k}":`.padEnd(15, " ");
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  return "{\n" + Object.keys(RESP).map((k, i, a) => `  <span class="key">${pad(k)}</span> <span class="${bad.includes(k) ? "bad" : "val"}">"${esc(r[k].replace(/"/g, '\\"'))}"</span>${i < a.length - 1 ? "," : ""}`).join("\n") + "\n}";
+}
+
+// Problem-scene chart: a deterministic wander that dips under the limit at the end.
+const PTS = Array.from({ length: 81 }, (_, i) => {
+  const x = i / 80;
+  const v = 1.136 + 0.006 * Math.sin(x * 9.1) + 0.004 * Math.sin(x * 23.7 + 1.3) + (hash(i) - 0.5) * 0.004 - 0.02 * Math.pow(x, 6);
+  return [x * 1600, 150 + (v - 1.13) * -9000];
+});
+
+window.render = function render(t) {
+  const bar = Math.floor(t / BAR), beatF = (t - bar * BAR) / BEAT, beat = Math.floor(beatF);
+
+  // ---- global: beat flash, grid drift, grain, HUD
+  const kickNow = hasKick(bar, beat) ? t - at(bar, beat) : 99;
+  const pulse = Math.exp(-kickNow / 0.11);
+  $("flash").style.opacity = (0.075 * pulse).toFixed(3);
+  $("stage").style.transform = `scale(${1 + 0.0035 * pulse})`;
+  $("grid").style.backgroundPosition = `${-t * 14}px ${-t * 6}px`;
+  $("glow").style.transform = `translate(${Math.sin(t * 0.21) * 220}px, ${Math.cos(t * 0.17) * 120}px)`;
+  const f = Math.floor(t * 30);
+  $("grain").style.transform = `translate(${Math.floor(hash(f) * 300)}px, ${Math.floor(hash(f + 7) * 300)}px)`;
+  let red = 0;
+  for (const g of GLITCHES) if (t >= g) red = Math.max(red, 0.32 * Math.exp(-(t - g) / 0.16));
+  $("redflash").style.opacity = red.toFixed(3);
+
+  const hudOn = t >= at(4) && t < at(52);
+  $("hud").style.opacity = hudOn ? 1 : 0;
+  $("sceneLabel").textContent = pick(SCENES, bar);
+  const chain = pick(CHAIN, bar);
+  $("chainText").textContent = chain;
+  $("chain").style.opacity = chain ? 1 : 0;
+  barEls.forEach((el, i) => { el.className = i < bar ? "on" : i === bar ? "now" : ""; });
+  $("fade").style.opacity = clamp((t - 103.2) / 1.8).toFixed(3);
+
+  // ---- 01 HOOK
+  if (sceneOn("s-hook", t, 0, 4)) {
+    vis("hk1", t, 0.2, at(3, 2), "up", 0.01, 0.4);
+    type("hk1", "Your agent is about to pay €400.", t, 0.35, 15);
+    vis("hk2", t, at(2, 0), at(3, 2), "up");
+    vis("hk3", t, at(2, 2), at(3, 2), "up");
+    vis("hk4", t, at(3, 0), at(3, 2), "up");
+    const g = t > at(3, 2) ? (hash(f) - 0.5) * 30 : 0;
+    for (const id of ["hk1", "hk2", "hk3", "hk4"]) $(id).dataset.base = `translateX(${g}px)`;
+  }
+
+  // ---- 02 PROBLEM
+  if (sceneOn("s-problem", t, 4, 12)) {
+    vis("pr-title", t, at(4), at(5, 2), "slam", 0.3, 0.35);
+    vis("pr-l1", t, at(5, 3), at(11, 3), "up");
+    vis("pr-l2", t, at(6, 0), at(11, 3), "up");
+    vis("pr-l3", t, at(6, 2), at(11, 3), "up");
+    vis("pr-s1", t, at(7, 0), at(11, 3), "left");
+    vis("pr-s2", t, at(7, 2), at(11, 3), "left");
+    if (vis("pr-chart", t, at(8, 0), at(11, 3), "up") > 0) {
+      const p = clamp((t - at(8)) / (at(11, 2) - at(8)));
+      const n = Math.max(2, Math.floor(p * (PTS.length - 1)) + 1);
+      const pts = PTS.slice(0, n);
+      $("pr-path").setAttribute("d", "M" + pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L"));
+      const [x, y] = pts.at(-1);
+      $("pr-dot").setAttribute("cx", x); $("pr-dot").setAttribute("cy", y);
+      $("pr-dot").setAttribute("fill", y > 150 ? "#c8ff2e" : "#edebe6");
+    }
+    vis("pr-l4", t, at(9, 2), at(11, 3), "up");
+  }
+
+  // ---- 03 ORDER
+  if (sceneOn("s-order", t, 12, 20)) {
+    vis("or-lab", t, at(12, 0), at(15, 3), "up");
+    vis("or-bubble", t, at(12, 0), at(15, 3), "up");
+    type("or-text", "Pay Fazenda Alta invoice INV-18, €400, as soon as EUR/USD is under 1.13; deadline November 20.", t, at(12, 1), 40);
+    vis("or-lab2", t, at(14, 0), at(15, 3), "up");
+    vis("or-card", t, at(14, 0), at(15, 3), "up", 0.2);
+    for (let i = 0; i < 5; i++) {
+      vis(`or-r${i}`, t, at(14, 0) + i * BEAT * 0.5, at(15, 3), "clip", 0.3);
+      vis(`or-c${i}`, t, at(15, 0) + i * BEAT * 0.25, at(15, 3), "right", 0.2);
+    }
+    vis("or-m1", t, at(16, 0), at(17, 3), "slam");
+    vis("or-m2", t, at(16, 2), at(17, 3), "slam");
+    vis("or-m3", t, at(17, 0), at(17, 3), "slam");
+    vis("or-lock", t, at(18, 0), at(19, 3), "up");
+  }
+
+  // ---- 04 HIRE
+  if (sceneOn("s-hire", t, 20, 28)) {
+    vis("hi-h", t, at(20, 0), at(24, 2), "up");
+    vis("hi-s", t, at(20, 2), at(24, 2), "up");
+    vis("hi-f", t, at(22, 0), at(24, 2), "up");
+    const verdict = [
+      { at: at(23, 2), text: "✗ Swift is cheaper, equally proven", cls: "red", dim: true },
+      { at: at(24, 0), text: "✓ CHOSEN · cheapest proven offer", cls: "lime", dim: false },
+      { at: at(23, 0), text: "✗ over her 3 tUSDM fee limit", cls: "red", dim: true },
+    ];
+    for (let i = 0; i < 3; i++) {
+      const k = $(`hi-k${i}`), v = verdict[i], decided = t >= v.at;
+      vis(k, t, at(21, i), at(24, 2), "left");
+      $(`hi-v${i}`).textContent = decided ? v.text : "";
+      $(`hi-v${i}`).className = `verdict ${v.cls}`;
+      k.style.borderColor = decided ? (v.dim ? "#5a2630" : "#c8ff2e") : "#26262e";
+      k.style.boxShadow = decided && !v.dim ? `0 0 ${60 + 40 * pulse}px rgba(200,255,46,.35)` : "none";
+      if (decided && v.dim) k.style.opacity = Math.min(parseFloat(k.style.opacity), 0.42);
+    }
+    vis("hi-n0", t, at(24, 3), at(25, 3), "right");
+    vis("hi-n1", t, at(24, 3), at(25, 3), "left");
+    vis("hi-line", t, at(24, 3), at(25, 3), "clip");
+    if (vis("hi-tok", t, at(25, 0), at(25, 3), "scale", 0.15) > 0) {
+      const p = eio(prog(t, at(25, 0), BEAT * 1.6));
+      $("hi-tok").style.left = `${500 + p * (1420 - 500 - 150)}px`;
+    }
+    vis("hi-c", t, at(25, 1), at(25, 3), "up");
+    vis("hi-p", t, at(26, 0), at(27, 3), "tilt", 0.5);
+  }
+
+  // ---- 05 EXECUTE
+  if (sceneOn("s-exec", t, 28, 36)) {
+    vis("ex-lab", t, at(28, 0), at(30, 3), "up");
+    vis("ex-tick", t, at(28, 0), at(30, 3), "up");
+    vis("ex-sig", t, at(28, 1), at(30, 3), "up");
+    $("ex-age").textContent = `${Math.floor(((t - at(28)) % (BAR)) / BAR * 3)} s`;
+    $("ex-cyc").textContent = `cycle ${1 + Math.floor(clamp(t - at(28), 0, 99) / BAR)}`;
+    vis("ex-ok", t, at(29, 0), at(30, 3), "slam");
+    vis("ex-2nd", t, at(30, 0), at(30, 3), "up");
+    vis("ex-chk", t, at(31, 0), at(33, 3), "up", 0.2);
+    for (let i = 0; i < 4; i++) vis(`ex-c${i}`, t, at(31, i), at(33, 3), "clip", 0.35);
+    vis("ex-paid", t, at(33, 2), at(33, 3) + BEAT * 0.9, "slam");
+    vis("ex-p", t, at(34, 0), at(35, 3), "tilt", 0.5);
+  }
+
+  // ---- 06 TAMPER
+  if (sceneOn("s-tamper", t, 36, 44)) {
+    vis("ta-lab", t, at(36, 0), at(41, 3), "up");
+    vis("ta-h1", t, at(36, 0), at(37, 1), "up");
+    vis("ta-h2", t, at(36, 2), at(37, 1), "up");
+    vis("ta-json", t, at(36, 3), at(41, 3), "up");
+    // Forgery k is shown from bar 37+k-1 beat 2, rejected on bar 37+k.
+    let k = -1;
+    for (let i = 0; i < 4; i++) if (t >= at(37 + i, 2)) k = i;
+    if (k >= 0) {
+      const fg = FORGE[k];
+      $("ta-json").innerHTML = jsonHtml(fg.set, fg.bad);
+      $("ta-cap").textContent = fg.cap;
+      vis("ta-cap", t, at(37 + k, 2), at(38 + k, 2) - 0.001, "up", 0.25, 0.01);
+      const rej = at(38 + k);
+      const s = vis("ta-stamp", t, rej, at(38 + k, 2) - 0.001, "slam", 0.25, 0.01);
+      $("ta-err").textContent = fg.err;
+      if (s > 0) $("ta-stamp").dataset.base = `translateX(${t - rej < 0.25 ? (hash(f) - 0.5) * 40 : 0}px)`;
+      $("ta-count").textContent = t >= rej ? `${k + 1} / 4 REJECTED` : `${k} / 4 REJECTED`;
+      vis("ta-count", t, at(38), at(41, 3), "up");
+      $("ta-json").dataset.base = t >= rej && t - rej < 0.3 ? `translateX(${(hash(f + 3) - 0.5) * 26}px)` : "";
+    } else {
+      $("ta-json").innerHTML = jsonHtml();
+      vis("ta-cap", t, 999, 999); vis("ta-stamp", t, 999, 999); vis("ta-count", t, 999, 999);
+    }
+    vis("ta-w1", t, at(42, 0), at(43, 3), "slam");
+    vis("ta-w2", t, at(42, 1), at(43, 3), "slam");
+    vis("ta-w3", t, at(42, 2), at(43, 3), "slam");
+    vis("ta-last", t, at(43, 0), at(43, 3), "up");
+  }
+
+  // ---- 07 PROOF
+  if (sceneOn("s-proof", t, 44, 52)) {
+    vis("pf-slam", t, at(44, 0), at(44, 3), "slam", 0.3, 0.25);
+    vis("pf-h", t, at(45, 0), at(48, 3), "up");
+    vis("pf-f", t, at(45, 1), at(48, 3), "up");
+    vis("pf-hash", t, at(45, 2), at(48, 3), "up", 0.1);
+    type("pf-hash", "0eba25c031e9ebca96600dc71615a883a96fe41e2d9299975586d464570e6098", t, at(45, 2), 52);
+    vis("pf-into", t, at(46, 0), at(48, 3), "up");
+    vis("pf-p", t, at(46, 0), at(48, 3), "tilt", 0.5);
+    vis("pf-r", t, at(47, 0), at(48, 3), "left");
+    vis("pf-bm", t, at(49, 0), at(51, 3), "up");
+    vis("pf-c0", t, at(49, 0), at(51, 3), "up");
+    vis("pf-c1", t, at(49, 2), at(51, 3), "up");
+    vis("pf-c2", t, at(50, 0), at(51, 3), "up");
+    vis("pf-who", t, at(50, 2), at(51, 3), "up");
+  }
+
+  // ---- 08 OUTRO
+  if (sceneOn("s-outro", t, 52, 56)) {
+    vis("ou-1", t, at(52, 0), 999, "up");
+    vis("ou-2", t, at(53, 0), 999, "slam");
+    vis("ou-3", t, at(54, 0), 999, "up");
+  }
+};
+window.render(0);
+</script>
+</body>
+</html>

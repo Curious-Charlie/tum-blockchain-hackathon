@@ -1,4 +1,4 @@
-// Minimal / acid techno, 128 BPM, 56 bars, beat-matched to the film (timeline.mjs).
+// Minimal / acid techno, 120 BPM, 64 bars, beat-matched to the film (timeline.mjs).
 // No samples: every sound is synthesized here. Writes out/music.wav (44.1 kHz, 16-bit stereo).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { BAR, BARS, BEAT, CHIMES, GLITCHES, at } from "./timeline.mjs";
@@ -52,14 +52,14 @@ class Saw {
 // ---------------------------------------------------------------- arrangement
 const inBars = (bar, ...ranges) => ranges.some(([a, b]) => bar >= a && bar < b);
 const has = {
-  kick: (bar, beat) => inBars(bar, [4, 36], [38, 52]) && !(bar === 43 && beat >= 2) && !(bar === 19 && beat === 3),
-  hat: (bar) => inBars(bar, [2, 52]),
-  hat16: (bar) => inBars(bar, [20, 36], [44, 52]),
+  kick: (bar, beat) => inBars(bar, [4, 36], [38, 60]) && !(bar === 43 && beat >= 2) && !(bar === 13 && beat === 3) && !(bar === 19 && beat === 3),
+  hat: (bar) => inBars(bar, [2, 62]),
+  hat16: (bar) => inBars(bar, [20, 36], [44, 56]),
   openHat: (bar) => inBars(bar, [28, 36], [44, 52]),
-  clap: (bar) => inBars(bar, [8, 36], [40, 52]),
-  bass: (bar) => inBars(bar, [12, 36], [38, 52]),
-  acid: (bar) => inBars(bar, [20, 52]),
-  pad: (bar) => inBars(bar, [0, 8], [36, 44], [50, 56]),
+  clap: (bar) => inBars(bar, [6, 36], [40, 60]),
+  bass: (bar) => inBars(bar, [10, 36], [38, 58]),
+  acid: (bar) => inBars(bar, [14, 56]),
+  pad: (bar) => inBars(bar, [0, 10], [36, 44], [56, 64]),
 };
 // Bass / pad roots per bar: A A F G.
 const ROOTS = [33, 33, 29, 31]; // MIDI: A1, A1, F1, G1
@@ -139,7 +139,7 @@ const ACID = [
 function acidCutoff(bar, x) {
   // x: 0..1 within the bar. Opens over each section, dark in the breakdown.
   const pos = bar + x;
-  if (pos < 36) return 280 + 2300 * ((pos - 20) / 16) ** 1.6;
+  if (pos < 36) return 280 + 2300 * (Math.max(0, pos - 14) / 22) ** 1.6;
   if (pos < 38) return 420;
   if (pos < 44) return 700 + 2600 * ((pos - 38) / 6) ** 1.3;
   return 1500 + 1100 * Math.sin(2 * Math.PI * (pos - 44) / 4) ** 2;
@@ -223,10 +223,11 @@ for (let bar = 0; bar < BARS; bar++) {
     if (has.bass(bar)) for (const k of [1, 2, 3]) bassNote(t + k * STEP, ROOTS[bar % 4], STEP * 0.7);
   }
   if (has.acid(bar)) acidBar(bar);
-  if (has.pad(bar)) padBar(bar, bar < 8 ? 1 - Math.max(0, bar - 4) / 4 : bar >= 52 ? 1 - (bar - 52) / 5 : 1);
+  if (has.pad(bar)) padBar(bar, bar < 10 ? 1 - Math.max(0, bar - 6) / 4 : bar >= 60 ? 1 - (bar - 60) / 5 : 1);
 }
-for (const bar of [4, 12, 20, 28, 44]) crash(at(bar));
+for (const bar of [4, 10, 14, 20, 28, 44, 52]) crash(at(bar));
 riser(at(2), at(4));
+riser(at(12), at(14));
 riser(at(18), at(20));
 riser(at(42), at(44), 0.36);
 for (const t of CHIMES) chime(t);

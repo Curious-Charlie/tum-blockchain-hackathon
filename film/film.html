@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <style>
 :root {
-  --bg: #0b0b0d; --ink: #edebe6; --muted: #8b8a93; --dim: #3a3a42; --line: #1d1d22;
-  --lime: #c8ff2e; --red: #ff3b30; --ada: #6f95ff; --evm: #b3b8ff;
+  --bg: #f5f4ef; --paper: #ffffff; --ink: #141414; --ink2: #3a3935; --muted: #77756e; --line: #e2dfd6; --grid: #ebe9e2;
+  --accent: #1f4bff; --accent-soft: #e7ecff; --ok: #0e9f6e; --ok-soft: #e2f5ec; --bad: #e3342f; --bad-soft: #fde8e7; --mark: #ffe34d;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); color: var(--ink);
@@ -14,74 +14,86 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
 .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 .abs { position: absolute; visibility: hidden; }
 .scene { position: absolute; inset: 0; display: none; }
-.label { font-size: 20px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
-.label.lime { color: var(--lime); }
-.display { font-weight: 800; letter-spacing: -.035em; line-height: .98; }
-.h1 { font-size: 104px; font-weight: 800; letter-spacing: -.03em; line-height: 1.02; }
-.h2 { font-size: 72px; font-weight: 750; letter-spacing: -.025em; line-height: 1.05; }
-.body { font-size: 36px; line-height: 1.35; color: #c9c7c1; font-weight: 450; }
-.small { font-size: 26px; line-height: 1.35; color: var(--muted); }
-.lime { color: var(--lime); } .red { color: var(--red); } .ada { color: var(--ada); } .evm { color: var(--evm); } .muted { color: var(--muted); }
-.caret::after { content: ""; display: inline-block; width: .5em; height: .9em; margin-left: .08em; vertical-align: -.08em; background: var(--lime); }
+.label { font-size: 21px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.display { font-weight: 850; letter-spacing: -.035em; line-height: 1; }
+.head { font-size: 58px; font-weight: 780; letter-spacing: -.025em; line-height: 1.1; }
+.h2 { font-size: 64px; font-weight: 760; letter-spacing: -.025em; line-height: 1.08; }
+.body { font-size: 36px; line-height: 1.35; color: var(--ink2); font-weight: 450; }
+.small { font-size: 27px; line-height: 1.35; color: var(--muted); }
+.accent { color: var(--accent); } .ok { color: var(--ok); } .bad { color: var(--bad); } .muted { color: var(--muted); }
+.mark { background: linear-gradient(transparent 56%, var(--mark) 56%, var(--mark) 92%, transparent 92%); padding: 0 .06em; }
+.n { display: inline-flex; width: 1.25em; height: 1.25em; border-radius: 50%; background: var(--accent); color: #fff; font-size: .62em; font-weight: 800; align-items: center; justify-content: center; vertical-align: .18em; margin-right: .35em; letter-spacing: 0; }
+.caret::after { content: ""; display: inline-block; width: .08em; height: .85em; margin-left: .06em; vertical-align: -.06em; background: var(--accent); }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 12px 34px rgba(20,20,20,.06); }
+.chip { display: inline-block; padding: 10px 22px; border: 1.5px solid var(--line); border-radius: 999px; font-size: 26px; font-weight: 600; background: var(--paper); }
+.chip.ok { border-color: #b6e6d0; background: var(--ok-soft); }
 
-#grid { position: absolute; inset: 0;
-  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
-  background-size: 120px 120px; background-position: 0 0; opacity: .55; }
-#glow { position: absolute; width: 1400px; height: 1400px; border-radius: 50%; left: 260px; top: -160px;
-  background: radial-gradient(circle, rgba(200,255,46,.10), rgba(200,255,46,0) 60%); }
-#flash { position: absolute; inset: 0; background: #fff; opacity: 0; mix-blend-mode: overlay; }
-#redflash { position: absolute; inset: 0; background: var(--red); opacity: 0; mix-blend-mode: screen; }
-#grain { position: absolute; left: -320px; top: -320px; width: 2560px; height: 1720px; background: url(assets/noise.png); opacity: .07; mix-blend-mode: overlay; pointer-events: none; }
-#vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.55) 100%); pointer-events: none; }
-#fade { position: absolute; inset: 0; background: #000; opacity: 0; }
+#grid { position: absolute; inset: 0; background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 120px 120px; }
+#glow { position: absolute; width: 1500px; height: 1500px; border-radius: 50%; left: 300px; top: -300px; background: radial-gradient(circle, rgba(31,75,255,.07), rgba(31,75,255,0) 60%); }
+#flash { position: absolute; inset: 0; background: var(--ink); opacity: 0; }
+#redflash { position: absolute; inset: 0; background: var(--bad); opacity: 0; mix-blend-mode: multiply; }
+#grain { position: absolute; left: -320px; top: -320px; width: 2560px; height: 1720px; background: url(assets/noise.png); opacity: .035; mix-blend-mode: multiply; pointer-events: none; }
+#fade { position: absolute; inset: 0; background: var(--bg); opacity: 0; }
 
 /* HUD */
 #hud { position: absolute; inset: 0; pointer-events: none; }
-#hud .wm { position: absolute; left: 80px; top: 56px; font-size: 20px; font-weight: 800; letter-spacing: .32em; }
-#hud .wm b { color: var(--lime); }
-#chain { position: absolute; right: 80px; top: 54px; font-size: 18px; font-weight: 600; letter-spacing: .2em; color: var(--muted); display: flex; align-items: center; gap: 14px; }
-#chain i { width: 10px; height: 10px; border-radius: 50%; background: var(--lime); display: inline-block; }
-#sceneLabel { position: absolute; left: 80px; bottom: 50px; font-size: 18px; letter-spacing: .24em; color: var(--muted); font-weight: 600; }
-#bpm { position: absolute; right: 80px; bottom: 50px; font-size: 18px; letter-spacing: .24em; color: var(--dim); font-weight: 600; }
-#bars { position: absolute; left: 80px; right: 80px; bottom: 96px; height: 3px; display: flex; gap: 4px; }
-#bars span { flex: 1; background: #202026; }
-#bars span.on { background: var(--ink); } #bars span.now { background: var(--lime); }
+#hud .wm { position: absolute; left: 80px; top: 50px; font-size: 22px; font-weight: 850; letter-spacing: .02em; }
+#hud .wm b { color: var(--accent); }
+#chain { position: absolute; right: 80px; top: 52px; font-size: 18px; font-weight: 700; letter-spacing: .18em; color: var(--muted); display: flex; align-items: center; gap: 12px; }
+#chain i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); display: inline-block; }
+#sceneLabel { position: absolute; left: 80px; bottom: 44px; font-size: 18px; letter-spacing: .2em; color: var(--muted); font-weight: 700; }
+#foot { position: absolute; right: 80px; bottom: 44px; font-size: 18px; letter-spacing: .2em; color: #b2afa6; font-weight: 700; }
+#bars { position: absolute; left: 80px; right: 80px; bottom: 86px; height: 3px; display: flex; gap: 4px; }
+#bars span { flex: 1; background: #e2dfd6; } #bars span.on { background: #9a978e; } #bars span.now { background: var(--accent); }
+
+/* step tracker */
+#stepper { position: absolute; left: 160px; right: 160px; top: 104px; display: flex; gap: 10px; opacity: 0; }
+#stepper .st { flex: 1; display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 12px; font-size: 20px; font-weight: 700; color: #a7a49b; background: transparent; border: 1.5px solid var(--line); white-space: nowrap; }
+#stepper .st i { font-style: normal; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #ebe9e2; color: #8d8a81; font-size: 16px; flex: none; }
+#stepper .st.done { color: var(--ink2); border-color: #d6d3c9; }
+#stepper .st.done i { background: var(--ink); color: #fff; }
+#stepper .st.now { color: #fff; background: var(--accent); border-color: var(--accent); box-shadow: 0 8px 22px rgba(31,75,255,.28); }
+#stepper .st.now i { background: #fff; color: var(--accent); }
+#sideTest { position: absolute; right: 160px; top: 160px; font-size: 19px; font-weight: 800; letter-spacing: .14em; color: var(--bad); opacity: 0; }
 
 /* components */
-.card { background: #121216; border: 1px solid #26262e; border-radius: 20px; }
-.chip { display: inline-block; padding: 10px 22px; border: 1px solid #2c2c34; border-radius: 999px; font-size: 26px; }
-.row { display: grid; grid-template-columns: 260px 1fr 360px; align-items: center; height: 68px; border-bottom: 1px solid #23232a; font-size: 34px; }
-.row .k { font-size: 18px; letter-spacing: .2em; color: var(--muted); font-weight: 600; }
-.row .ok { color: var(--lime); font-size: 22px; letter-spacing: .12em; font-weight: 700; text-align: right; }
-.keeper { width: 500px; height: 330px; padding: 40px 44px; }
-.keeper .name { font-size: 56px; font-weight: 800; letter-spacing: -.02em; }
-.keeper .price { font-size: 64px; margin-top: 18px; }
-.keeper .rec { font-size: 26px; color: #c9c7c1; margin-top: 18px; }
-.keeper .verdict { position: absolute; left: 44px; right: 44px; bottom: 34px; font-size: 24px; font-weight: 700; letter-spacing: .04em; }
-.proof { width: 1300px; padding: 18px; background: #0f0f12; border: 1px solid #2a2a33; border-radius: 18px; box-shadow: 0 40px 120px rgba(0,0,0,.6); }
-.proof .shot { position: relative; overflow: hidden; border-radius: 10px; }
+.row { display: grid; grid-template-columns: 240px 1fr 330px; align-items: center; height: 82px; border-bottom: 1.5px solid var(--line); font-size: 38px; }
+.row .k { font-size: 20px; letter-spacing: .2em; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+.row .tick { color: var(--ok); font-size: 24px; letter-spacing: .1em; font-weight: 800; text-align: right; }
+.keeper { width: 500px; height: 330px; padding: 38px 42px; }
+.keeper .name { font-size: 56px; font-weight: 820; letter-spacing: -.02em; }
+.keeper .price { font-size: 62px; margin-top: 14px; font-weight: 700; }
+.keeper .rec { font-size: 27px; color: var(--ink2); margin-top: 14px; }
+.keeper .verdict { position: absolute; left: 42px; right: 42px; bottom: 30px; font-size: 25px; font-weight: 800; }
+.proof { padding: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 34px 90px rgba(20,20,20,.14); }
+.proof .shot { position: relative; overflow: hidden; border-radius: 10px; border: 1px solid var(--line); }
 .proof .iw { position: relative; }
 .proof img { display: block; width: 100%; }
-.proof .hl { position: absolute; border: 4px solid var(--lime); border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0,0,0,.0); }
-.proof .cap { margin-top: 16px; display: flex; justify-content: space-between; font-size: 22px; letter-spacing: .14em; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+.proof .hl { position: absolute; border: 4px solid var(--accent); border-radius: 8px; box-shadow: 0 0 0 4px rgba(31,75,255,.15); }
+.proof .cap { margin-top: 14px; display: flex; justify-content: space-between; gap: 20px; font-size: 21px; letter-spacing: .12em; color: var(--muted); font-weight: 700; text-transform: uppercase; }
 .proof .cap b { color: var(--ink); font-weight: 600; letter-spacing: .02em; text-transform: none; }
-.json { font-size: 30px; line-height: 1.55; white-space: pre; }
+.json { font-size: 29px; line-height: 1.55; white-space: pre; }
 .json .key { color: var(--muted); }
 .json .val { color: var(--ink); }
-.json .bad { color: var(--red); text-decoration: none; background: rgba(255,59,48,.14); }
-.stamp { font-size: 150px; font-weight: 900; letter-spacing: -.03em; color: var(--red); transform: rotate(-6deg); text-shadow: 0 0 40px rgba(11,11,13,.9), 0 0 2px #0b0b0d; }
-.node { width: 340px; height: 200px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-.node .t { font-size: 34px; font-weight: 750; }
-.node .s { font-size: 18px; letter-spacing: .18em; color: var(--muted); margin-top: 10px; font-weight: 600; }
-.token { width: 150px; height: 150px; border-radius: 50%; background: var(--lime); color: #0b0b0d; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 30px; text-align: center; line-height: 1; box-shadow: 0 0 80px rgba(200,255,46,.45); }
-.check { display: grid; grid-template-columns: 300px 1fr 80px; align-items: center; height: 86px; border-bottom: 1px solid #23232a; font-size: 38px; }
-.check .k { font-size: 20px; letter-spacing: .22em; color: var(--muted); font-weight: 650; }
-.check .v { font-weight: 600; }
-.check .m { color: var(--lime); font-size: 44px; text-align: right; font-weight: 800; }
+.json .bad { color: var(--bad); background: var(--bad-soft); }
+.stamp { font-size: 150px; font-weight: 900; letter-spacing: -.03em; color: var(--bad); transform: rotate(-6deg); text-shadow: 0 0 30px rgba(245,244,239,.95); }
+.node { position: absolute; width: 340px; height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; visibility: hidden; }
+.node .t { font-size: 31px; font-weight: 800; letter-spacing: -.01em; }
+.node .s { font-size: 18px; letter-spacing: .14em; color: var(--muted); margin-top: 8px; font-weight: 700; text-transform: uppercase; }
+.node.vault { border: 2px solid var(--accent); }
+.node.vault.ada { border-color: #2a6df4; }
+.token { width: 140px; height: 140px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 850; font-size: 32px; text-align: center; line-height: 1; box-shadow: 0 16px 40px rgba(31,75,255,.35); }
+.check { display: grid; grid-template-columns: 260px 1fr 80px; align-items: center; height: 92px; border-bottom: 1.5px solid var(--line); font-size: 40px; }
+.check .k { font-size: 20px; letter-spacing: .2em; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+.check .v { font-weight: 650; }
+.check .m { color: var(--ok); font-size: 48px; text-align: right; font-weight: 900; }
 .col { width: 500px; }
-.col .k { font-size: 20px; letter-spacing: .22em; color: var(--lime); font-weight: 700; }
-.col .v { font-size: 40px; font-weight: 700; margin-top: 18px; line-height: 1.18; letter-spacing: -.01em; }
-.col .d { font-size: 26px; color: var(--muted); margin-top: 16px; line-height: 1.35; }
+.col .k { font-size: 21px; letter-spacing: .2em; color: var(--accent); font-weight: 800; text-transform: uppercase; }
+.col .v { font-size: 42px; font-weight: 780; margin-top: 18px; line-height: 1.15; letter-spacing: -.015em; }
+.col .d { font-size: 27px; color: var(--muted); margin-top: 16px; line-height: 1.35; }
+#flow svg { position: absolute; left: 0; top: 0; }
+.fl-n { font: 800 24px system-ui; fill: #fff; }
+.fl-l { font: 700 24px system-ui; fill: var(--ink2); }
 </style>
 </head>
 <body>
@@ -89,91 +101,107 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
   <div id="grid"></div>
   <div id="glow"></div>
 
-  <!-- 01 HOOK -->
+  <!-- HOOK -->
   <section class="scene" id="s-hook">
-    <div id="hk1" class="abs h1" style="left:160px; top:300px; font-size:104px; white-space:nowrap"></div>
+    <div id="hk1" class="abs display" style="left:160px; top:330px; font-size:108px; white-space:nowrap"></div>
     <div id="hk2" class="abs h2 muted" style="left:160px; top:520px">Which rate did it use?</div>
     <div id="hk3" class="abs h2 muted" style="left:160px; top:610px">Who actually gets the money?</div>
     <div id="hk4" class="abs h2 muted" style="left:160px; top:700px">Does it get paid for nothing?</div>
   </section>
 
-  <!-- 02 PROBLEM -->
+  <!-- PROBLEM -->
   <section class="scene" id="s-problem">
     <div id="pr-title" class="abs" style="left:0; right:0; top:330px; text-align:center">
-      <div class="display" style="font-size:236px; font-weight:900">PayOnProof</div>
-      <div class="body" style="margin-top:34px; font-size:40px">Agents pay on <span class="lime">signed data</span>, and get paid only on <span class="lime">proof</span>.</div>
+      <div class="display" style="font-size:230px; font-weight:900">PayOn<span class="accent">Proof</span></div>
+      <div class="body" style="margin-top:36px; font-size:44px">Agents pay on <span class="mark">signed data</span>, and get paid only on <span class="mark">proof</span>.</div>
     </div>
-    <div id="pr-l1" class="abs label lime" style="left:160px; top:200px">Who it's for</div>
-    <div id="pr-l2" class="abs h1" style="left:160px; top:250px; font-size:84px; white-space:nowrap">Lena roasts coffee in Munich.</div>
-    <div id="pr-l3" class="abs body" style="left:160px; top:380px; width:1050px">Her suppliers in Colombia and Brazil invoice her in <b style="color:var(--ink)">euros</b>. She holds <b style="color:var(--ink)">US-dollar stablecoins</b>.</div>
-    <div id="pr-s1" class="abs card" style="left:1300px; top:230px; width:460px; padding:30px 36px">
-      <div class="label">Supplier · Colombia</div><div style="font-size:42px; font-weight:750; margin-top:12px">Café Verde</div><div class="mono" style="font-size:34px; margin-top:8px">INV-17 · €1,000</div>
+    <div id="pr-l1" class="abs label accent" style="left:160px; top:190px">Who it's for</div>
+    <div id="pr-l2" class="abs display" style="left:160px; top:236px; font-size:88px; white-space:nowrap">Lena roasts coffee in Munich.</div>
+    <div id="pr-l3" class="abs body" style="left:160px; top:362px; width:1050px">Her suppliers in Colombia and Brazil invoice her in <b style="color:var(--ink)">euros</b>. She holds <b style="color:var(--ink)">US-dollar stablecoins</b>.</div>
+    <div id="pr-s1" class="abs card" style="left:1320px; top:200px; width:440px; padding:28px 34px">
+      <div class="label">Supplier · Colombia</div><div style="font-size:42px; font-weight:800; margin-top:10px">Café Verde</div><div class="mono" style="font-size:32px; margin-top:6px">INV-17 · €1,000</div>
     </div>
-    <div id="pr-s2" class="abs card" style="left:1300px; top:430px; width:460px; padding:30px 36px">
-      <div class="label">Supplier · Brazil</div><div style="font-size:42px; font-weight:750; margin-top:12px">Fazenda Alta</div><div class="mono" style="font-size:34px; margin-top:8px">INV-20 · €400</div>
+    <div id="pr-s2" class="abs card" style="left:1320px; top:395px; width:440px; padding:28px 34px">
+      <div class="label">Supplier · Brazil</div><div style="font-size:42px; font-weight:800; margin-top:10px">Fazenda Alta</div><div class="mono" style="font-size:32px; margin-top:6px">INV-20 · €400</div>
     </div>
-    <div id="pr-chart" class="abs" style="left:160px; top:600px; width:1600px; height:300px">
-      <svg width="1600" height="300" viewBox="0 0 1600 300">
-        <line id="pr-limit" x1="0" x2="1600" y1="150" y2="150" stroke="#c8ff2e" stroke-width="2" stroke-dasharray="10 10"/>
-        <path id="pr-path" d="" fill="none" stroke="#edebe6" stroke-width="4" stroke-linejoin="round"/>
-        <circle id="pr-dot" r="10" fill="#c8ff2e"/>
+    <div id="pr-chart" class="abs" style="left:160px; top:610px; width:1600px; height:260px">
+      <svg width="1600" height="260" viewBox="0 0 1600 260">
+        <line x1="0" x2="1600" y1="130" y2="130" stroke="#1f4bff" stroke-width="3" stroke-dasharray="12 10"/>
+        <path id="pr-path" d="" fill="none" stroke="#141414" stroke-width="4" stroke-linejoin="round"/>
+        <circle id="pr-dot" r="11" fill="#1f4bff"/>
       </svg>
-      <div class="label lime" style="position:absolute; right:0; top:108px">Pay when EUR/USD &lt; 1.13</div>
-      <div class="label" style="position:absolute; left:0; top:-36px">EUR/USD · illustrative</div>
+      <div class="label accent" style="position:absolute; right:0; top:88px">Pay when EUR/USD &lt; 1.13</div>
+      <div class="label" style="position:absolute; left:0; top:-34px">EUR/USD · illustrative</div>
     </div>
-    <div id="pr-l4" class="abs body" style="left:160px; top:930px; width:1600px; font-size:32px">She wants to pay when the rate is right: no chart-watching, no agent holding a wallet it could empty.</div>
+    <div id="pr-l4" class="abs body" style="left:160px; top:890px; width:1600px; font-size:34px">She wants to pay <span class="mark">when the rate is right</span>: no chart-watching, and no agent holding a wallet it could empty.</div>
   </section>
 
-  <!-- 03 ORDER -->
+  <!-- FLOW AT A GLANCE -->
+  <section class="scene" id="s-flow">
+    <div id="fl-h" class="abs h2" style="left:160px; top:130px">How PayOnProof pays an invoice</div>
+    <div id="flow" class="abs" style="left:0; top:0; width:1920px; height:1080px">
+      <svg width="1920" height="1080" viewBox="0 0 1920 1080">
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f4bff"/></marker></defs>
+        <g id="fl-arrows"></g>
+      </svg>
+    </div>
+    <div id="fn-team" class="node card" style="left:80px; top:500px"><div class="t">Lena's team</div><div class="s">posts a Task · Sokosumi</div></div>
+    <div id="fn-agent" class="node card" style="left:540px; top:500px"><div class="t">Lena's finance agent</div><div class="s">a Sokosumi Coworker</div></div>
+    <div id="fn-keeper" class="node card" style="left:1120px; top:500px"><div class="t">Keeper agent</div><div class="s">executes for a fee</div></div>
+    <div id="fn-invoice" class="node card vault" style="left:830px; top:250px"><div class="t">InvoiceEscrow</div><div class="s">Base Sepolia · API3 checks</div></div>
+    <div id="fn-masumi" class="node card vault ada" style="left:830px; top:760px"><div class="t">Masumi escrow</div><div class="s">Cardano preprod</div></div>
+    <div id="fn-supplier" class="node card" style="left:1500px; top:250px"><div class="t">Supplier</div><div class="s">Fazenda Alta · Brazil</div></div>
+    <div id="fl-cap" class="abs" style="left:1500px; top:520px; width:340px; font-size:30px; font-weight:750; line-height:1.25"></div>
+  </section>
+
+  <!-- 1–2: TASK, ORDER -->
   <section class="scene" id="s-order">
-    <div id="or-lab" class="abs label" style="left:160px; top:190px">Lena's team posts a Task on <span class="lime">Sokosumi</span> · to its finance agent, a Sokosumi Coworker</div>
-    <div id="or-bubble" class="abs card" style="left:160px; top:236px; width:1600px; padding:22px 26px; display:flex; gap:34px; align-items:center">
-      <img src="assets/sokosumi-task.jpg" style="width:1020px; display:block; border-radius:10px">
+    <div id="or-h1" class="abs head" style="left:160px; top:200px"><span class="n">1</span>A team posts the invoice as a Task on <span class="mark">Sokosumi</span></div>
+    <div id="or-sok" class="abs card" style="left:160px; top:320px; width:1600px; padding:26px 30px; display:flex; gap:36px; align-items:center">
+      <img src="assets/sokosumi-task.jpg" style="width:1060px; display:block; border-radius:10px; border:1px solid var(--line)">
       <div style="display:flex; flex-direction:column; gap:14px">
         <span class="chip">→ PayOnProof finance agent</span>
         <span class="chip">TUM-Hackathon Workspace</span>
-        <span class="chip lime" style="border-color:#4d5f1c">READY</span>
+        <span class="chip ok">READY</span>
       </div>
     </div>
-    <div id="or-lab2" class="abs label lime" style="left:160px; top:520px">Claude reads it · code checks every field</div>
-    <div id="or-card" class="abs" style="left:160px; top:562px; width:1600px">
-      <div class="row" id="or-r0"><span class="k">Invoice</span><span class="mono">INV-20</span><span class="ok" id="or-c0">✓ checked by code</span></div>
-      <div class="row" id="or-r1"><span class="k">Amount</span><span class="mono">€400.00</span><span class="ok" id="or-c1">✓ checked by code</span></div>
-      <div class="row" id="or-r2"><span class="k">Payee</span><span>Fazenda Alta (Brazil) <span class="small">· address from her address book, never from the model</span></span><span class="ok" id="or-c2">✓ checked by code</span></div>
-      <div class="row" id="or-r3"><span class="k">Limit</span><span class="mono">EUR/USD &lt; 1.13</span><span class="ok" id="or-c3">✓ checked by code</span></div>
-      <div class="row" id="or-r4"><span class="k">Deadline</span><span class="mono">2026-11-20</span><span class="ok" id="or-c4">✓ checked by code</span></div>
+    <div id="or-sub1" class="abs body" style="left:160px; top:610px; width:1600px">One sentence, to its finance agent. The agent is a <b style="color:var(--ink)">Sokosumi Coworker</b>: it picks the Task up and does the whole job.</div>
+    <div id="or-h2" class="abs head" style="left:160px; top:200px"><span class="n">2</span>Claude reads it. <span class="mark">Code checks every field.</span></div>
+    <div id="or-card" class="abs" style="left:160px; top:300px; width:1600px">
+      <div class="row" id="or-r0"><span class="k">Invoice</span><span class="mono">INV-20</span><span class="tick" id="or-c0">✓ CHECKED BY CODE</span></div>
+      <div class="row" id="or-r1"><span class="k">Amount</span><span class="mono">€400.00</span><span class="tick" id="or-c1">✓ CHECKED BY CODE</span></div>
+      <div class="row" id="or-r2"><span class="k">Payee</span><span>Fazenda Alta (Brazil)</span><span class="tick" id="or-c2">✓ FROM HER ADDRESS BOOK</span></div>
+      <div class="row" id="or-r3"><span class="k">Limit</span><span class="mono">EUR/USD &lt; 1.13</span><span class="tick" id="or-c3">✓ CHECKED BY CODE</span></div>
+      <div class="row" id="or-r4"><span class="k">Deadline</span><span class="mono">2026-11-20</span><span class="tick" id="or-c4">✓ CHECKED BY CODE</span></div>
     </div>
-    <div id="or-m1" class="abs display" style="left:160px; top:260px; font-size:150px">AI interprets.</div>
-    <div id="or-m2" class="abs display" style="left:160px; top:430px; font-size:150px">Code checks.</div>
-    <div id="or-m3" class="abs display lime" style="left:160px; top:600px; font-size:150px">Contracts move money.</div>
-    <div id="or-lock" class="abs" style="left:160px; top:240px; width:1600px">
-      <div class="label evm">Base Sepolia · InvoiceEscrow 0x63e2…571a</div>
-      <div class="display mono" style="font-size:190px; margin-top:30px; font-weight:700; letter-spacing:-.04em">452.00 <span class="muted" style="font-size:90px">dUSD</span></div>
-      <div class="h2" style="margin-top:30px">locked, payable only to Fazenda Alta.</div>
-      <div class="body" style="margin-top:22px">€400 at the 1.13 limit. A Keeper can trigger the payment. It can never redirect it.</div>
-      <div class="small mono" style="margin-top:30px">createOrder · tx 0x67770c2220a8…15ab8d66c</div>
+    <div id="or-sub2" class="abs body" style="left:160px; top:760px; width:1600px">The supplier's address comes from Lena's address book, <span class="mark">never from the model</span>.</div>
+    <div id="or-h3" class="abs head" style="left:160px; top:200px"><span class="n">2</span>Then the invoice money is <span class="mark">locked in a contract</span></div>
+    <div id="or-lock" class="abs" style="left:160px; top:300px; width:1600px">
+      <div class="display mono" style="font-size:200px; font-weight:700; letter-spacing:-.05em">452.00 <span class="muted" style="font-size:90px">dUSD</span></div>
+      <div class="h2" style="margin-top:26px">payable only to Fazenda Alta.</div>
+      <div class="body" style="margin-top:20px">€400 at the 1.13 limit, in <b style="color:var(--ink)">InvoiceEscrow on Base Sepolia</b>. A Keeper can trigger the payment. It can never redirect it.</div>
+      <div class="small mono" style="margin-top:24px">createOrder · tx 0x67770c2220a8…15ab8d66c</div>
     </div>
   </section>
 
-  <!-- 04 HIRE -->
+  <!-- 3–4: HIRE -->
   <section class="scene" id="s-hire">
-    <div id="hi-h" class="abs h1" style="left:160px; top:170px">She hires a Keeper.</div>
-    <div id="hi-s" class="abs body" style="left:160px; top:300px">An agent that watches the rate and executes the payment, for a fee.</div>
-    <div id="hi-k0" class="abs card keeper" style="left:160px; top:420px"><div class="name">Atlas</div><div class="price mono">2 tUSDM</div><div class="rec">7 verified executions on chain</div><div class="verdict" id="hi-v0"></div></div>
-    <div id="hi-k1" class="abs card keeper" style="left:710px; top:420px"><div class="name">Swift</div><div class="price mono">1 tUSDM</div><div class="rec">7 verified executions on chain</div><div class="verdict" id="hi-v1"></div></div>
-    <div id="hi-k2" class="abs card keeper" style="left:1260px; top:420px"><div class="name">Prime</div><div class="price mono">4 tUSDM</div><div class="rec">0 verified executions on chain</div><div class="verdict" id="hi-v2"></div></div>
-    <div id="hi-f" class="abs small" style="left:160px; top:800px; width:1600px">Price: each Keeper's x402 quote on Cardano. Record: its receipts on Cardano, each checked against a payment on Base. Nothing seeded. Code decides.</div>
-
-    <div id="hi-n0" class="abs card node" style="left:160px; top:330px"><div class="t">Lena's agent</div><div class="s">BUYER</div></div>
-    <div id="hi-n1" class="abs card node" style="left:1420px; top:330px; border-color:#3a4a7a"><div class="t">Masumi escrow</div><div class="s ada">CARDANO PREPROD</div></div>
-    <div id="hi-line" class="abs" style="left:500px; top:428px; width:920px; height:4px; background:linear-gradient(90deg,#2a2a33,#6f95ff)"></div>
-    <div id="hi-tok" class="abs token" style="left:500px; top:355px">1<br><span style="font-size:20px">tUSDM</span></div>
-    <div id="hi-c" class="abs" style="left:160px; top:620px; width:1600px">
-      <div class="h2">Swift's fee waits in Masumi escrow.</div>
-      <div class="body" style="margin-top:20px">Paid over x402. Swift can see the money is locked. If nothing is delivered, Lena gets it back.</div>
+    <div id="hi-h1" class="abs head" style="left:160px; top:200px; width:1600px"><span class="n">3</span>Lena's agent hires a Keeper: <span class="mark">the cheapest one with a proven record</span></div>
+    <div id="hi-k0" class="abs card keeper" style="left:160px; top:400px"><div class="name">Atlas</div><div class="price mono">2 tUSDM</div><div class="rec">7 verified executions on chain</div><div class="verdict" id="hi-v0"></div></div>
+    <div id="hi-k1" class="abs card keeper" style="left:710px; top:400px"><div class="name">Swift</div><div class="price mono">1 tUSDM</div><div class="rec">8 verified executions on chain</div><div class="verdict" id="hi-v1"></div></div>
+    <div id="hi-k2" class="abs card keeper" style="left:1260px; top:400px"><div class="name">Prime</div><div class="price mono">4 tUSDM</div><div class="rec">no record yet</div><div class="verdict" id="hi-v2"></div></div>
+    <div id="hi-f" class="abs small" style="left:160px; top:770px; width:1600px">Price: each Keeper's <b style="color:var(--ink2)">x402 quote</b> on Cardano. Record: its receipts on Cardano, each checked against a payment on Base Sepolia, minus no-shows and disputed results. <b style="color:var(--ink2)">Code decides.</b></div>
+    <div id="hi-h2" class="abs head" style="left:160px; top:200px; width:1600px"><span class="n">4</span>Its fee goes into <span class="mark">Masumi escrow on Cardano</span>, not to the Keeper</div>
+    <div id="hi-n0" class="abs card" style="left:160px; top:380px; width:380px; height:150px; display:flex; flex-direction:column; justify-content:center; align-items:center"><div style="font-size:34px; font-weight:800">Lena's agent</div><div class="label" style="margin-top:8px">buyer</div></div>
+    <div id="hi-n1" class="abs card" style="left:1380px; top:380px; width:380px; height:150px; border:2px solid var(--accent); display:flex; flex-direction:column; justify-content:center; align-items:center"><div style="font-size:34px; font-weight:800">Masumi escrow</div><div class="label accent" style="margin-top:8px">Cardano preprod</div></div>
+    <div id="hi-line" class="abs" style="left:540px; top:453px; width:840px; height:5px; background:linear-gradient(90deg,#c9c6bc,#1f4bff)"></div>
+    <div id="hi-tok" class="abs token" style="left:540px; top:385px">1<br><span style="font-size:20px">tUSDM</span></div>
+    <div id="hi-c" class="abs" style="left:160px; top:610px; width:1600px">
+      <div class="h2">Released <span class="mark">only after delivery</span>. Refunded if not.</div>
+      <div class="body" style="margin-top:18px">Paid over x402. Swift can see the money is there; Lena can't take it back while Swift works.</div>
     </div>
-    <div id="hi-p" class="abs proof" style="left:310px; top:150px">
-      <div class="shot" style="height:610px"><div class="iw"><img src="assets/cardanoscan-lock.jpg">
+    <div id="hi-p" class="abs proof" style="left:310px; top:300px; width:1300px">
+      <div class="shot" style="height:560px"><div class="iw"><img src="assets/cardanoscan-lock.jpg">
         <div class="hl" style="left:11.8%; top:23.7%; width:38.4%; height:3.8%"></div>
         <div class="hl" style="left:53.6%; top:61.4%; width:34%; height:12.2%"></div>
       </div></div>
@@ -181,30 +209,28 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
     </div>
   </section>
 
-  <!-- 05 EXECUTE -->
+  <!-- 5–6: EXECUTE -->
   <section class="scene" id="s-exec">
-    <div id="ex-lab" class="abs label" style="left:160px; top:190px">Swift watches · Nodary EUR/USD, signed via API3 AirnodeHub</div>
-    <div id="ex-tick" class="abs" style="left:160px; top:250px">
-      <div class="mono" style="font-size:260px; font-weight:700; letter-spacing:-.05em; line-height:1">1.11633</div>
+    <div id="ex-h1" class="abs head" style="left:160px; top:200px"><span class="n">5</span>The Keeper watches an <span class="mark">API3-signed</span> EUR/USD rate</div>
+    <div id="ex-tick" class="abs" style="left:160px; top:300px"><div class="mono" style="font-size:240px; font-weight:700; letter-spacing:-.05em; line-height:1">1.11633</div></div>
+    <div id="ex-sig" class="abs small mono" style="left:170px; top:560px; width:1500px">signed by the Nodary Airnode 0xE70f…E4c0 · EUR/USD request 0x5ccc…d3d0 · <span id="ex-cyc">cycle 1</span></div>
+    <div id="ex-ok" class="abs h2 ok" style="left:1330px; top:380px">&lt; 1.13 ✓</div>
+    <div id="ex-2nd" class="abs card" style="left:160px; top:660px; width:1600px; padding:30px 40px; display:flex; justify-content:space-between; align-items:center">
+      <div><div class="label accent">Second opinion · bought over x402 for 0.01 aUSD</div><div style="font-size:40px; font-weight:750; margin-top:10px">Frankfurter on AirnodeHub: <span class="mono">1.1173</span></div></div>
+      <div class="ok" style="font-size:42px; font-weight:850">0.09 % apart ✓</div>
     </div>
-    <div id="ex-sig" class="abs small mono" style="left:170px; top:540px; width:1500px">signed by 0xE70f…E4c0 · request 0x5ccc…d3d0 · <span id="ex-age">0 s</span> ago · <span id="ex-cyc">cycle 1</span></div>
-    <div id="ex-ok" class="abs h2 lime" style="left:1300px; top:340px">&lt; 1.13 ✓</div>
-    <div id="ex-2nd" class="abs card" style="left:160px; top:640px; width:1600px; padding:30px 40px; display:flex; justify-content:space-between; align-items:center">
-      <div><div class="label evm">Second opinion · bought over x402 · 0.01 aUSD</div><div style="font-size:40px; font-weight:700; margin-top:12px">Frankfurter on AirnodeHub: <span class="mono">1.1173</span></div></div>
-      <div class="lime" style="font-size:40px; font-weight:800">0.09 % apart ✓</div>
-    </div>
-    <div id="ex-chk" class="abs" style="left:160px; top:220px; width:1600px">
-      <div class="label evm" style="margin-bottom:16px">InvoiceEscrow checks, on chain</div>
-      <div class="check" id="ex-c0"><span class="k">Signer</span><span class="v">Nodary Airnode 0xE70f…E4c0</span><span class="m">✓</span></div>
-      <div class="check" id="ex-c1"><span class="k">Request</span><span class="v">EUR/USD, request hash 0x5ccc…d3d0</span><span class="m">✓</span></div>
+    <div id="ex-h2" class="abs head" style="left:160px; top:200px"><span class="n">6</span>The contract <span class="mark">checks the signature itself</span>, then pays</div>
+    <div id="ex-chk" class="abs" style="left:160px; top:290px; width:1600px">
+      <div class="check" id="ex-c0"><span class="k">Signer</span><span class="v">the Nodary Airnode, 0xE70f…E4c0</span><span class="m">✓</span></div>
+      <div class="check" id="ex-c1"><span class="k">Request</span><span class="v">exactly EUR/USD</span><span class="m">✓</span></div>
       <div class="check" id="ex-c2"><span class="k">Time</span><span class="v">signed less than 5 minutes ago</span><span class="m">✓</span></div>
       <div class="check" id="ex-c3"><span class="k">Limit</span><span class="v mono">1.11633 &lt; 1.13</span><span class="m">✓</span></div>
     </div>
     <div id="ex-paid" class="abs" style="left:160px; top:720px; width:1600px">
-      <div class="display" style="font-size:96px"><span class="lime">PAID</span> <span class="mono">446.53</span> dUSD → Fazenda Alta</div>
+      <div class="display" style="font-size:96px"><span class="ok">PAID</span> <span class="mono">446.53</span> dUSD → Fazenda Alta</div>
       <div class="body" style="margin-top:14px">€400 × 1.11633. The 5.47 dUSD left over goes back to Lena.</div>
     </div>
-    <div id="ex-p" class="abs proof" style="left:310px; top:150px">
+    <div id="ex-p" class="abs proof" style="left:310px; top:290px; width:1300px">
       <div class="shot" style="height:577px"><div class="iw"><img src="assets/basescan-execute.jpg">
         <div class="hl" style="left:30.8%; top:47.8%; width:4.9%; height:3.6%"></div>
         <div class="hl" style="left:30.8%; top:81.8%; width:42.7%; height:3.6%"></div>
@@ -213,88 +239,113 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
     </div>
   </section>
 
-  <!-- 06 TAMPER -->
+  <!-- STRESS TEST -->
   <section class="scene" id="s-tamper">
-    <div id="ta-lab" class="abs label lime" style="left:160px; top:190px">API3 tamper test · on the deployed contract</div>
-    <div id="ta-h1" class="abs h2" style="left:160px; top:240px">That was a real, fresh, signed rate.</div>
-    <div id="ta-h2" class="abs h2 red" style="left:160px; top:330px">Now forge one.</div>
-    <div id="ta-json" class="abs json mono card" style="left:160px; top:450px; width:1600px; padding:30px 40px"></div>
-    <div id="ta-cap" class="abs h2" style="left:160px; top:270px"></div>
-    <div id="ta-stamp" class="abs" style="left:1010px; top:520px; width:900px">
+    <div id="ta-h" class="abs head" style="left:160px; top:200px">Stress test: <span class="mark">can a forged rate move the money?</span></div>
+    <div id="ta-real" class="abs body" style="left:160px; top:300px">The real, fresh, signed rate just paid INV-20 <span class="ok" style="font-weight:800">✓</span>. Now we forge one, on the deployed contract.</div>
+    <div id="ta-json" class="abs json mono card" style="left:160px; top:400px; width:1600px; padding:28px 38px"></div>
+    <div id="ta-cap" class="abs h2" style="left:160px; top:285px; font-size:52px"></div>
+    <div id="ta-stamp" class="abs" style="left:1010px; top:470px; width:900px">
       <div class="stamp">REJECTED</div>
-      <div id="ta-err" class="mono red" style="display:inline-block; font-size:34px; margin-top:14px; padding:10px 18px; background:rgba(11,11,13,.92); border:1px solid #5a2630; border-radius:10px; transform:rotate(-6deg)"></div>
+      <div id="ta-err" class="mono bad" style="display:inline-block; font-size:32px; margin-top:12px; padding:10px 18px; background:var(--paper); border:2px solid var(--bad); border-radius:10px; transform:rotate(-6deg)"></div>
     </div>
-    <div id="ta-count" class="abs mono" style="right:80px; top:190px; font-size:28px; color:var(--red); letter-spacing:.1em"></div>
-    <div id="ta-w1" class="abs display" style="left:160px; top:300px; font-size:150px">Signer.</div>
-    <div id="ta-w2" class="abs display" style="left:760px; top:300px; font-size:150px">Request.</div>
-    <div id="ta-w3" class="abs display" style="left:1420px; top:300px; font-size:150px">Time.</div>
-    <div id="ta-last" class="abs" style="left:160px; top:520px; width:1600px">
+    <div id="ta-count" class="abs mono bad" style="right:160px; top:300px; font-size:30px; font-weight:800; letter-spacing:.06em"></div>
+    <div id="ta-w1" class="abs display" style="left:160px; top:330px; font-size:150px">Signer.</div>
+    <div id="ta-w2" class="abs display" style="left:740px; top:330px; font-size:150px">Request.</div>
+    <div id="ta-w3" class="abs display" style="left:1400px; top:330px; font-size:150px">Time.</div>
+    <div id="ta-last" class="abs" style="left:160px; top:560px; width:1600px">
       <div class="h2">The contract has the last word.</div>
-      <div class="body" style="margin-top:20px">Only the real, fresh response moved money: <span class="lime">ACCEPTED</span>, 111.63 dUSD paid · <span class="mono">tx 0x27fe4dd7…0a634</span></div>
+      <div class="body" style="margin-top:18px">Only the real, fresh response moved money: <span class="ok" style="font-weight:800">ACCEPTED</span>, 111.63 dUSD paid · <span class="mono">tx 0x27fe4dd7…0a634</span></div>
     </div>
   </section>
 
-  <!-- 07 PROOF -->
+  <!-- 7–8: PROOF, RELEASE -->
   <section class="scene" id="s-proof">
-    <div id="pf-slam" class="abs display lime" style="left:0; right:0; top:380px; text-align:center; font-size:230px; font-weight:900">PAID ON PROOF</div>
-    <div id="pf-h" class="abs h2" style="left:160px; top:200px; white-space:nowrap">Swift's fee is released only against proof.</div>
-    <div id="pf-f" class="abs mono" style="left:160px; top:340px; font-size:36px; color:#c9c7c1">result hash = sha256( execute tx · InvoicePaid event · fee lock )</div>
-    <div id="pf-hash" class="abs mono lime" style="left:160px; top:410px; font-size:36px"></div>
-    <div id="pf-into" class="abs body" style="left:160px; top:480px">→ written into the Masumi escrow on Cardano. Anyone can recheck it against both chains.</div>
-    <div id="pf-p" class="abs proof" style="left:160px; top:570px; width:760px">
+    <div id="pf-slam" class="abs display accent" style="left:0; right:0; top:390px; text-align:center; font-size:220px; font-weight:900">PAID ON PROOF</div>
+    <div id="pf-h1" class="abs head" style="left:160px; top:200px"><span class="n">7</span>The Keeper <span class="mark">proves the payment</span> on Cardano</div>
+    <div id="pf-f" class="abs mono" style="left:160px; top:300px; font-size:34px; color:var(--ink2)">result hash = sha256( execute tx · InvoicePaid event · fee lock )</div>
+    <div id="pf-hash" class="abs mono accent" style="left:160px; top:358px; font-size:34px; font-weight:700"></div>
+    <div id="pf-p" class="abs proof" style="left:160px; top:440px; width:760px">
       <div class="shot" style="height:300px"><div class="iw"><img src="assets/cardanoscan-result.jpg">
         <div class="hl" style="left:11.8%; top:23.7%; width:38.4%; height:3.8%"></div>
         <div class="hl" style="left:27.8%; top:77.6%; width:7.4%; height:3.8%"></div>
       </div></div>
-      <div class="cap"><span>Result hash on chain</span><b class="mono">tx b200508e…aa35</b></div>
+      <div class="cap"><span>Into the Masumi escrow</span><b class="mono">tx b200508e…aa35</b></div>
     </div>
-    <div id="pf-r" class="abs" style="left:1000px; top:570px; width:760px">
-      <div class="label ada">After Lena's dispute window</div>
-      <div style="font-size:40px; font-weight:700; margin-top:12px; line-height:1.2">Swift collects its 1 tUSDM.</div>
-      <div class="label red" style="margin-top:44px">Limit never reached (INV-17)</div>
-      <div style="font-size:40px; font-weight:700; margin-top:12px; line-height:1.2">Swift authorizes a refund. Lena takes her fee back.</div>
-      <div class="small mono" style="margin-top:16px">refund · tx 3a07af8a…fa9a</div>
+    <div id="pf-chk" class="abs card" style="left:1000px; top:440px; width:760px; padding:32px 38px">
+      <div class="label accent">Before the fee unlocks</div>
+      <div style="font-size:38px; font-weight:780; margin-top:12px; line-height:1.2">Lena's agent <span class="mark">rechecks the hash</span> against Base Sepolia.</div>
+      <div class="body" style="margin-top:16px; font-size:29px">A Keeper that claimed a payment it never made was disputed in the escrow and could not collect.</div>
+      <div class="small mono" style="margin-top:12px; font-size:23px">dispute · tx 4c465a94…7c47</div>
     </div>
-    <div id="pf-sok" class="abs" style="left:160px; top:190px; width:1600px">
-      <div class="label lime">Back in the Sokosumi Task · TUM-Hackathon Workspace</div>
-      <div class="h2" style="margin-top:18px">Done, with every link. Follow-up questions answered from the job's facts.</div>
-      <div class="proof" style="margin-top:36px; width:1180px"><div class="shot"><div class="iw"><img src="assets/sokosumi-thread.jpg"></div></div>
-        <div class="cap"><span>Sokosumi · task thread</span><b class="mono">Task 01a19013…0763 · Coworker 01a1900c…ac48</b></div></div>
+    <div id="pf-h2" class="abs head" style="left:160px; top:200px"><span class="n">8</span>After Lena's dispute window, <span class="mark">the fee is released</span></div>
+    <div id="pf-rel" class="abs" style="left:160px; top:300px; width:1600px">
+      <div class="display" style="font-size:118px; white-space:nowrap"><span class="mono">1 tUSDM</span> → Keeper Swift</div>
+      <div class="body" style="margin-top:16px">Collected from the escrow after the unlock time · <span class="mono">tx b0b0a834…83c7</span></div>
     </div>
-    <div id="pf-bm" class="abs label lime" style="left:160px; top:200px">Business model</div>
-    <div id="pf-c0" class="abs col" style="left:160px; top:270px"><div class="k">Who pays</div><div class="v">Small importers and their finance agents.</div><div class="d">Pay suppliers abroad when the rate is right, without a bank's limit order.</div></div>
-    <div id="pf-c1" class="abs col" style="left:710px; top:270px"><div class="k">Who earns</div><div class="v">Keepers, a fee per executed invoice.</div><div class="d">Nothing for watching. Refunded if they don't deliver. Their record is public.</div></div>
-    <div id="pf-c2" class="abs col" style="left:1260px; top:270px"><div class="k">What's next</div><div class="v">Any Airnode-signed data as the trigger.</div><div class="d">Delivery events, prices, flight delays. Same escrow, same proof.</div></div>
-    <div id="pf-who" class="abs body" style="left:160px; top:760px; width:1600px">Cardano: x402 + Masumi escrow for the Keeper's fee. API3: AirnodeHub-signed data, checked by the contract that holds the invoice.</div>
+    <div id="pf-r0" class="abs card" style="left:160px; top:600px; width:770px; padding:30px 36px">
+      <div class="label bad">Limit never reached</div>
+      <div style="font-size:36px; font-weight:780; margin-top:10px; line-height:1.2">The Keeper authorizes a refund; Lena takes her fee back.</div>
+      <div class="small mono" style="margin-top:10px; font-size:23px">refund · tx 3a07af8a…fa9a</div>
+    </div>
+    <div id="pf-r1" class="abs card" style="left:990px; top:600px; width:770px; padding:30px 36px">
+      <div class="label bad">Keeper vanishes</div>
+      <div style="font-size:36px; font-weight:780; margin-top:10px; line-height:1.2">Lena refunds after the deadline, and the no-show counts against it.</div>
+      <div class="small mono" style="margin-top:10px; font-size:23px">refund · tx b903d2c3…a2ed</div>
+    </div>
   </section>
 
-  <!-- 08 OUTRO -->
+  <!-- SOKOSUMI -->
+  <section class="scene" id="s-soko">
+    <div id="so-h" class="abs head" style="left:160px; top:200px">Back in Sokosumi: <span class="mark">the Task is done</span>, with every link</div>
+    <div id="so-p" class="abs proof" style="left:160px; top:310px; width:1140px">
+      <div class="shot"><div class="iw"><img src="assets/sokosumi-thread.jpg"></div></div>
+      <div class="cap"><span>Sokosumi · task thread</span><b class="mono">Task 01a19013…0763</b></div>
+    </div>
+    <div id="so-side" class="abs" style="left:1360px; top:330px; width:400px">
+      <div class="label accent">Follow-up</div>
+      <div style="font-size:38px; font-weight:780; margin-top:12px; line-height:1.2">Questions are answered from the job's facts.</div>
+      <div class="body" style="margin-top:18px; font-size:30px">A comment never moves money. A new payment is a new Task.</div>
+    </div>
+  </section>
+
+  <!-- BUSINESS -->
+  <section class="scene" id="s-biz">
+    <div id="bm-h" class="abs head" style="left:160px; top:200px">Business model</div>
+    <div id="bm-c0" class="abs col" style="left:160px; top:310px"><div class="k">Who pays</div><div class="v">Small importers and their finance agents.</div><div class="d">Pay suppliers abroad when the rate is right, without a bank's limit order.</div></div>
+    <div id="bm-c1" class="abs col" style="left:710px; top:310px"><div class="k">Who earns</div><div class="v">Keepers: a fee per executed invoice.</div><div class="d">Nothing for watching. Refunded if they don't deliver. Their record is public.</div></div>
+    <div id="bm-c2" class="abs col" style="left:1260px; top:310px"><div class="k">What's next</div><div class="v">Any Airnode-signed data as the trigger.</div><div class="d">Delivery events, prices, flight delays. Same escrow, same proof.</div></div>
+    <div id="bm-why" class="abs body" style="left:160px; top:720px; width:1600px; font-size:32px"><b style="color:var(--ink)">Cardano:</b> x402 + Masumi escrow + a Sokosumi Coworker. <b style="color:var(--ink)">API3:</b> AirnodeHub-signed data, checked by the contract that holds the money.</div>
+  </section>
+
+  <!-- OUTRO -->
   <section class="scene" id="s-outro">
     <div id="ou-1" class="abs display" style="left:160px; top:330px; font-size:150px">Don't trust your agent.</div>
-    <div id="ou-2" class="abs display lime" style="left:160px; top:500px; font-size:150px">Verify it.</div>
+    <div id="ou-2" class="abs display accent" style="left:160px; top:500px; font-size:150px">Verify it.</div>
     <div id="ou-3" class="abs" style="left:160px; top:760px; width:1600px">
-      <div style="font-size:34px; font-weight:800; letter-spacing:.3em">PAYONPROOF</div>
-      <div class="small" style="margin-top:14px">Cardano preprod · x402 · Masumi escrow · Sokosumi &nbsp;×&nbsp; API3 AirnodeHub · Base Sepolia &nbsp;·&nbsp; every transaction in this film is real</div>
-      <div class="mono" style="font-size:28px; margin-top:16px; color:#c9c7c1">github.com/Curious-Charlie/tum-blockchain-hackathon</div>
+      <div style="font-size:36px; font-weight:850">PayOn<span class="accent">Proof</span></div>
+      <div class="small" style="margin-top:12px">Cardano preprod · x402 · Masumi escrow · Sokosumi &nbsp;×&nbsp; API3 AirnodeHub · Base Sepolia &nbsp;·&nbsp; every transaction in this film is real</div>
+      <div class="mono" style="font-size:28px; margin-top:14px; color:var(--ink2)">github.com/Curious-Charlie/tum-blockchain-hackathon</div>
     </div>
   </section>
 
   <div id="hud">
-    <div class="wm">PAYONPROOF<b>.</b></div>
+    <div class="wm">PayOn<b>Proof</b></div>
     <div id="chain"><i></i><span id="chainText"></span></div>
+    <div id="stepper"></div>
+    <div id="sideTest">API3 STRESS TEST · FORGED RATES</div>
     <div id="bars"></div>
     <div id="sceneLabel"></div>
-    <div id="bpm">128 BPM · REAL TESTNET TRANSACTIONS</div>
+    <div id="foot">REAL TESTNET TRANSACTIONS</div>
   </div>
   <div id="flash"></div>
   <div id="redflash"></div>
   <div id="grain"></div>
-  <div id="vignette"></div>
   <div id="fade"></div>
 </div>
 
 <script>
-const BEAT = 60 / 128, BAR = 4 * BEAT, BARS = 56;
+const BEAT = 60 / 120, BAR = 4 * BEAT, BARS = 64;
 const at = (bar, beat = 0) => bar * BAR + beat * BEAT;
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const prog = (t, a, d) => clamp((t - a) / d);
@@ -304,7 +355,7 @@ const $ = (id) => document.getElementById(id);
 const hash = (n) => { const x = Math.sin(n * 12.9898) * 43758.5453; return x - Math.floor(x); };
 
 /** Shows `el` from a to b (seconds) with an entrance; returns its visibility 0..1. */
-function vis(el, t, a, b, kind = "up", din = 0.45, dout = 0.3) {
+function vis(el, t, a, b, kind = "up", din = 0.5, dout = 0.35) {
   if (typeof el === "string") el = $(el);
   if (t < a || t > b + dout) { el.style.visibility = "hidden"; el.style.opacity = 0; return 0; }
   el.style.visibility = "visible";
@@ -312,44 +363,49 @@ function vis(el, t, a, b, kind = "up", din = 0.45, dout = 0.3) {
   el.style.opacity = i * (1 - o);
   const base = el.dataset.base || "";
   let tr = "";
-  if (kind === "up") tr = `translateY(${(1 - i) * 46 - o * 24}px)`;
-  else if (kind === "left") tr = `translateX(${(1 - i) * 160}px)`;
-  else if (kind === "right") tr = `translateX(${-(1 - i) * 160}px)`;
+  if (kind === "up") tr = `translateY(${(1 - i) * 40 - o * 20}px)`;
+  else if (kind === "left") tr = `translateX(${(1 - i) * 140}px)`;
+  else if (kind === "right") tr = `translateX(${-(1 - i) * 140}px)`;
   else if (kind === "scale") tr = `scale(${0.92 + 0.08 * i})`;
-  else if (kind === "slam") tr = `scale(${1 + (1 - eo(prog(t, a, 0.22))) * 0.5})`;
-  else if (kind === "tilt") tr = `perspective(1600px) rotateX(${(1 - i) * 18}deg) translateY(${(1 - i) * 80}px)`;
+  else if (kind === "slam") tr = `scale(${1 + (1 - eo(prog(t, a, 0.25))) * 0.4})`;
+  else if (kind === "tilt") tr = `perspective(1600px) rotateX(${(1 - i) * 14}deg) translateY(${(1 - i) * 70}px)`;
   if (kind === "clip") { el.style.clipPath = `inset(-20px ${(1 - i) * 100}% -20px 0)`; tr = ""; }
   if (kind === "slam") el.style.opacity = (t < a + 0.02 ? 0 : 1) * (1 - o);
   el.style.transform = `${tr} ${base}`;
   return i * (1 - o);
 }
-function type(el, text, t, t0, cps = 34) {
+function type(el, text, t, t0, cps = 30) {
   if (typeof el === "string") el = $(el);
   const n = clamp(Math.floor((t - t0) * cps), 0, text.length);
   el.textContent = text.slice(0, n);
   el.classList.toggle("caret", n < text.length || Math.floor((t - t0) * 2.2) % 2 === 0);
 }
 function sceneOn(id, t, fromBar, toBar) {
-  const on = t >= at(fromBar) - 0.05 && t < at(toBar) + 0.4;
+  const on = t >= at(fromBar) - 0.05 && t < at(toBar) + 0.45;
   $(id).style.display = on ? "block" : "none";
   return on;
 }
-const hasKick = (bar, beat) => ((bar >= 4 && bar < 36) || (bar >= 38 && bar < 52)) && !(bar === 43 && beat >= 2) && !(bar === 19 && beat === 3);
+const hasKick = (bar, beat) => ((bar >= 4 && bar < 36) || (bar >= 38 && bar < 60)) && !(bar === 43 && beat >= 2) && !(bar === 13 && beat === 3) && !(bar === 19 && beat === 3);
 const GLITCHES = [at(38), at(39), at(40), at(41)];
 
 // HUD
-const SCENES = [[0, "01 · HOOK"], [4, "02 · THE PROBLEM"], [12, "03 · ONE SENTENCE, ONE ORDER"], [20, "04 · BUYER CHOOSES A KEEPER"], [28, "05 · SIGNED DATA, CHECKED ON CHAIN"], [36, "06 · TAMPER TEST"], [44, "07 · PAID ON PROOF"], [52, "08"]];
-const CHAIN = [[0, ""], [4, "THE PROBLEM"], [12, "SOKOSUMI · TUM-HACKATHON WORKSPACE"], [14, "OFF CHAIN · CLAUDE + CODE"], [18, "BASE SEPOLIA · INVOICE ESCROW"], [20, "CARDANO PREPROD · x402 QUOTES"], [24, "CARDANO PREPROD · MASUMI ESCROW"], [28, "API3 · NODARY AIRNODE"], [30, "BASE SEPOLIA · x402 · AIRNODEHUB"], [31, "BASE SEPOLIA · INVOICE ESCROW"], [44, "CARDANO PREPROD · MASUMI ESCROW"], [47, "SOKOSUMI · TASK COMPLETED"], [49, "BUSINESS MODEL"], [52, ""]];
+const SCENES = [[0, "HOOK"], [4, "THE PROBLEM"], [10, "THE FLOW"], [14, "STEP BY STEP · REAL TRANSACTIONS"], [36, "API3 TAMPER TEST"], [44, "STEP BY STEP · REAL TRANSACTIONS"], [52, "SOKOSUMI"], [56, "BUSINESS MODEL"], [60, ""]];
+const CHAIN = [[0, ""], [4, "THE PROBLEM"], [10, "HOW IT WORKS"], [14, "SOKOSUMI · TUM-HACKATHON WORKSPACE"], [16, "OFF CHAIN · CLAUDE + CODE"], [18, "BASE SEPOLIA · INVOICE ESCROW"], [20, "CARDANO PREPROD · x402 QUOTES"], [24, "CARDANO PREPROD · MASUMI ESCROW"], [28, "API3 · NODARY AIRNODE"], [29.5, "BASE SEPOLIA · x402 · AIRNODEHUB"], [31, "BASE SEPOLIA · INVOICE ESCROW"], [36, "BASE SEPOLIA · TAMPER TEST"], [44, "CARDANO PREPROD · MASUMI ESCROW"], [52, "SOKOSUMI"], [56, "BUSINESS MODEL"], [60, ""]];
 $("bars").innerHTML = Array.from({ length: BARS }, () => "<span></span>").join("");
 const barEls = [...$("bars").children];
-const pick = (list, bar) => list.filter(([b]) => bar >= b).at(-1)[1];
+const pick = (list, x) => list.filter(([b]) => x >= b).at(-1)[1];
+
+// Step tracker: which step is current, by bar.
+const STEPS = ["Task", "Order locked", "Keeper hired", "Fee in escrow", "Rate checked", "Supplier paid", "Proof on chain", "Fee released"];
+$("stepper").innerHTML = STEPS.map((s, i) => `<div class="st" id="st${i}"><i>${i + 1}</i>${s}</div>`).join("");
+const STEP_AT = [[0, -1], [14, 0], [16, 1], [20, 2], [24, 3], [28, 4], [31, 5], [44, 6], [48, 7], [52, 8]];
 
 // JSON of the real Nodary response (fetched for this film), and the four forgeries.
 const RESP = { airnode: "0xE70f1e8b22a21e4Bb5188918a3033341b281E4c0", requestHash: "0x5ccc3aa98c84e0929a84c28f3fe16c2a89b2e58965b487b5580af40be401d3d0", timestamp: "1793412967", data: '{"price":1.116325,"updatedAt":1793394164506}', signature: "0xadb868bd6bf31cd1fdb391093bb7e77f…5bf80b43ae7d34bb7d5b1b" };
 const FORGE = [
   { cap: "1 · A real response, one value edited.", err: "NotSignedByAirnode(0x3851…8f00)", set: { data: '{"price":1.016325,"updatedAt":1793394164506}' }, bad: ["data"] },
   { cap: "2 · A real response, but too old.", err: "ResponseTooOld(1793355665)", set: { timestamp: "1793355665" }, bad: ["timestamp"] },
-  { cap: "3 · A real, fresh response, for another request (BTC/USD).", err: "NotSignedByAirnode(0x2150…2f72)", set: { requestHash: "0x78094ba4768ebdadb2012f2de22e779ce0992ecc290ebab208233addaaef106a", timestamp: "1793413049", data: '{"price":77401.04,"updatedAt":1793413049167}', signature: "0x1a3350d58578427d763f88d56c2560b5…bea207af4b72891b7a9e75ff1c" }, bad: ["requestHash", "data", "signature"] },
+  { cap: "3 · A real, fresh response for BTC/USD.", err: "NotSignedByAirnode(0x2150…2f72)", set: { requestHash: "0x78094ba4768ebdadb2012f2de22e779ce0992ecc290ebab208233addaaef106a", timestamp: "1793413049", data: '{"price":77401.04,"updatedAt":1793413049167}', signature: "0x1a3350d58578427d763f88d56c2560b5…bea207af4b72891b7a9e75ff1c" }, bad: ["requestHash", "data", "signature"] },
   { cap: "4 · Signed by another key.", err: "NotSignedByAirnode(0xb837…C12c)", set: { signature: "0x8c41f0a2d9e7731b5e0c9f44a1d6b8e2…from key 0xb8378a66…C12c" }, bad: ["signature"] },
 ];
 function jsonHtml(over = {}, bad = []) {
@@ -363,133 +419,173 @@ function jsonHtml(over = {}, bad = []) {
 const PTS = Array.from({ length: 81 }, (_, i) => {
   const x = i / 80;
   const v = 1.136 + 0.006 * Math.sin(x * 9.1) + 0.004 * Math.sin(x * 23.7 + 1.3) + (hash(i) - 0.5) * 0.004 - 0.02 * Math.pow(x, 6);
-  return [x * 1600, 150 + (v - 1.13) * -9000];
+  return [x * 1600, 130 + (v - 1.13) * -9000];
 });
 
-window.render = function render(t) {
-  const bar = Math.floor(t / BAR), beatF = (t - bar * BAR) / BEAT, beat = Math.floor(beatF);
+// Flow diagram: node centers and the eight numbered steps.
+const C = { team: [250, 560], agent: [710, 560], keeper: [1290, 560], invoice: [1000, 310], masumi: [1000, 820], supplier: [1670, 310] };
+const EDGE = (a, b, ax, ay, bx, by) => [C[a][0] + ax, C[a][1] + ay, C[b][0] + bx, C[b][1] + by];
+const FLOW = [
+  { e: EDGE("team", "agent", 170, 0, -170, 0), text: "A team posts the invoice as a Task on Sokosumi" },
+  { e: EDGE("agent", "invoice", 60, -60, -110, 60), text: "Lena's agent locks the invoice money" },
+  { e: EDGE("agent", "keeper", 170, 0, -170, 0), text: "It hires a Keeper, paid over x402" },
+  { e: EDGE("agent", "masumi", 60, 60, -110, -60), text: "The Keeper's fee goes into Masumi escrow" },
+  { e: EDGE("keeper", "invoice", -60, -60, 110, 60), text: "The Keeper brings an API3-signed rate" },
+  { e: EDGE("invoice", "supplier", 170, 0, -170, 0), text: "The contract checks it and pays the supplier" },
+  { e: EDGE("keeper", "masumi", -60, 60, 110, -60), text: "The Keeper proves the payment: a result hash" },
+  { e: [C.masumi[0] + 170, C.masumi[1] + 10, C.keeper[0] + 130, C.keeper[1] + 60], text: "After the dispute window, its fee is released", curve: true },
+];
+$("fl-arrows").innerHTML = FLOW.map((f, i) => {
+  const [x1, y1, x2, y2] = f.e;
+  const d = f.curve ? `M${x1},${y1} Q${x2 + 40},${y1} ${x2},${y2}` : `M${x1},${y1} L${x2},${y2}`;
+  const mx = f.curve ? (x1 + x2) / 2 + 60 : (x1 + x2) / 2, my = f.curve ? (y1 + y2) / 2 + 30 : (y1 + y2) / 2;
+  return `<g id="fa${i}" opacity="0"><path d="${d}" fill="none" stroke="#1f4bff" stroke-width="4" marker-end="url(#ah)"/><circle cx="${mx}" cy="${my}" r="22" fill="#1f4bff"/><text class="fl-n" x="${mx}" y="${my + 8}" text-anchor="middle">${i + 1}</text></g>`;
+}).join("");
+const FLOW_AT = (i) => at(10, 1) + i * BEAT * 1.75;
 
-  // ---- global: beat flash, grid drift, grain, HUD
+window.render = function render(t) {
+  const bar = Math.floor(t / BAR), beatF = (t - bar * BAR) / BEAT, beat = Math.floor(beatF), barF = t / BAR;
+
+  // ---- global: beat pulse, grid drift, grain, HUD
   const kickNow = hasKick(bar, beat) ? t - at(bar, beat) : 99;
-  const pulse = Math.exp(-kickNow / 0.11);
-  $("flash").style.opacity = (0.075 * pulse).toFixed(3);
-  $("stage").style.transform = `scale(${1 + 0.0035 * pulse})`;
-  $("grid").style.backgroundPosition = `${-t * 14}px ${-t * 6}px`;
-  $("glow").style.transform = `translate(${Math.sin(t * 0.21) * 220}px, ${Math.cos(t * 0.17) * 120}px)`;
+  const pulse = Math.exp(-kickNow / 0.12);
+  $("flash").style.opacity = (0.018 * pulse).toFixed(3);
+  $("stage").style.transform = `scale(${1 + 0.0025 * pulse})`;
+  $("grid").style.backgroundPosition = `${-t * 12}px ${-t * 5}px`;
+  $("glow").style.transform = `translate(${Math.sin(t * 0.2) * 220}px, ${Math.cos(t * 0.16) * 120}px)`;
   const f = Math.floor(t * 30);
   $("grain").style.transform = `translate(${Math.floor(hash(f) * 300)}px, ${Math.floor(hash(f + 7) * 300)}px)`;
   let red = 0;
-  for (const g of GLITCHES) if (t >= g) red = Math.max(red, 0.32 * Math.exp(-(t - g) / 0.16));
+  for (const g of GLITCHES) if (t >= g) red = Math.max(red, 0.22 * Math.exp(-(t - g) / 0.18));
   $("redflash").style.opacity = red.toFixed(3);
 
-  const hudOn = t >= at(4) && t < at(52);
-  $("hud").style.opacity = hudOn ? 1 : 0;
-  $("sceneLabel").textContent = pick(SCENES, bar);
-  const chain = pick(CHAIN, bar);
+  $("hud").style.opacity = t >= at(4) && t < at(60) ? 1 : 0;
+  $("sceneLabel").textContent = pick(SCENES, barF);
+  const chain = pick(CHAIN, barF);
   $("chainText").textContent = chain;
   $("chain").style.opacity = chain ? 1 : 0;
   barEls.forEach((el, i) => { el.className = i < bar ? "on" : i === bar ? "now" : ""; });
-  $("fade").style.opacity = clamp((t - 103.2) / 1.8).toFixed(3);
+  $("fade").style.opacity = clamp((t - (BARS * BAR - 1.8)) / 1.8).toFixed(3);
 
-  // ---- 01 HOOK
+  // step tracker
+  const stepOn = t >= at(14) - 0.2 && t < at(56);
+  $("stepper").style.opacity = stepOn ? Math.min(1, (t - at(14) + 0.2) / 0.5) : 0;
+  const cur = pick(STEP_AT, barF);
+  STEPS.forEach((_, i) => { $(`st${i}`).className = `st ${i < cur ? "done" : i === cur ? "now" : ""}`; });
+  $("sideTest").style.opacity = t >= at(36) && t < at(44) ? 1 : 0;
+
+  // ---- HOOK
   if (sceneOn("s-hook", t, 0, 4)) {
     vis("hk1", t, 0.2, at(3, 2), "up", 0.01, 0.4);
-    type("hk1", "Your agent is about to pay €400.", t, 0.35, 15);
+    type("hk1", "Your agent is about to pay €400.", t, 0.35, 14);
     vis("hk2", t, at(2, 0), at(3, 2), "up");
     vis("hk3", t, at(2, 2), at(3, 2), "up");
     vis("hk4", t, at(3, 0), at(3, 2), "up");
-    const g = t > at(3, 2) ? (hash(f) - 0.5) * 30 : 0;
-    for (const id of ["hk1", "hk2", "hk3", "hk4"]) $(id).dataset.base = `translateX(${g}px)`;
   }
 
-  // ---- 02 PROBLEM
-  if (sceneOn("s-problem", t, 4, 12)) {
+  // ---- PROBLEM
+  if (sceneOn("s-problem", t, 4, 10)) {
     vis("pr-title", t, at(4), at(5, 2), "slam", 0.3, 0.35);
-    vis("pr-l1", t, at(5, 3), at(11, 3), "up");
-    vis("pr-l2", t, at(6, 0), at(11, 3), "up");
-    vis("pr-l3", t, at(6, 2), at(11, 3), "up");
-    vis("pr-s1", t, at(7, 0), at(11, 3), "left");
-    vis("pr-s2", t, at(7, 2), at(11, 3), "left");
-    if (vis("pr-chart", t, at(8, 0), at(11, 3), "up") > 0) {
-      const p = clamp((t - at(8)) / (at(11, 2) - at(8)));
+    vis("pr-l1", t, at(5, 3), at(9, 3), "up");
+    vis("pr-l2", t, at(6, 0), at(9, 3), "up");
+    vis("pr-l3", t, at(6, 2), at(9, 3), "up");
+    vis("pr-s1", t, at(6, 3), at(9, 3), "left");
+    vis("pr-s2", t, at(7, 1), at(9, 3), "left");
+    if (vis("pr-chart", t, at(7, 2), at(9, 3), "up") > 0) {
+      const p = clamp((t - at(7, 2)) / (at(9, 2) - at(7, 2)));
       const n = Math.max(2, Math.floor(p * (PTS.length - 1)) + 1);
       const pts = PTS.slice(0, n);
       $("pr-path").setAttribute("d", "M" + pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L"));
       const [x, y] = pts.at(-1);
       $("pr-dot").setAttribute("cx", x); $("pr-dot").setAttribute("cy", y);
-      $("pr-dot").setAttribute("fill", y > 150 ? "#c8ff2e" : "#edebe6");
     }
-    vis("pr-l4", t, at(9, 2), at(11, 3), "up");
+    vis("pr-l4", t, at(8, 2), at(9, 3), "up");
   }
 
-  // ---- 03 ORDER
-  if (sceneOn("s-order", t, 12, 20)) {
-    vis("or-lab", t, at(12, 0), at(15, 3), "up");
-    vis("or-bubble", t, at(12, 0), at(15, 3), "up");
-    vis("or-lab2", t, at(14, 0), at(15, 3), "up");
-    vis("or-card", t, at(14, 0), at(15, 3), "up", 0.2);
+  // ---- FLOW AT A GLANCE
+  if (sceneOn("s-flow", t, 10, 14)) {
+    vis("fl-h", t, at(10, 0), at(13, 3), "up");
+    vis("flow", t, at(10, 0), at(13, 3), "up", 0.3);
+    ["team", "agent", "keeper", "invoice", "masumi", "supplier"].forEach((n, i) => vis(`fn-${n}`, t, at(10, 0) + i * 0.08, at(13, 3), "scale", 0.35));
+    let shown = -1;
+    FLOW.forEach((_, i) => {
+      const on = t >= FLOW_AT(i);
+      $(`fa${i}`).setAttribute("opacity", on ? (0.25 + 0.75 * clamp((t - FLOW_AT(i)) / 0.3)).toFixed(2) : "0");
+      if (on) shown = i;
+    });
+    // The newest arrow is full strength; older ones settle back.
+    FLOW.forEach((_, i) => { if (i < shown) $(`fa${i}`).setAttribute("opacity", "0.55"); });
+    if (shown >= 0) $("fl-cap").innerHTML = `<span class="n">${shown + 1}</span>${FLOW[shown].text}`;
+    vis("fl-cap", t, FLOW_AT(0), at(13, 3), "up", 0.3);
+  }
+
+  // ---- 1–2 TASK, ORDER
+  if (sceneOn("s-order", t, 14, 20)) {
+    vis("or-h1", t, at(14, 0), at(15, 3), "up");
+    vis("or-sok", t, at(14, 1), at(15, 3), "tilt");
+    vis("or-sub1", t, at(14, 3), at(15, 3), "up");
+    vis("or-h2", t, at(16, 0), at(17, 3), "up");
+    vis("or-card", t, at(16, 0), at(17, 3), "up", 0.2);
     for (let i = 0; i < 5; i++) {
-      vis(`or-r${i}`, t, at(14, 0) + i * BEAT * 0.5, at(15, 3), "clip", 0.3);
-      vis(`or-c${i}`, t, at(15, 0) + i * BEAT * 0.25, at(15, 3), "right", 0.2);
+      vis(`or-r${i}`, t, at(16, 0.5) + i * BEAT * 0.4, at(17, 3), "clip", 0.3);
+      vis(`or-c${i}`, t, at(16, 3) + i * BEAT * 0.3, at(17, 3), "right", 0.25);
     }
-    vis("or-m1", t, at(16, 0), at(17, 3), "slam");
-    vis("or-m2", t, at(16, 2), at(17, 3), "slam");
-    vis("or-m3", t, at(17, 0), at(17, 3), "slam");
+    vis("or-sub2", t, at(17, 1), at(17, 3), "up");
+    vis("or-h3", t, at(18, 0), at(19, 3), "up");
     vis("or-lock", t, at(18, 0), at(19, 3), "up");
   }
 
-  // ---- 04 HIRE
+  // ---- 3–4 HIRE
   if (sceneOn("s-hire", t, 20, 28)) {
-    vis("hi-h", t, at(20, 0), at(24, 2), "up");
-    vis("hi-s", t, at(20, 2), at(24, 2), "up");
-    vis("hi-f", t, at(22, 0), at(24, 2), "up");
+    vis("hi-h1", t, at(20, 0), at(23, 3), "up");
+    vis("hi-f", t, at(21, 2), at(23, 3), "up");
     const verdict = [
-      { at: at(23, 2), text: "✗ Swift is cheaper, equally proven", cls: "red", dim: true },
-      { at: at(24, 0), text: "✓ CHOSEN · cheapest proven offer", cls: "lime", dim: false },
-      { at: at(23, 0), text: "✗ over her 3 tUSDM fee limit", cls: "red", dim: true },
+      { at: at(22, 2), text: "✗ Swift is cheaper, equally proven", cls: "bad", dim: true },
+      { at: at(23, 0), text: "✓ CHOSEN · cheapest proven offer", cls: "ok", dim: false },
+      { at: at(22, 0), text: "✗ over her 3 tUSDM fee limit", cls: "bad", dim: true },
     ];
     for (let i = 0; i < 3; i++) {
       const k = $(`hi-k${i}`), v = verdict[i], decided = t >= v.at;
-      vis(k, t, at(21, i), at(24, 2), "left");
+      vis(k, t, at(20, 1 + i * 0.5), at(23, 3), "left");
       $(`hi-v${i}`).textContent = decided ? v.text : "";
       $(`hi-v${i}`).className = `verdict ${v.cls}`;
-      k.style.borderColor = decided ? (v.dim ? "#5a2630" : "#c8ff2e") : "#26262e";
-      k.style.boxShadow = decided && !v.dim ? `0 0 ${60 + 40 * pulse}px rgba(200,255,46,.35)` : "none";
-      if (decided && v.dim) k.style.opacity = Math.min(parseFloat(k.style.opacity), 0.42);
+      k.style.borderColor = decided ? (v.dim ? "#f2c3c1" : "#0e9f6e") : "#e2dfd6";
+      k.style.borderWidth = decided && !v.dim ? "3px" : "1px";
+      k.style.boxShadow = decided && !v.dim ? `0 18px 50px rgba(14,159,110,${0.18 + 0.1 * pulse})` : "0 12px 34px rgba(20,20,20,.06)";
+      if (decided && v.dim) k.style.opacity = Math.min(parseFloat(k.style.opacity), 0.45);
     }
-    vis("hi-n0", t, at(24, 3), at(25, 3), "right");
-    vis("hi-n1", t, at(24, 3), at(25, 3), "left");
-    vis("hi-line", t, at(24, 3), at(25, 3), "clip");
-    if (vis("hi-tok", t, at(25, 0), at(25, 3), "scale", 0.15) > 0) {
-      const p = eio(prog(t, at(25, 0), BEAT * 1.6));
-      $("hi-tok").style.left = `${500 + p * (1420 - 500 - 150)}px`;
+    vis("hi-h2", t, at(24, 0), at(27, 3), "up");
+    vis("hi-n0", t, at(24, 0), at(25, 3), "right");
+    vis("hi-n1", t, at(24, 0), at(25, 3), "left");
+    vis("hi-line", t, at(24, 0), at(25, 3), "clip");
+    if (vis("hi-tok", t, at(24, 2), at(25, 3), "scale", 0.15) > 0) {
+      const p = eio(prog(t, at(24, 2), BEAT * 2));
+      $("hi-tok").style.left = `${540 + p * (1380 - 540 - 140)}px`;
     }
-    vis("hi-c", t, at(25, 1), at(25, 3), "up");
-    vis("hi-p", t, at(26, 0), at(27, 3), "tilt", 0.5);
+    vis("hi-c", t, at(25, 0), at(25, 3), "up");
+    vis("hi-p", t, at(26, 0), at(27, 3), "tilt", 0.55);
   }
 
-  // ---- 05 EXECUTE
+  // ---- 5–6 EXECUTE
   if (sceneOn("s-exec", t, 28, 36)) {
-    vis("ex-lab", t, at(28, 0), at(30, 3), "up");
-    vis("ex-tick", t, at(28, 0), at(30, 3), "up");
-    vis("ex-sig", t, at(28, 1), at(30, 3), "up");
-    $("ex-age").textContent = `${Math.floor(((t - at(28)) % (BAR)) / BAR * 3)} s`;
+    vis("ex-h1", t, at(28, 0), at(30, 3), "up");
+    vis("ex-tick", t, at(28, 1), at(30, 3), "up");
+    vis("ex-sig", t, at(28, 2), at(30, 3), "up");
     $("ex-cyc").textContent = `cycle ${1 + Math.floor(clamp(t - at(28), 0, 99) / BAR)}`;
     vis("ex-ok", t, at(29, 0), at(30, 3), "slam");
-    vis("ex-2nd", t, at(30, 0), at(30, 3), "up");
+    vis("ex-2nd", t, at(29, 2), at(30, 3), "up");
+    vis("ex-h2", t, at(31, 0), at(33, 3), "up");
     vis("ex-chk", t, at(31, 0), at(33, 3), "up", 0.2);
-    for (let i = 0; i < 4; i++) vis(`ex-c${i}`, t, at(31, i), at(33, 3), "clip", 0.35);
-    vis("ex-paid", t, at(33, 2), at(33, 3) + BEAT * 0.9, "slam");
-    vis("ex-p", t, at(34, 0), at(35, 3), "tilt", 0.5);
+    for (let i = 0; i < 4; i++) vis(`ex-c${i}`, t, at(31, 1 + i), at(33, 3), "clip", 0.35);
+    vis("ex-paid", t, at(33, 0), at(33, 3), "slam");
+    vis("ex-p", t, at(34, 0), at(35, 3), "tilt", 0.55);
   }
 
-  // ---- 06 TAMPER
+  // ---- STRESS TEST
   if (sceneOn("s-tamper", t, 36, 44)) {
-    vis("ta-lab", t, at(36, 0), at(41, 3), "up");
-    vis("ta-h1", t, at(36, 0), at(37, 1), "up");
-    vis("ta-h2", t, at(36, 2), at(37, 1), "up");
-    vis("ta-json", t, at(36, 3), at(41, 3), "up");
-    // Forgery k is shown from bar 37+k-1 beat 2, rejected on bar 37+k.
+    vis("ta-h", t, at(36, 0), at(41, 3), "up");
+    vis("ta-real", t, at(36, 1), at(37, 1), "up");
+    vis("ta-json", t, at(37, 0), at(41, 3), "up");
     let k = -1;
     for (let i = 0; i < 4; i++) if (t >= at(37 + i, 2)) k = i;
     if (k >= 0) {
@@ -498,12 +594,12 @@ window.render = function render(t) {
       $("ta-cap").textContent = fg.cap;
       vis("ta-cap", t, at(37 + k, 2), at(38 + k, 2) - 0.001, "up", 0.25, 0.01);
       const rej = at(38 + k);
-      const s = vis("ta-stamp", t, rej, at(38 + k, 2) - 0.001, "slam", 0.25, 0.01);
+      vis("ta-stamp", t, rej, at(38 + k, 2) - 0.001, "slam", 0.25, 0.01);
       $("ta-err").textContent = fg.err;
-      if (s > 0) $("ta-stamp").dataset.base = `translateX(${t - rej < 0.25 ? (hash(f) - 0.5) * 40 : 0}px)`;
+      $("ta-stamp").dataset.base = t - rej < 0.25 ? `translateX(${(hash(f) - 0.5) * 34}px)` : "";
       $("ta-count").textContent = t >= rej ? `${k + 1} / 4 REJECTED` : `${k} / 4 REJECTED`;
       vis("ta-count", t, at(38), at(41, 3), "up");
-      $("ta-json").dataset.base = t >= rej && t - rej < 0.3 ? `translateX(${(hash(f + 3) - 0.5) * 26}px)` : "";
+      $("ta-json").dataset.base = t >= rej && t - rej < 0.3 ? `translateX(${(hash(f + 3) - 0.5) * 22}px)` : "";
     } else {
       $("ta-json").innerHTML = jsonHtml();
       vis("ta-cap", t, 999, 999); vis("ta-stamp", t, 999, 999); vis("ta-count", t, 999, 999);
@@ -514,29 +610,42 @@ window.render = function render(t) {
     vis("ta-last", t, at(43, 0), at(43, 3), "up");
   }
 
-  // ---- 07 PROOF
+  // ---- 7–8 PROOF, RELEASE
   if (sceneOn("s-proof", t, 44, 52)) {
     vis("pf-slam", t, at(44, 0), at(44, 3), "slam", 0.3, 0.25);
-    vis("pf-h", t, at(45, 0), at(47, 1), "up");
-    vis("pf-f", t, at(45, 1), at(47, 1), "up");
-    vis("pf-hash", t, at(45, 2), at(47, 1), "up", 0.1);
+    vis("pf-h1", t, at(45, 0), at(47, 3), "up");
+    vis("pf-f", t, at(45, 1), at(47, 3), "up");
+    vis("pf-hash", t, at(45, 2), at(47, 3), "up", 0.1);
     type("pf-hash", "b86231fc70daf2db932c3f4056bea4bf60c7ab51ab07093f94e5892fd77ad4dd", t, at(45, 2), 52);
-    vis("pf-into", t, at(46, 0), at(47, 1), "up");
-    vis("pf-p", t, at(46, 0), at(47, 1), "tilt", 0.5);
-    vis("pf-r", t, at(46, 1), at(47, 1), "left");
-    vis("pf-sok", t, at(47, 2), at(49, 1), "up");
-    vis("pf-bm", t, at(49, 2), at(51, 3), "up");
-    vis("pf-c0", t, at(49, 2), at(51, 3), "up");
-    vis("pf-c1", t, at(49, 3), at(51, 3), "up");
-    vis("pf-c2", t, at(50, 1), at(51, 3), "up");
-    vis("pf-who", t, at(50, 3), at(51, 3), "up");
+    vis("pf-p", t, at(46, 0), at(47, 3), "tilt", 0.5);
+    vis("pf-chk", t, at(46, 2), at(47, 3), "left");
+    vis("pf-h2", t, at(48, 0), at(51, 3), "up");
+    vis("pf-rel", t, at(48, 1), at(51, 3), "up");
+    vis("pf-r0", t, at(49, 2), at(51, 3), "up");
+    vis("pf-r1", t, at(50, 0), at(51, 3), "up");
   }
 
-  // ---- 08 OUTRO
-  if (sceneOn("s-outro", t, 52, 56)) {
-    vis("ou-1", t, at(52, 0), 999, "up");
-    vis("ou-2", t, at(53, 0), 999, "slam");
-    vis("ou-3", t, at(54, 0), 999, "up");
+  // ---- SOKOSUMI
+  if (sceneOn("s-soko", t, 52, 56)) {
+    vis("so-h", t, at(52, 0), at(55, 3), "up");
+    vis("so-p", t, at(52, 1), at(55, 3), "tilt", 0.5);
+    vis("so-side", t, at(53, 0), at(55, 3), "left");
+  }
+
+  // ---- BUSINESS
+  if (sceneOn("s-biz", t, 56, 60)) {
+    vis("bm-h", t, at(56, 0), at(59, 3), "up");
+    vis("bm-c0", t, at(56, 1), at(59, 3), "up");
+    vis("bm-c1", t, at(56, 3), at(59, 3), "up");
+    vis("bm-c2", t, at(57, 1), at(59, 3), "up");
+    vis("bm-why", t, at(58, 0), at(59, 3), "up");
+  }
+
+  // ---- OUTRO
+  if (sceneOn("s-outro", t, 60, 64)) {
+    vis("ou-1", t, at(60, 0), 999, "up");
+    vis("ou-2", t, at(61, 0), 999, "slam");
+    vis("ou-3", t, at(62, 0), 999, "up");
   }
 };
 window.render(0);

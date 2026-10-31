@@ -50,7 +50,7 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
 /* components */
 .card { background: #121216; border: 1px solid #26262e; border-radius: 20px; }
 .chip { display: inline-block; padding: 10px 22px; border: 1px solid #2c2c34; border-radius: 999px; font-size: 26px; }
-.row { display: grid; grid-template-columns: 260px 1fr 360px; align-items: center; height: 74px; border-bottom: 1px solid #23232a; font-size: 34px; }
+.row { display: grid; grid-template-columns: 260px 1fr 360px; align-items: center; height: 68px; border-bottom: 1px solid #23232a; font-size: 34px; }
 .row .k { font-size: 18px; letter-spacing: .2em; color: var(--muted); font-weight: 600; }
 .row .ok { color: var(--lime); font-size: 22px; letter-spacing: .12em; font-weight: 700; text-align: right; }
 .keeper { width: 500px; height: 330px; padding: 40px 44px; }
@@ -110,7 +110,7 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
       <div class="label">Supplier · Colombia</div><div style="font-size:42px; font-weight:750; margin-top:12px">Café Verde</div><div class="mono" style="font-size:34px; margin-top:8px">INV-17 · €1,000</div>
     </div>
     <div id="pr-s2" class="abs card" style="left:1300px; top:430px; width:460px; padding:30px 36px">
-      <div class="label">Supplier · Brazil</div><div style="font-size:42px; font-weight:750; margin-top:12px">Fazenda Alta</div><div class="mono" style="font-size:34px; margin-top:8px">INV-18 · €400</div>
+      <div class="label">Supplier · Brazil</div><div style="font-size:42px; font-weight:750; margin-top:12px">Fazenda Alta</div><div class="mono" style="font-size:34px; margin-top:8px">INV-20 · €400</div>
     </div>
     <div id="pr-chart" class="abs" style="left:160px; top:600px; width:1600px; height:300px">
       <svg width="1600" height="300" viewBox="0 0 1600 300">
@@ -126,13 +126,18 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
 
   <!-- 03 ORDER -->
   <section class="scene" id="s-order">
-    <div id="or-lab" class="abs label" style="left:160px; top:190px">Lena, to her finance agent</div>
-    <div id="or-bubble" class="abs card" style="left:160px; top:240px; width:1600px; padding:34px 44px; border-radius:28px 28px 28px 6px">
-      <div id="or-text" style="font-size:46px; font-weight:550; line-height:1.3"></div>
+    <div id="or-lab" class="abs label" style="left:160px; top:190px">Lena's team posts a Task on <span class="lime">Sokosumi</span> · to its finance agent, a Sokosumi Coworker</div>
+    <div id="or-bubble" class="abs card" style="left:160px; top:236px; width:1600px; padding:22px 26px; display:flex; gap:34px; align-items:center">
+      <img src="assets/sokosumi-task.jpg" style="width:1020px; display:block; border-radius:10px">
+      <div style="display:flex; flex-direction:column; gap:14px">
+        <span class="chip">→ PayOnProof finance agent</span>
+        <span class="chip">TUM-Hackathon Workspace</span>
+        <span class="chip lime" style="border-color:#4d5f1c">READY</span>
+      </div>
     </div>
-    <div id="or-lab2" class="abs label lime" style="left:160px; top:470px">Claude reads it · code checks every field</div>
-    <div id="or-card" class="abs" style="left:160px; top:520px; width:1600px">
-      <div class="row" id="or-r0"><span class="k">Invoice</span><span class="mono">INV-18</span><span class="ok" id="or-c0">✓ checked by code</span></div>
+    <div id="or-lab2" class="abs label lime" style="left:160px; top:520px">Claude reads it · code checks every field</div>
+    <div id="or-card" class="abs" style="left:160px; top:562px; width:1600px">
+      <div class="row" id="or-r0"><span class="k">Invoice</span><span class="mono">INV-20</span><span class="ok" id="or-c0">✓ checked by code</span></div>
       <div class="row" id="or-r1"><span class="k">Amount</span><span class="mono">€400.00</span><span class="ok" id="or-c1">✓ checked by code</span></div>
       <div class="row" id="or-r2"><span class="k">Payee</span><span>Fazenda Alta (Brazil) <span class="small">· address from her address book, never from the model</span></span><span class="ok" id="or-c2">✓ checked by code</span></div>
       <div class="row" id="or-r3"><span class="k">Limit</span><span class="mono">EUR/USD &lt; 1.13</span><span class="ok" id="or-c3">✓ checked by code</span></div>
@@ -146,7 +151,7 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
       <div class="display mono" style="font-size:190px; margin-top:30px; font-weight:700; letter-spacing:-.04em">452.00 <span class="muted" style="font-size:90px">dUSD</span></div>
       <div class="h2" style="margin-top:30px">locked, payable only to Fazenda Alta.</div>
       <div class="body" style="margin-top:22px">€400 at the 1.13 limit. A Keeper can trigger the payment. It can never redirect it.</div>
-      <div class="small mono" style="margin-top:30px">createOrder · tx 0x0a9754ec8b11…c970b3f7</div>
+      <div class="small mono" style="margin-top:30px">createOrder · tx 0x67770c2220a8…15ab8d66c</div>
     </div>
   </section>
 
@@ -168,11 +173,11 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
       <div class="body" style="margin-top:20px">Paid over x402. Swift can see the money is locked. If nothing is delivered, Lena gets it back.</div>
     </div>
     <div id="hi-p" class="abs proof" style="left:310px; top:150px">
-      <div class="shot" style="height:600px"><div class="iw"><img src="assets/cardanoscan-lock.jpg">
-        <div class="hl" style="left:11.9%; top:25.2%; width:38.5%; height:4.6%"></div>
-        <div class="hl" style="left:53.6%; top:65.6%; width:34.1%; height:13.1%"></div>
+      <div class="shot" style="height:610px"><div class="iw"><img src="assets/cardanoscan-lock.jpg">
+        <div class="hl" style="left:11.8%; top:23.7%; width:38.4%; height:3.8%"></div>
+        <div class="hl" style="left:53.6%; top:61.4%; width:34%; height:12.2%"></div>
       </div></div>
-      <div class="cap"><span>Cardano preprod · cardanoscan</span><b class="mono">1 tUSDM into Masumi escrow · tx 75e46582…97eb5</b></div>
+      <div class="cap"><span>Cardano preprod · cardanoscan</span><b class="mono">1 tUSDM into Masumi escrow · tx d7037485…82fe4</b></div>
     </div>
   </section>
 
@@ -200,11 +205,11 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
       <div class="body" style="margin-top:14px">€400 × 1.11633. The 5.47 dUSD left over goes back to Lena.</div>
     </div>
     <div id="ex-p" class="abs proof" style="left:310px; top:150px">
-      <div class="shot" style="height:548px"><div class="iw"><img src="assets/basescan-execute.jpg">
-        <div class="hl" style="left:30.6%; top:51%; width:5.3%; height:4.2%"></div>
-        <div class="hl" style="left:30.4%; top:87.1%; width:44.4%; height:3.9%"></div>
+      <div class="shot" style="height:577px"><div class="iw"><img src="assets/basescan-execute.jpg">
+        <div class="hl" style="left:30.8%; top:47.8%; width:4.9%; height:3.6%"></div>
+        <div class="hl" style="left:30.8%; top:81.8%; width:42.7%; height:3.6%"></div>
       </div></div>
-      <div class="cap"><span>Base Sepolia · basescan</span><b class="mono">InvoicePaid · tx 0x1758f8f7…4b06e</b></div>
+      <div class="cap"><span>Base Sepolia · basescan</span><b class="mono">InvoicePaid · tx 0x02e505a6…c5316e</b></div>
     </div>
   </section>
 
@@ -238,10 +243,10 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
     <div id="pf-into" class="abs body" style="left:160px; top:480px">→ written into the Masumi escrow on Cardano. Anyone can recheck it against both chains.</div>
     <div id="pf-p" class="abs proof" style="left:160px; top:570px; width:760px">
       <div class="shot" style="height:300px"><div class="iw"><img src="assets/cardanoscan-result.jpg">
-        <div class="hl" style="left:11.9%; top:25.2%; width:38.5%; height:4.6%"></div>
-        <div class="hl" style="left:27.6%; top:82.6%; width:7.8%; height:4.4%"></div>
+        <div class="hl" style="left:11.8%; top:23.7%; width:38.4%; height:3.8%"></div>
+        <div class="hl" style="left:27.8%; top:77.6%; width:7.4%; height:3.8%"></div>
       </div></div>
-      <div class="cap"><span>Result hash on chain</span><b class="mono">tx 5e979434…cc5e</b></div>
+      <div class="cap"><span>Result hash on chain</span><b class="mono">tx b200508e…aa35</b></div>
     </div>
     <div id="pf-r" class="abs" style="left:1000px; top:570px; width:760px">
       <div class="label ada">After Lena's dispute window</div>
@@ -249,6 +254,12 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
       <div class="label red" style="margin-top:44px">Limit never reached (INV-17)</div>
       <div style="font-size:40px; font-weight:700; margin-top:12px; line-height:1.2">Swift authorizes a refund. Lena takes her fee back.</div>
       <div class="small mono" style="margin-top:16px">refund · tx 3a07af8a…fa9a</div>
+    </div>
+    <div id="pf-sok" class="abs" style="left:160px; top:190px; width:1600px">
+      <div class="label lime">Back in the Sokosumi Task · TUM-Hackathon Workspace</div>
+      <div class="h2" style="margin-top:18px">Done, with every link. Follow-up questions answered from the job's facts.</div>
+      <div class="proof" style="margin-top:36px; width:1180px"><div class="shot"><div class="iw"><img src="assets/sokosumi-thread.jpg"></div></div>
+        <div class="cap"><span>Sokosumi · task thread</span><b class="mono">Task 01a19013…0763 · Coworker 01a1900c…ac48</b></div></div>
     </div>
     <div id="pf-bm" class="abs label lime" style="left:160px; top:200px">Business model</div>
     <div id="pf-c0" class="abs col" style="left:160px; top:270px"><div class="k">Who pays</div><div class="v">Small importers and their finance agents.</div><div class="d">Pay suppliers abroad when the rate is right, without a bank's limit order.</div></div>
@@ -263,7 +274,7 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
     <div id="ou-2" class="abs display lime" style="left:160px; top:500px; font-size:150px">Verify it.</div>
     <div id="ou-3" class="abs" style="left:160px; top:760px; width:1600px">
       <div style="font-size:34px; font-weight:800; letter-spacing:.3em">PAYONPROOF</div>
-      <div class="small" style="margin-top:14px">Cardano preprod · x402 · Masumi escrow &nbsp;×&nbsp; API3 AirnodeHub · Base Sepolia &nbsp;·&nbsp; every transaction in this film is real</div>
+      <div class="small" style="margin-top:14px">Cardano preprod · x402 · Masumi escrow · Sokosumi &nbsp;×&nbsp; API3 AirnodeHub · Base Sepolia &nbsp;·&nbsp; every transaction in this film is real</div>
       <div class="mono" style="font-size:28px; margin-top:16px; color:#c9c7c1">github.com/Curious-Charlie/tum-blockchain-hackathon</div>
     </div>
   </section>
@@ -328,7 +339,7 @@ const GLITCHES = [at(38), at(39), at(40), at(41)];
 
 // HUD
 const SCENES = [[0, "01 · HOOK"], [4, "02 · THE PROBLEM"], [12, "03 · ONE SENTENCE, ONE ORDER"], [20, "04 · BUYER CHOOSES A KEEPER"], [28, "05 · SIGNED DATA, CHECKED ON CHAIN"], [36, "06 · TAMPER TEST"], [44, "07 · PAID ON PROOF"], [52, "08"]];
-const CHAIN = [[0, ""], [4, "THE PROBLEM"], [12, "OFF CHAIN · CLAUDE + CODE"], [18, "BASE SEPOLIA · INVOICE ESCROW"], [20, "CARDANO PREPROD · x402 QUOTES"], [24, "CARDANO PREPROD · MASUMI ESCROW"], [28, "API3 · NODARY AIRNODE"], [30, "BASE SEPOLIA · x402 · AIRNODEHUB"], [31, "BASE SEPOLIA · INVOICE ESCROW"], [44, "CARDANO PREPROD · MASUMI ESCROW"], [49, "BUSINESS MODEL"], [52, ""]];
+const CHAIN = [[0, ""], [4, "THE PROBLEM"], [12, "SOKOSUMI · TUM-HACKATHON WORKSPACE"], [14, "OFF CHAIN · CLAUDE + CODE"], [18, "BASE SEPOLIA · INVOICE ESCROW"], [20, "CARDANO PREPROD · x402 QUOTES"], [24, "CARDANO PREPROD · MASUMI ESCROW"], [28, "API3 · NODARY AIRNODE"], [30, "BASE SEPOLIA · x402 · AIRNODEHUB"], [31, "BASE SEPOLIA · INVOICE ESCROW"], [44, "CARDANO PREPROD · MASUMI ESCROW"], [47, "SOKOSUMI · TASK COMPLETED"], [49, "BUSINESS MODEL"], [52, ""]];
 $("bars").innerHTML = Array.from({ length: BARS }, () => "<span></span>").join("");
 const barEls = [...$("bars").children];
 const pick = (list, bar) => list.filter(([b]) => bar >= b).at(-1)[1];
@@ -415,7 +426,6 @@ window.render = function render(t) {
   if (sceneOn("s-order", t, 12, 20)) {
     vis("or-lab", t, at(12, 0), at(15, 3), "up");
     vis("or-bubble", t, at(12, 0), at(15, 3), "up");
-    type("or-text", "Pay Fazenda Alta invoice INV-18, €400, as soon as EUR/USD is under 1.13; deadline November 20.", t, at(12, 1), 40);
     vis("or-lab2", t, at(14, 0), at(15, 3), "up");
     vis("or-card", t, at(14, 0), at(15, 3), "up", 0.2);
     for (let i = 0; i < 5; i++) {
@@ -507,18 +517,19 @@ window.render = function render(t) {
   // ---- 07 PROOF
   if (sceneOn("s-proof", t, 44, 52)) {
     vis("pf-slam", t, at(44, 0), at(44, 3), "slam", 0.3, 0.25);
-    vis("pf-h", t, at(45, 0), at(48, 3), "up");
-    vis("pf-f", t, at(45, 1), at(48, 3), "up");
-    vis("pf-hash", t, at(45, 2), at(48, 3), "up", 0.1);
-    type("pf-hash", "0eba25c031e9ebca96600dc71615a883a96fe41e2d9299975586d464570e6098", t, at(45, 2), 52);
-    vis("pf-into", t, at(46, 0), at(48, 3), "up");
-    vis("pf-p", t, at(46, 0), at(48, 3), "tilt", 0.5);
-    vis("pf-r", t, at(47, 0), at(48, 3), "left");
-    vis("pf-bm", t, at(49, 0), at(51, 3), "up");
-    vis("pf-c0", t, at(49, 0), at(51, 3), "up");
-    vis("pf-c1", t, at(49, 2), at(51, 3), "up");
-    vis("pf-c2", t, at(50, 0), at(51, 3), "up");
-    vis("pf-who", t, at(50, 2), at(51, 3), "up");
+    vis("pf-h", t, at(45, 0), at(47, 1), "up");
+    vis("pf-f", t, at(45, 1), at(47, 1), "up");
+    vis("pf-hash", t, at(45, 2), at(47, 1), "up", 0.1);
+    type("pf-hash", "b86231fc70daf2db932c3f4056bea4bf60c7ab51ab07093f94e5892fd77ad4dd", t, at(45, 2), 52);
+    vis("pf-into", t, at(46, 0), at(47, 1), "up");
+    vis("pf-p", t, at(46, 0), at(47, 1), "tilt", 0.5);
+    vis("pf-r", t, at(46, 1), at(47, 1), "left");
+    vis("pf-sok", t, at(47, 2), at(49, 1), "up");
+    vis("pf-bm", t, at(49, 2), at(51, 3), "up");
+    vis("pf-c0", t, at(49, 2), at(51, 3), "up");
+    vis("pf-c1", t, at(49, 3), at(51, 3), "up");
+    vis("pf-c2", t, at(50, 1), at(51, 3), "up");
+    vis("pf-who", t, at(50, 3), at(51, 3), "up");
   }
 
   // ---- 08 OUTRO

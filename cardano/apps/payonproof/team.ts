@@ -19,7 +19,7 @@ export const KEEPERS = [
 
 const nameOf = (role: string) => roles.find((r) => r.role === role)!.name;
 
-export async function startTeam(options: { evm?: string; x402?: boolean; vanish?: boolean; intervalSec: number; receipts: boolean; crossCheck?: boolean }) {
+export async function startTeam(options: { evm?: string; x402?: boolean; vanish?: boolean; lie?: boolean; intervalSec: number; receipts: boolean; crossCheck?: boolean }) {
   const evm = await connectEvm(options.evm, [...KEEPER_ROLES]);
   const lenaWallet = (await Wallet.load("LENA", nameOf("LENA"))).online(options.x402 ? "hires the Keeper per attempt, pays only on success" : "chooses a Keeper per invoice, locks its fee in Masumi escrow");
   emit({ kind: "task.step", actor: "PayOnProof", message: `Invoice escrow on ${evm.name} ${evm.escrow}: checks Nodary's signature, request, freshness and the limit itself`, link: evm.explorer ? evm.addressLink(evm.escrow) : undefined, linkLabel: "contract on basescan ↗" });
@@ -29,8 +29,8 @@ export async function startTeam(options: { evm?: string; x402?: boolean; vanish?
     const fee = formatAmount(spec.fee.asset, spec.fee.amount);
     const wallet = (await Wallet.load(spec.role, nameOf(spec.role))).online(options.x402
       ? `executes invoice orders on ${evm.name}; ${formatAmount(KEEPER_FEE.asset, KEEPER_FEE.amount)} per success, nothing per failed attempt`
-      : `watches invoice orders and executes them on ${evm.name}; ${fee} per job, locked in Masumi escrow${options.vanish ? " (DEMO: vanishes)" : ""}`);
-    const server = await startKeeper(wallet, evm, { port: spec.port, escrowFee: spec.fee, intervalSec: options.intervalSec, vanish: options.vanish, receipts: options.receipts, crossCheck: options.crossCheck });
+      : `watches invoice orders and executes them on ${evm.name}; ${fee} per job, locked in Masumi escrow${options.vanish ? " (DEMO: vanishes)" : options.lie ? " (DEMO: lies)" : ""}`);
+    const server = await startKeeper(wallet, evm, { port: spec.port, escrowFee: spec.fee, intervalSec: options.intervalSec, vanish: options.vanish, lie: options.lie, receipts: options.receipts, crossCheck: options.crossCheck });
     return { spec, wallet, server };
   }));
   const lena = new LenaAgent(lenaWallet, evm, keepers.map((k) => ({ role: k.spec.role, name: k.wallet.name, url: k.server.url, address: k.wallet.address })));
@@ -70,6 +70,14 @@ export async function finishJob(team: Team, hired: Hired & { invoice: string }, 
   const at = (ms?: number) => (ms ? new Date(ms).toLocaleTimeString([], { hourCycle: "h23" }) : "?");
   if (!job) return { line: `${invoice}: no answer from ${keeper.name}` };
   if (job.status === "result_submitted") {
+    // Before the fee unlocks, Lena checks the result hash against the chains herself.
+    const why = await lena.verifyResult(job, hired.orderId);
+    if (why) {
+      const tx = await lena.dispute(job, why);
+      console.log(`\n${invoice}: ${keeper.name}'s result does not check out (${why}). Dispute: ${EXPLORER_TX}${tx}`);
+      return { job, line: `${invoice}: ${keeper.name}'s result does not check out (${why}); Lena disputed it, so it cannot collect` };
+    }
+    emit({ kind: "task.step", actor: lenaWallet.name, task: job.task, message: `Checked ${keeper.name}'s result hash against ${team.evm.name}: it matches the payment of order ${hired.orderId}` });
     console.log(`\n${job.summary}\n  result hash ${job.resultHash}\n  result tx ${EXPLORER_TX}${job.escrowTx}\n  ${keeper.name} collects from ${at(job.unlockTime)}: npm run escrow -w apps/payonproof -- finish --wait`);
     return { job, line: `${invoice}: executed by ${keeper.name}, result hash in the escrow, fee collectable from ${at(job.unlockTime)}` };
   }

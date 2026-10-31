@@ -32,6 +32,7 @@ export const STATE = { FundsLocked: 0n, ResultSubmitted: 1n, RefundRequested: 2n
 /** vested_pay redeemers: the constructor index of the action. */
 const REDEEMER = {
   withdraw: Data.constr(0n, []),
+  setRefundRequested: Data.constr(1n, []),
   withdrawRefund: Data.constr(3n, []),
   submitResult: Data.constr(5n, []),
   authorizeRefund: Data.constr(6n, []),
@@ -103,6 +104,10 @@ export const submitResultDatum = (lock: Data.Data, resultHashHex: string, seller
 /** AuthorizeRefund: result_hash empty, seller cooldown ≥ upper bound + cooldown, buyer cooldown 0, state RefundAuthorized. */
 export const authorizeRefundDatum = (lock: Data.Data, sellerCooldownTime: bigint) =>
   withFields(lock, { 11: Data.bytearray(""), 16: Data.int(sellerCooldownTime), 17: Data.int(0n), 18: Data.constr(STATE.RefundAuthorized, []) });
+
+/** SetRefundRequested: state (18) Disputed when a result hash is in, else RefundRequested; seller_cooldown_time (16) = 0, buyer_cooldown_time (17) set. */
+export const refundRequestDatum = (lock: Data.Data, hasResult: boolean, buyerCooldownTime: bigint) =>
+  withFields(lock, { 16: Data.int(0n), 17: Data.int(buyerCooldownTime), 18: Data.constr(hasResult ? STATE.Disputed : STATE.RefundRequested, []) });
 
 // ---------------------------------------------------------------- reading the escrow
 
@@ -218,6 +223,31 @@ export async function withdrawRefund(buyer: Wallet, lock: EscrowUtxo): Promise<s
   );
 }
 
+/**
+ * Buyer: dispute before unlock_time. With a result hash in the escrow it moves to
+ * Disputed: the seller can no longer collect, and Masumi's admins settle it.
+ * Without one it moves to RefundRequested.
+ */
+export async function requestRefund(buyer: Wallet, lock: EscrowUtxo): Promise<string> {
+  const d = lock.datum;
+  if (d.buyer.payment.hash !== paymentKeyHash(buyer.address)) throw new Error("Not an escrow of this buyer");
+  if (d.state !== STATE.FundsLocked && d.state !== STATE.ResultSubmitted && d.state !== STATE.Disputed) throw new Error("This escrow cannot be disputed in its state");
+  const now = await tipMs();
+  const from = max(now - 60_000n, ceilToSlotMs(d.buyerCooldownTime));
+  // The validator sees slotStart(to) and requires it before unlock_time.
+  const to = min(now + 300_000n, d.unlockTime - 120_000n);
+  if (to <= now + 30_000n || from >= to) throw new Error("The dispute window has closed (unlock time)");
+  const datum = refundRequestDatum(lock.data, d.resultHash !== "", slotStartMs(to) + COOLDOWN_MS);
+  return buyer.transact((tx) =>
+    tx
+      .collectFrom({ inputs: [lock.utxo], redeemer: REDEEMER.setRefundRequested })
+      .attachScript({ script: paymentScript() })
+      .payToAddress({ address: lock.utxo.address, assets: lock.utxo.assets, autoMinUtxo: true, datum: new InlineDatum.InlineDatum({ data: datum }) })
+      .addSigner({ keyHash: KeyHash.fromHex(paymentKeyHash(buyer.address)) })
+      .setValidity({ from, to }),
+  );
+}
+
 // ---------------------------------------------------------------- checking a lock
 
 /** The Masumi terms the seller signed for a lock (x402 `extra.terms`). */
@@ -259,7 +289,7 @@ export interface EscrowJob {
   seller: string;
   buyer: string;
   /** "vanished" only in demos: the seller took the job and never delivers. */
-  status: "awaiting_lock" | "locked" | "vanished" | "working" | "result_submitted" | "refund_authorized" | "collected" | "refunded" | "failed";
+  status: "awaiting_lock" | "locked" | "vanished" | "working" | "result_submitted" | "refund_authorized" | "disputed" | "collected" | "refunded" | "failed";
   lockTx?: string;
   /** Latest transaction that holds the escrow output. */
   escrowTx?: string;

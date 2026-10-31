@@ -15,7 +15,8 @@
  * Masumi escrow, the spent escrow datum names the Keeper and its state. Still
  * FundsLocked means a no-show (the Keeper took the job and never delivered before
  * the deadline); RefundAuthorized means the Keeper gave the fee back because the
- * condition never held, which is not held against it.
+ * condition never held, which is not held against it. A buyer spending a
+ * ResultSubmitted escrow is a dispute of the Keeper's result.
  *
  * Chain data never changes once confirmed, so every lookup is cached on disk.
  */
@@ -36,6 +37,7 @@ export interface KeeperRecord {
   /** Fees the buyer took back after the deadline (the Keeper never delivered), and fees the Keeper gave back. */
   noShows?: number;
   refundsAuthorized?: number;
+  disputes?: number;
   /** Receipt transaction → what was found. */
   details: { receiptTx: string; invoice: string; network: string; executeTx?: string; result: "verified" | "false" | "unverifiable"; why?: string }[];
 }
@@ -119,6 +121,7 @@ export async function keeperRecord(keeper: { address: string; evmAddress?: Addre
 export interface RefundRecord {
   noShows: number;
   refundsAuthorized: number;
+  disputes: number;
 }
 
 /** Refunds `buyerAddress` took from Masumi escrow (its latest 100 transactions), by the seller's payment key hash. */
@@ -127,12 +130,16 @@ export async function refundsBySeller(buyerAddress: string): Promise<Map<string,
   const bySeller = new Map<string, RefundRecord>();
   for (const { tx_hash: tx } of txs) {
     const utxos = await cached(`cardano-utxos-${tx}`, async () => (await blockfrost<{ inputs: EscrowInput[] }>(`/txs/${tx}/utxos`)) ?? { inputs: [] });
-    for (const input of (utxos.inputs as EscrowInput[]).filter((i) => i.address === ESCROW_ADDRESS && i.inline_datum && !i.collateral)) {
+    const inputs = utxos.inputs as EscrowInput[];
+    // Only transactions the buyer signed (its input or collateral): a seller's collect pays the buyer's deposit back, so it lists the buyer too.
+    if (!inputs.some((i) => i.address === buyerAddress)) continue;
+    for (const input of inputs.filter((i) => i.address === ESCROW_ADDRESS && i.inline_datum && !i.collateral)) {
       const view = parseMasumiLockDatum(Data.fromCBORHex(input.inline_datum!));
       if (!view || view.buyer.payment.hash !== paymentKeyHash(buyerAddress)) continue;
-      if (view.state !== STATE.FundsLocked && view.state !== STATE.RefundAuthorized) continue;
-      const r = bySeller.get(view.seller.payment.hash) ?? { noShows: 0, refundsAuthorized: 0 };
+      if (view.state !== STATE.FundsLocked && view.state !== STATE.RefundAuthorized && view.state !== STATE.ResultSubmitted) continue;
+      const r = bySeller.get(view.seller.payment.hash) ?? { noShows: 0, refundsAuthorized: 0, disputes: 0 };
       if (view.state === STATE.FundsLocked) r.noShows++;
+      else if (view.state === STATE.ResultSubmitted) r.disputes++;
       else r.refundsAuthorized++;
       bySeller.set(view.seller.payment.hash, r);
     }
@@ -146,10 +153,11 @@ interface EscrowInput {
   collateral?: boolean;
 }
 
-/** Verified executions minus no-shows: what the trial rule and the ranking use. */
-export const proven = (r: KeeperRecord) => r.verified - (r.noShows ?? 0);
+/** Verified executions minus no-shows and disputed results: what the trial rule and the ranking use. */
+export const proven = (r: KeeperRecord) => r.verified - (r.noShows ?? 0) - (r.disputes ?? 0);
 
 export const recordText = (r: KeeperRecord) =>
   `${r.verified} verified execution${r.verified === 1 ? "" : "s"} on chain (${r.receipts} receipt${r.receipts === 1 ? "" : "s"} on Cardano${r.falseReceipts ? `, ${r.falseReceipts} false` : ""}${r.unverifiable ? `, ${r.unverifiable} from a test chain` : ""})` +
   (r.noShows ? `, ${r.noShows} no-show${r.noShows === 1 ? "" : "s"} (fee refunded after the deadline)` : "") +
-  (r.refundsAuthorized ? `, ${r.refundsAuthorized} fee${r.refundsAuthorized === 1 ? "" : "s"} given back` : "");
+  (r.refundsAuthorized ? `, ${r.refundsAuthorized} fee${r.refundsAuthorized === 1 ? "" : "s"} given back` : "") +
+  (r.disputes ? `, ${r.disputes} disputed result${r.disputes === 1 ? "" : "s"}` : "");

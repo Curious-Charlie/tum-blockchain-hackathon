@@ -15,7 +15,9 @@
  * time: `npm run escrow -w apps/payonproof -- finish --wait`). INV-17: the
  * condition never holds within the watch window (--watch minutes), so the Keeper
  * authorizes a refund and Lena takes her fee back at once. --vanish: the Keeper
- * takes the lock and disappears; Lena refunds after the result deadline.
+ * takes the lock and disappears; Lena refunds after the result deadline. --lie:
+ * the Keeper puts a made-up result hash in without paying; Lena checks it against
+ * the EVM chain before the fee unlocks and disputes it in the escrow.
  *
  * x402 mode: Lena's agent hires one Keeper per attempt; a check whose condition
  * is not met answers 409 and its signed fee is never submitted.
@@ -34,6 +36,7 @@ const { values: args } = parseArgs({
     x402: { type: "boolean", default: false }, // per-attempt x402 fees instead of Masumi escrow
     watch: { type: "string", default: "2" }, // escrow: minutes a Keeper watches an order before it gives the fee back
     vanish: { type: "boolean", default: false }, // escrow: the Keepers take the lock and disappear
+    lie: { type: "boolean", default: false }, // escrow: the Keepers claim a payment they never made; Lena disputes
     rounds: { type: "string", default: "2" }, // x402: polling rounds
     interval: { type: "string", default: "12" }, // seconds between checks (Blockfrost budget: keep >= 10)
     evm: { type: "string" }, // base-sepolia | anvil
@@ -43,7 +46,7 @@ const { values: args } = parseArgs({
 });
 
 setApp("payonproof");
-const team = await startTeam({ evm: args.evm, x402: args.x402, vanish: args.vanish, intervalSec: Number(args.interval), receipts: !args["no-receipt"], crossCheck: !args["no-cross-check"] });
+const team = await startTeam({ evm: args.evm, x402: args.x402, vanish: args.vanish, lie: args.lie, intervalSec: Number(args.interval), receipts: !args["no-receipt"], crossCheck: !args["no-cross-check"] });
 const { evm, lena, lenaWallet } = team;
 
 const live = await fetchSignedRate();

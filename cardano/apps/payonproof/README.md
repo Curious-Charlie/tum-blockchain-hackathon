@@ -73,7 +73,7 @@ npm run check -w apps/payonproof -- <receipt tx>     # anyone: check a Keeper's 
 npm run tamper -w apps/payonproof                    # API3 tamper test: 1 valid + 4 rejected responses
 ```
 
-Demo options: `--watch 2` (minutes a Keeper watches before it gives the fee back), `--interval 12` (seconds between checks), `--vanish` (the Keepers take the lock and disappear: refund after the deadline), `--limit-a 1.11 --limit-b 1.13` (defaults: just below and just above the live rate, so both paths show), `--evm base-sepolia|anvil`.
+Demo options: `--watch 2` (minutes a Keeper watches before it gives the fee back), `--interval 12` (seconds between checks), `--vanish` (the Keepers take the lock and disappear: refund after the deadline), `--lie` (the Keepers put a made-up result hash in without paying: Lena checks it against Base Sepolia and disputes it in the escrow), `--limit-a 1.11 --limit-b 1.13` (defaults: just below and just above the live rate, so both paths show), `--evm base-sepolia|anvil`.
 
 Per-attempt mode, kept as an option: `npm run demo -w apps/payonproof -- --x402` hires Keeper Atlas per attempt with a signed 2 tADA fee; a check whose condition is not met answers 409 and the fee is never submitted.
 

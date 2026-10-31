@@ -10,10 +10,10 @@
  *   (`chooseKeeper`). It then locks the chosen Keeper's fee in Masumi escrow
  *   (`hire`), follows the job and withdraws a refund if the Keeper gives up.
  * - Or, with --x402, it hires the Keeper per attempt; a failed attempt costs nothing.
- * - Every payment goes through AgentGuard: payee allowlist = the Keepers,
- *   per-payment, per-invoice and daily caps, audit log, kill switch.
+ * - It signs only the offer it accepted (`payOffer`): the chosen Keeper, its
+ *   quoted price, and for a lock Masumi's escrow contract.
  */
-import { AgentGuard, ESCROW, HAIKU, PaymentBlocked, TUSDM, ada, askJson, emit, formatAmount, limits, sleep, usdm, type Wallet } from "@agentic/core";
+import { ESCROW, HAIKU, PaymentRefused, TUSDM, askJson, emit, formatAmount, payOffer, sleep, usdm, type Amount, type Wallet } from "@agentic/core";
 import { escrowOutputOf, record, withdrawRefund, type EscrowJob } from "@agentic/core/escrow";
 import { choose, getQuote, settlementTx, type Provider, type Quote } from "@agentic/core/market";
 import { keccak256, stringToHex, type Address, type Hex } from "viem";
@@ -55,6 +55,8 @@ const normalize = (text: string) => text.normalize("NFD").replace(/[^\p{L}\p{N}]
 /** A Keeper needs this many verified executions on chain before it gets invoices above the trial size. */
 export const MIN_VERIFIED = 2;
 export const TRIAL_MAX_EUR_CENTS = 250_00n;
+/** The most Lena pays a Keeper to watch and execute one invoice. */
+export const MAX_KEEPER_FEE = usdm(3);
 
 export interface Hired {
   jobId: string;
@@ -63,16 +65,7 @@ export interface Hired {
 }
 
 export class LenaAgent {
-  readonly guard: AgentGuard;
-
-  constructor(readonly wallet: Wallet, readonly evm: Evm, readonly keepers: Provider[]) {
-    this.guard = new AgentGuard(wallet, {
-      maxPerPayment: limits(ada(2), usdm(3)),
-      maxPerTask: limits(ada(2), usdm(3)), // a Keeper can earn one fee per invoice
-      maxPerDay: limits(ada(30), usdm(30)),
-      payees: Object.fromEntries(keepers.map((k) => [k.address, k.name])),
-    });
-  }
+  constructor(readonly wallet: Wallet, readonly evm: Evm, readonly keepers: Provider[]) {}
 
   private step(message: string, task?: string, data?: Record<string, unknown>) {
     emit({ kind: "task.step", actor: this.wallet.name, task, message, data });
@@ -132,16 +125,17 @@ export class LenaAgent {
   }
 
   /**
-   * One paid attempt: "execute order N if its condition holds". The signed fee
-   * settles only if the Keeper answers 200.
+   * One paid attempt: "execute order N if its condition holds", at the Keeper's
+   * per-attempt price. The signed fee settles only if the Keeper answers 200.
    */
-  async attempt(orderId: bigint, task: string, keeperUrl = this.keepers[0]!.url): Promise<{ status: string; body: Record<string, unknown> }> {
+  async attempt(orderId: bigint, task: string, fee: Amount): Promise<{ status: string; body: Record<string, unknown> }> {
+    const keeper = this.keepers[0]!;
     try {
-      const response = await this.guard.fetch(`${keeperUrl}/orders/${orderId}/execute`, { method: "POST" }, { task, purpose: `an execution attempt on ${task}` });
+      const response = await payOffer(this.wallet, { ...keeper, ...fee }, `${keeper.url}/orders/${orderId}/execute`, { method: "POST" }, { task, purpose: `an execution attempt on ${task}` });
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       return { status: String(body.status ?? response.status), body };
     } catch (error) {
-      if (error instanceof PaymentBlocked) return { status: "blocked", body: { reason: error.reason } };
+      if (error instanceof PaymentRefused) return { status: "refused", body: { reason: error.reason } };
       throw error;
     }
   }
@@ -161,12 +155,10 @@ export class LenaAgent {
       const bound = Boolean(profile && profile.cardano === k.address && (await verifyBinding(k.address, profile.evm, profile.binding)));
       records.set(k.role, { ...(await keeperRecord({ address: k.address, evmAddress: bound ? profile!.evm : undefined }, this.evm)), bound });
     }));
-    const cap = this.guard.policy.maxPerPayment[TUSDM] ?? 0n;
-    const left = (this.guard.policy.maxPerTask[TUSDM] ?? 0n) - (this.guard.state(task).spentOnTask[TUSDM] ?? 0n);
     const trial = `€${Number(TRIAL_MAX_EUR_CENTS) / 100}`;
     const { chosen, assessments } = choose(quotes, {
       asset: TUSDM,
-      maxAmount: cap < left ? cap : left,
+      maxAmount: MAX_KEEPER_FEE.amount,
       record: (q) => recordText(records.get(q.role)!),
       check: (q) => {
         const r = records.get(q.role)!;
@@ -183,7 +175,7 @@ export class LenaAgent {
       this.step(`No Keeper is acceptable for ${order.invoiceRef}; nothing is locked`, task, { assessments });
       return undefined;
     }
-    this.step(`Buyer decision: hire ${chosen.name} for ${formatAmount(chosen.asset, chosen.amount)} to watch ${order.invoiceRef} (AgentGuard cap ${formatAmount(TUSDM, cap)} per payment and per invoice); the fee is locked in Masumi escrow until it delivers`, task, { assessments });
+    this.step(`Buyer decision: hire ${chosen.name} for ${formatAmount(chosen.asset, chosen.amount)} to watch ${order.invoiceRef} (Lena pays at most ${formatAmount(TUSDM, MAX_KEEPER_FEE.amount)} per invoice); the fee is locked in Masumi escrow until it delivers`, task, { assessments });
     return chosen;
   }
 
@@ -191,7 +183,7 @@ export class LenaAgent {
   async hire(orderId: bigint, keeper: Quote, task: string, watchMinutes: number): Promise<Hired | undefined> {
     const body: WatchRequest = { task, watchMinutes };
     try {
-      const response = await this.guard.fetch(`${keeper.url}/orders/${orderId}/watch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, { task, purpose: `watching ${task}` });
+      const response = await payOffer(this.wallet, keeper, `${keeper.url}/orders/${orderId}/watch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, { task, purpose: `watching ${task}` });
       if (response.status !== 202) {
         this.step(`${keeper.name} answered HTTP ${response.status}: no lock was made`, task);
         return undefined;
@@ -199,8 +191,8 @@ export class LenaAgent {
       const { jobId } = (await response.json()) as { jobId: string };
       return { jobId, keeper, lockTx: settlementTx(response.headers.get("PAYMENT-RESPONSE")) };
     } catch (error) {
-      if (error instanceof PaymentBlocked) {
-        this.step(`AgentGuard blocked the lock: ${error.reason}`, task);
+      if (error instanceof PaymentRefused) {
+        this.step(`No lock was made: ${error.message}`, task);
         return undefined;
       }
       throw error;

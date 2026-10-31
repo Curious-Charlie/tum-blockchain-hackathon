@@ -18,16 +18,12 @@
  * takes the lock and disappears; Lena refunds after the result deadline.
  *
  * x402 mode: Lena's agent hires one Keeper per attempt; a check whose condition
- * is not met answers 409 and its signed fee is never submitted. --attack adds a
- * look-alike Keeper that AgentGuard refuses to pay.
+ * is not met answers 409 and its signed fee is never submitted.
  */
 import { parseArgs } from "node:util";
-import { generateMnemonic } from "@scure/bip39";
-import { wordlist } from "@scure/bip39/wordlists/english.js";
-import { Address, Client, preprod } from "@evolution-sdk/evolution";
-import { Seller, emit, flushEvents, formatAmount, setApp, sleep, usageSummary, EXPLORER_TX } from "@agentic/core";
+import { emit, flushEvents, formatAmount, setApp, sleep, usageSummary, EXPLORER_TX } from "@agentic/core";
 import { fetchSignedRate, usd } from "./evm.ts";
-import { KEEPER_FEE, KEEPER_PORT } from "./keeper.ts";
+import { KEEPER_FEE } from "./keeper.ts";
 import { ADDRESS_BOOK } from "./lena.ts";
 import { finishJob, hireForInvoice, startTeam } from "./team.ts";
 
@@ -41,7 +37,6 @@ const { values: args } = parseArgs({
     rounds: { type: "string", default: "2" }, // x402: polling rounds
     interval: { type: "string", default: "12" }, // seconds between checks (Blockfrost budget: keep >= 10)
     evm: { type: "string" }, // base-sepolia | anvil
-    attack: { type: "boolean", default: false }, // x402: also show AgentGuard blocking a look-alike Keeper
     "no-receipt": { type: "boolean", default: false }, // skip the Keepers' CIP-20 receipts
     "no-cross-check": { type: "boolean", default: false }, // escrow: execute on Nodary alone, without buying a second rate
   },
@@ -76,19 +71,6 @@ async function escrowRun() {
   return hires.length === instructions.length && results.every((r) => r.job && r.job.status !== "failed") ? 0 : 1;
 }
 
-/** A message in Lena's inbox points her agent at a look-alike Keeper with another payout address. */
-async function impostorAttempt(orderId: bigint, task: string) {
-  const mnemonic = generateMnemonic(wordlist, 256);
-  const address = Address.toBech32(await Client.make(preprod).withSeed({ mnemonic }).address());
-  const impostor = await new Seller({ name: "Look-alike keeper", address }).paid("POST /orders/:id/execute", { price: KEEPER_FEE, description: "Not the real Keeper" }, (_req, res) => {
-    res.json({ status: "executed" });
-  }).listen(KEEPER_PORT + 1);
-  emit({ kind: "task.step", actor: lenaWallet.name, task, message: `Phishing email: "Our keeper moved to ${impostor.url}". The agent tries it…` });
-  const { status, body } = await lena.attempt(orderId, task, impostor.url);
-  emit({ kind: "task.step", actor: lenaWallet.name, task, message: status === "blocked" ? "Nothing was signed or paid: the look-alike's payout address is not the Keeper's" : `Unexpected: ${status} ${JSON.stringify(body)}` });
-  await impostor.close();
-}
-
 /** x402 mode: one Keeper, a signed fee per attempt, settled only on success. */
 async function x402Run() {
   const fee = formatAmount(KEEPER_FEE.asset, KEEPER_FEE.amount);
@@ -106,14 +88,13 @@ async function x402Run() {
     for (const { text } of schedule.filter((i) => i.round === round)) {
       const order = await lena.place(text);
       open.set(order.orderId, { ...order, task: `${order.invoiceRef} #${order.orderId} @${stamp}` });
-      if (args.attack && round === 1) await impostorAttempt(order.orderId, `${order.invoiceRef} #${order.orderId} @${stamp}`);
     }
     if (!open.size) continue;
     emit({ kind: "task.step", actor: lenaWallet.name, message: `Round ${round}/${rounds}: asking the Keeper to execute ${[...open.values()].map((o) => o.invoiceRef).join(", ")} (each attempt carries a signed ${fee} fee)` });
     for (const order of [...open.values()]) {
-      const { status, body } = await lena.attempt(order.orderId, order.task);
+      const { status, body } = await lena.attempt(order.orderId, order.task, KEEPER_FEE);
       results.push({ invoice: order.invoiceRef, status, link: body.link as string | undefined });
-      if (status === "executed" || status === "not_open" || status === "blocked") open.delete(order.orderId);
+      if (status === "executed" || status === "not_open" || status === "refused") open.delete(order.orderId);
     }
   }
 
@@ -123,7 +104,7 @@ async function x402Run() {
   emit({
     kind: executed.length ? "task.done" : "task.failed",
     actor: lenaWallet.name,
-    message: `${results.length} attempts, Lena paid ${formatAmount(KEEPER_FEE.asset, KEEPER_FEE.amount * BigInt(executed.length))}: ${executed.length} executed (fee paid), ${free.length} not executed (no fee). AgentGuard daily total: ${lena.guard.spentToday().join(", ") || "nothing"}. Supplier balances: ${balances.join("; ")}`,
+    message: `${results.length} attempts, Lena paid ${formatAmount(KEEPER_FEE.asset, KEEPER_FEE.amount * BigInt(executed.length))}: ${executed.length} executed (fee paid), ${free.length} not executed (no fee). Supplier balances: ${balances.join("; ")}`,
     data: { results },
   });
   return executed.length ? 0 : 1;
@@ -131,7 +112,7 @@ async function x402Run() {
 
 try {
   process.exitCode = args.x402 ? await x402Run() : await escrowRun();
-  console.log(`\nAudit log: ${lena.guard.auditFile}\nCardano explorer: ${EXPLORER_TX}<hash>\n${usageSummary()}`);
+  console.log(`\nCardano explorer: ${EXPLORER_TX}<hash>\n${usageSummary()}`);
 } catch (error) {
   console.error(error);
   emit({ kind: "task.failed", actor: "PayOnProof", message: `Demo stopped: ${error instanceof Error ? error.message : String(error)}` });

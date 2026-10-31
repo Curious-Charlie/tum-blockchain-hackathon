@@ -17,16 +17,17 @@ Design notes: `docs/DESIGN.md` (§4 D1). Honest limitations: `docs/LIMITATIONS.m
 - **The submission is D1 PayOnProof**, entered in **two tracks: Cardano** ("Agentic Commerce on Cardano") **and API3** ("Any API in your contract"). Decided Fri 17:00; "Trust, but rerun" was dropped.
 - `main` holds D1 (including `api3/`). D5 ReproBounty is archived on `d5/reprobounty` and `archive/d5-main`; D2 CheckedFacts on `d2/checkedfacts`. Don't delete those branches.
 - **Never merge the old D5 `main` into `d1/payonproof`**: it deletes `api3/` and the app (55 files).
-- Judges stress three directions; D1 covers them: **Seller** (Keepers sell jobs over x402), **Buyer** (Lena's agent compares quotes and on-chain records within AgentGuard), **Coworker** (Keeper fee in Masumi escrow, released after delivery).
+- Judges stress three directions; D1 covers them: **Seller** (Keepers sell jobs over x402), **Buyer** (Lena's agent compares quotes and on-chain records, signs only the chosen offer), **Coworker** (Keeper fee in Masumi escrow, released after delivery).
 - API3 bonus: autonomous multi-cycle execution (`autopilot`), and a second signed rate bought over x402 (Frankfurter on AirnodeHub, aUSD) before each execution.
 - Principle: **AI interprets, deterministic checks gate money.** An LLM never decides alone whether a payment settles.
+- **AgentGuard was removed on Sat 10-31** (the user found it 鸡肋): no budgets, allowlist, audit log or kill switch. `payOffer` only checks that a payment is the accepted offer. Don't bring it back.
 - Rejected, don't propose again: a listing-optimizer agent team, the BSV track, a single-design plan.
 
 ## Repository layout
 
 ```
 cardano/        npm workspaces (Cardano side)
-  packages/core/     @agentic/core: wallets, x402 seller kit, Masumi escrow (core/escrow), market (core/market), AgentGuard, CIP-20, dashboard
+  packages/core/     @agentic/core: wallets, x402 seller kit, Masumi escrow (core/escrow), market (core/market), payOffer (core/pay), CIP-20, dashboard
   apps/payonproof/   D1: lena.ts, keeper.ts, records.ts, proof.ts, crosscheck.ts, evm.ts, demo/autopilot/escrow/check/keepers/tamper/deploy
   scripts/           smoke-x402.ts, publish-test.ts
 api3/           Foundry project from the AirnodeHub starter (MIT): InvoiceEscrow, DemoUSD, tests; libs as submodules
@@ -37,19 +38,17 @@ reference/      upstream demos cloned for reading only (gitignored, never edit)
 ### `@agentic/core` in one screen
 
 ```ts
-import { Wallet, AgentGuard, Seller, publish, askJson, emit, ada, usdm, limits, payees, HAIKU } from "@agentic/core";
+import { Wallet, Seller, payOffer, PaymentRefused, publish, askJson, emit, ada, usdm, HAIKU } from "@agentic/core";
 import { confirmLock, submitResult, authorizeRefund, collect, withdrawRefund, escrowOutputOf } from "@agentic/core/escrow";
 import { getQuote, choose, settlementTx } from "@agentic/core/market";
 const me = (await Wallet.load("KEEPER", "Keeper Atlas")).online();          // <ROLE>_MNEMONIC from the app's .env
 const shop = new Seller(me).paid("POST /orders/:id/watch", { price: usdm(2), description: "...", escrow: true }, handler); // escrow: buyer locks into Masumi
 shop.onSettled((settled) => { /* after settlement: escrow lock → confirmLock(me, settled, price) → work → submitResult / authorizeRefund */ });
-const guard = new AgentGuard(me, { maxPerPayment: limits(ada(2), usdm(3)), maxPerTask: limits(usdm(3)), maxPerDay: limits(usdm(30)), payees: payees(keeper) });
-const res = await guard.fetch(url, init, { task: "INV-18", purpose: "..." });  // throws PaymentBlocked when the policy refuses
+const res = await payOffer(me, quote, url, init, { task: "INV-18", purpose: "..." });  // signs only this offer (seller, ≤ amount, asset, Masumi escrow); else throws PaymentRefused
 ```
 
 - `wallet.exclusive()` serializes spending per wallet and waits for the previous tx to confirm (remembered on disk across runs).
 - Escrow jobs are stored per app in `cardano/.cache/escrow/<app>/`. Masumi timing: with the shortest legal deadlines the seller collects 32 min after the quote, a no-show is refundable after 17 min, a seller-authorized refund is immediate. On stage show the lock live and earlier collect transactions.
-- Audit logs: `cardano/.audit/<app>-<role>.jsonl`. Kill switch: `npm run freeze` / dashboard button.
 
 ## Commands
 

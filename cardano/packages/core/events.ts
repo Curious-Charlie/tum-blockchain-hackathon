@@ -15,8 +15,7 @@ export type EventKind =
   | "task.step"
   | "task.done"
   | "task.failed"
-  | "guard.approved" //  AgentGuard let a payment through
-  | "guard.blocked" //   AgentGuard refused a payment
+  | "payment.signed" //  the buyer signed a payment for the offer it accepted
   | "payment.held" //    seller verified a signed payment; it settles only if the work succeeds
   | "payment.settled" // transaction submitted on chain
   | "payment.voided" //  work failed, the signed payment was never submitted
@@ -72,7 +71,7 @@ export function onEvent(listener: (event: AgentEvent) => void): () => void {
 
 const ICON: Record<EventKind, string> = {
   "agent.online": "●", "task.started": "▶", "task.step": "·", "task.done": "✔", "task.failed": "✘",
-  "guard.approved": "🛡", "guard.blocked": "⛔", "payment.held": "⏸", "payment.settled": "₳",
+  "payment.signed": "✍", "payment.held": "⏸", "payment.settled": "₳",
   "payment.voided": "↺", "payment.external": "⇄", "chain.published": "⛓",
 };
 

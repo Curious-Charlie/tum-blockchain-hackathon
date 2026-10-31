@@ -1,12 +1,16 @@
 # Devfolio submission draft
 
-Draft texts for the Devfolio form. Nothing here is submitted automatically.
+Texts for the Devfolio form, one section per field. Nothing here is submitted automatically.
 
 - **Project name:** PayOnProof
 - **Tagline:** Agents that pay invoices on API3-signed FX rates, and get paid only on proof.
 - **Tracks:** Cardano (Agentic Commerce on Cardano), API3 (Any API in your contract)
 - **Repository:** https://github.com/Curious-Charlie/tum-blockchain-hackathon (public at submission)
-- **Demo video:** TBD (must include the API3 tamper test)
+- **Demo video:** TBD: YouTube, unlisted (120 s; includes the API3 tamper test and a paid Masumi escrow job)
+- **Technologies:** Cardano, Masumi, x402, Blockfrost, evolution-sdk, CIP-20, API3 AirnodeHub, Nodary, Base Sepolia, Solidity, Foundry, viem, TypeScript, Node.js, Claude
+- **Pictures** (frames of the demo video, in this order): cover (title card), who it is for, the buyer agent choosing a Keeper, the second signed rate bought over x402 and the execution, the tamper test, business model.
+
+Before submitting: the repository is public, the video link is in this file and in the README, both tracks are selected.
 
 ## The problem it solves
 
@@ -16,13 +20,13 @@ PayOnProof makes each of those impossible or visible:
 
 - The invoice money sits in a contract that pays **only the supplier fixed in the order**, **only on an EUR/USD rate signed by the Nodary Airnode (API3)**, fresh, for exactly that request, and below her limit.
 - The agent that executes the payment (the Keeper) is **paid only on proof**: its fee is locked in Masumi escrow on Cardano and released after it puts a hash of the payment it made into the escrow; if the limit is never reached it gives the fee back.
-- Her own agent **chooses which Keeper to pay** from on-chain records and stays inside AgentGuard's budget.
+- Her own agent **chooses which Keeper to pay** from on-chain records and signs only the offer it chose.
 
 ## How it works
 
 1. Lena writes one sentence: "Pay Fazenda Alta invoice INV-18, €400, when EUR/USD is under 1.13". Claude (Haiku) turns it into an order; code validates every field and takes the supplier's address from her address book, never from the model.
 2. Her agent locks the dollars in `InvoiceEscrow` on Base Sepolia.
-3. It asks three Keepers for a price (their x402 quotes on Cardano preprod), checks each Keeper's proof of which EVM account it executes from and its record (CIP-20 receipts on Cardano, each verified against an `InvoicePaid` event on Base Sepolia), and picks the cheapest acceptable one within AgentGuard's caps. New Keepers start with invoices up to €250. Every reason is shown on the dashboard.
+3. It asks three Keepers for a price (their x402 quotes on Cardano preprod), checks each Keeper's proof of which EVM account it executes from and its record (CIP-20 receipts on Cardano, each verified against an `InvoicePaid` event on Base Sepolia), and picks the cheapest acceptable one within her fee limit (3 tUSDM). New Keepers start with invoices up to €250. Every reason is shown on the dashboard.
 4. It locks the Keeper's fee in Masumi escrow (x402 with `assetTransferMethod: "masumi"`). The Keeper checks the lock against the terms it signed.
 5. The Keeper loops: fetch a Nodary-signed EUR/USD rate, compare it with the limit, and when it holds call `InvoiceEscrow.execute` with the signed response. The contract verifies signer, request hash, response age (≤ 5 min), rate age (≤ 3 days) and the limit, then pays the supplier `€ × rate` and refunds the rest.
 6. The Keeper puts `sha256(execution proof)` into the escrow (SubmitResult), publishes a CIP-20 receipt and collects after Lena's dispute window. If the limit never holds in its watch window it authorizes a refund; if it vanishes, Lena withdraws after the deadline.
@@ -33,7 +37,7 @@ PayOnProof makes each of those impossible or visible:
 ## Cardano
 
 - **Tools:** x402 on preprod (`@x402/cardano`, `@x402/express`, `@x402/fetch`) with an in-process facilitator; Masumi escrow (`vested_pay` payment V2): lock via x402, then SubmitResult, Withdraw, AuthorizeRefund, WithdrawRefund built with evolution-sdk; tUSDM and tADA; CIP-20 transaction metadata for receipts; Blockfrost.
-- **Seller / Buyer / Coworker:** Keepers sell execution jobs over x402; Lena's agent buys within AgentGuard limits after comparing prices and on-chain records; the fee is settled through Masumi escrow only after delivery, with refunds for no delivery.
+- **Seller / Buyer / Coworker:** Keepers sell execution jobs over x402; Lena's agent compares prices and on-chain records in code and signs only the chosen offer; the fee is settled through Masumi escrow only after delivery, with refunds for no delivery.
 - **In the real world:** an SME's finance agent (or an accounting tool) posts invoices; independent Keepers compete on price and record; fees are per executed invoice, nothing for watching. Lena's dollars could be any stablecoin; the payment contract runs on any EVM chain where the supplier is paid.
 - **Business model:** the Keeper charges a fee per executed invoice (here 1–4 tUSDM); a platform can take a share of Keeper fees or charge for the finance agent.
 - **Paid transactions on preprod:** see the [README](../README.md#for-cardano-judges) and the [app README](../cardano/apps/payonproof/README.md#evidence). Fee lock [`adcbd6fc…`](https://preprod.cardanoscan.io/transaction/adcbd6fc3d078d233e1ff462ac90695dd3a394a5c065f77fb8bf22cfd2cad652), result hash [`8d18c05e…`](https://preprod.cardanoscan.io/transaction/8d18c05eca703f424efb687c90a6df182fb1ba6a040b87afbfe72eb6900ec0e2), receipt [`5e5a0eff…`](https://preprod.cardanoscan.io/transaction/5e5a0eff49ab64355fa06eb79e6b0000c82a7a3279de44143a592eb87229bba3), collect after the unlock time [`27572169…`](https://preprod.cardanoscan.io/transaction/275721698939e368cc9bc4ab9be8e295ea351d553c541e17a1fc0d8cbafedb39), refund [`2e0105a5…`](https://preprod.cardanoscan.io/transaction/2e0105a5d83aac9b3ac7509ecdbf933191f7d1e3d1b3e22277862999bfd654b1), per-attempt x402 fee [`22639574…`](https://preprod.cardanoscan.io/transaction/226395746c8076b5e5fd3279cfd6287d525ef2440582459bd8e9283e83e69c7f).

@@ -27,7 +27,7 @@ escrow 自己的代价：
 
 - **发票付款：合约执行。** `InvoiceEscrow` 在同一笔交易里，按 `欧元金额 × 签名汇率` 付给订单里写死的供应商，押金剩下的退给 Lena。Keeper 和 AI 都改不了收款方和金额。
 - **Keeper 的服务费：合约执行，但结果哈希由 Keeper 自己写。** 钱什么时候能动（解锁后领取、授权后或截止后退款）由 Masumi escrow 决定；Keeper 是否真的执行了，靠的是 Keeper 自己写的结果哈希，任何人都能核对，但 escrow 核对不了（见第 2 条）。
-- **没有任何分账由 agent 单独执行。** 除了这两个合约和 AgentGuard 的上限，没有 agent 自己转钱。
+- **没有任何分账由 agent 单独执行。** 除了这两个合约，没有 agent 自己转钱；Lena 的 agent 只签它选中的那个 Keeper 报价，金额不超过报价。
 
 ## 4. Keeper 的信誉从哪里来
 

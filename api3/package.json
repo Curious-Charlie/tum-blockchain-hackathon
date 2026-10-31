@@ -12,6 +12,7 @@
   "scripts": {
     "fetch-response": "node --env-file-if-exists=.env src/fetch-response.ts",
     "payonproof": "node src/payonproof/run.ts",
+    "payonproof:compliance": "node src/payonproof/compliance.ts",
     "payonproof:tamper": "node src/payonproof/tamper.ts",
     "prettier:check": "prettier --check .",
     "prettier:fix": "prettier --write .",
